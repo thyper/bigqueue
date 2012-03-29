@@ -75,10 +75,10 @@ describe("Orchestrator",function(){
     }
 
     beforeEach(function(done){
-        zk.a_create("/bq","",0,function(rc,error,path){    
-            zk.a_create("/bq/clusters","",0,function(rc,error,path){
-                zk.a_create("/bq/clusters/test","",0,function(rc,error,path){
-                   deleteAll(zk,"/bq/clusters/test",function(){
+        deleteAll(zk,"/bq",function(){
+            zk.a_create("/bq","",0,function(rc,error,path){    
+                zk.a_create("/bq/clusters","",0,function(rc,error,path){
+                    zk.a_create("/bq/clusters/test","",0,function(rc,error,path){
                        zk.a_create("/bq/clusters/test/topics","",0,function(rc,error,path){
                             zk.a_create("/bq/clusters/test/nodes","",0,function(rc,error,path){
                                 zk.a_delete_("/bq/clusters/test/nodes/redis1",-1,function(){
