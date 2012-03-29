@@ -6,6 +6,11 @@ var maxBody = 64*1024
 var bqClient
 
 var valid_element_regex=/^(\w|[0-9]){2,50}$/
+
+app.get("/ping",function(req,res){
+  res.end("pong")
+})
+
 app.get("/topics",function(req,res){
     try{
         bqClient.listTopics(function(data){
