@@ -220,6 +220,58 @@ describe("http api",function(){
                 })
             })
         })
+        it("should receive json's as messages and transform it's to string, when the message come back should be as json format",function(done){
+            request({
+                uri:"http://127.0.0.1:8080/topics/testTopic/messages",
+                method:"POST",
+                json:{msg:{test:"message"}}
+            },function(error,response,body){
+                should.exist(response)
+                response.statusCode.should.equal(201)
+                body.should.have.property("id")
+                var postId = body.id
+                request({
+                    uri:"http://127.0.0.1:8080/topics/testTopic/consumerGroups/testConsumer1/messages",
+                    method:"GET",
+                    json:true
+                },function(error,response,body){
+                    should.exist(response)
+                    response.statusCode.should.equal(200)
+                    body.should.have.property("id")
+                    body.should.have.property("msg")
+                    body.id.should.equal(""+postId)
+                    body.msg.should.have.property("test") 
+                    body.msg.test.should.equal("message")
+                    done()
+                })
+            })
+        })
+        it("should return message if the _json property exists and the message is not json",function(done){
+            request({
+                uri:"http://127.0.0.1:8080/topics/testTopic/messages",
+                method:"POST",
+                json:{msg:"testMessage",_json:"true"}
+            },function(error,response,body){
+                should.exist(response)
+                response.statusCode.should.equal(201)
+                body.should.have.property("id")
+                var postId = body.id
+                request({
+                    uri:"http://127.0.0.1:8080/topics/testTopic/consumerGroups/testConsumer1/messages",
+                    method:"GET",
+                    json:true
+                },function(error,response,body){
+                    should.exist(response)
+                    response.statusCode.should.equal(200)
+                    body.should.have.property("id")
+                    body.should.have.property("msg")
+                    body.id.should.equal(""+postId)
+                    body.msg.should.equal("testMessage")
+                    done()
+                })
+            })
+
+        })
         it("should return 204 http status if no data could be getted",function(done){
             request({
                 uri:"http://127.0.0.1:8080/topics/testTopic/consumerGroups/testConsumer1/messages",

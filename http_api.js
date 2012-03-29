@@ -118,7 +118,15 @@ app.post("/topics/:topic/messages",function(req,res){
             var message
             try{
                 message = JSON.parse(data)
- 
+                if(message.msg instanceof Object){
+                    var orig = message.msg
+                    try{
+                        message.msg = JSON.stringify(message.msg) 
+                        message._json="true"
+                    }catch(e){
+                        nessage.msg = orig
+                    }
+                }
             }catch(e){
                 res.json({err:"Error parsing json ["+e+"]"},400)
                 return
@@ -146,10 +154,20 @@ app.get("/topics/:topic/consumerGroups/:consumer/messages",function(req,res){
             if(err){
                 res.json(err,400)
             }else{
-                if(data && data.id)
+                if(data && data.id){
+                    if(data._json == "true"){
+                        var orig = data.msg
+                        try{
+                            data.msg = JSON.parse(orig)
+                        }catch(e){
+                            //Will do nothing because is a parse error
+                            data.msg = orig
+                        }
+                    }
                     res.json(data,200)
-                else
+                }else{
                     res.json({},204)
+                }
             }
         })
     }catch(e){
