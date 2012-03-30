@@ -336,26 +336,26 @@ describe("Big Queue Client",function(){
             bqClient.getConsumerStats("testTopic","testConsumer",function(err,data){
                 should.exist(data)
                 should.not.exist(err)
-                data.should.have.property("failed")
-                data.failed.should.equal(0)
+                data.should.have.property("fails")
+                data.fails.should.equal(0)
                 bqClient.postMessage("testTopic",{msg:"test"},function(err,key){
                     bqClient.getConsumerStats("testTopic","testConsumer",function(err,data){
                         should.exist(data)
                         should.not.exist(err)
-                        data.should.have.property("failed")
-                        data.failed.should.equal(0)
+                        data.should.have.property("fails")
+                        data.fails.should.equal(0)
                         bqClient.getMessage("testTopic","testConsumer",undefined,function(err,msg){
                             bqClient.getConsumerStats("testTopic","testConsumer",function(err,data){
                                 should.exist(data)
                                 should.not.exist(err)
-                                data.should.have.property("failed")
-                                data.failed.should.equal(0)
+                                data.should.have.property("fails")
+                                data.fails.should.equal(0)
                                 bqClient.failMessage("testTopic","testConsumer",msg.id,function(err){
                                     bqClient.getConsumerStats("testTopic","testConsumer",function(err,data){
                                        should.exist(data)
                                        should.not.exist(err)
-                                       data.should.have.property("failed")
-                                       data.failed.should.equal(1)
+                                       data.should.have.property("fails")
+                                       data.fails.should.equal(1)
                                        done()
                                     })
                                 })

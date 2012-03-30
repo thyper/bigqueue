@@ -523,6 +523,84 @@ describe("http api",function(){
         })
     })
 
+    describe("stats",function(){
+        beforeEach(function(done){
+            request({
+                url:"http://127.0.0.1:8080/topics",
+                method:"POST",
+                json:{name:"testTopic"}
+            },function(error,response,body){
+                response.statusCode.should.equal(201)
+                request({
+                    url:"http://127.0.0.1:8080/topics/testTopic/consumerGroups",
+                    method:"POST",
+                    json:{name:"testConsumer1"}
+                },function(error,response,body){
+                    response.statusCode.should.equal(201)
+                    request({
+                        url:"http://127.0.0.1:8080/topics/testTopic/consumerGroups",
+                        method:"POST",
+                        json:{name:"testConsumer2"}
+
+                    },function(error,response,body){
+                        response.statusCode.should.equal(201)
+                        done()
+                    })
+                })
+            }) 
+
+        })
+
+        it("should response the consumer groups stats at /topics/topic/consumerGroups/consumer/stats",function(done){
+            request({
+                uri:"http://127.0.0.1:8080/topics/testTopic/messages",
+                method:"POST",
+                json:{msg:"test"},
+            },function(err,response,body){
+                 request({
+                    uri:"http://127.0.0.1:8080/topics/testTopic/consumerGroups/testConsumer1/stats",
+                    json:true
+                },function(err,response,body){
+                    response.statusCode.should.equal(200)
+                    body.should.have.property("lag")
+                    body.should.have.property("fails")
+                    body.should.have.property("processing")
+                    body.lag.should.equal(1)
+                    body.fails.should.equal(0)
+                    body.processing.should.equal(0)
+                    done()
+                }) 
+            })
+        })
+        it("should response the topic stats at /topics/topic/consumerGroups/consumer/stats",function(done){
+            request({
+                uri:"http://127.0.0.1:8080/topics/testTopic/messages",
+                method:"POST",
+                json:{msg:"test"},
+            },function(err,response,body){
+                 request({
+                    uri:"http://127.0.0.1:8080/topics/testTopic/stats",
+                    json:true
+                },function(err,response,body){
+                    response.statusCode.should.equal(200)
+                    body.length.should.equal(2)
+                    for(var i=0;i<2;i++){
+                        body[i].should.have.property("consumer")
+                        body[i].should.have.property("stats")
+                        body[i].stats.should.have.property("lag")
+                        body[i].stats.should.have.property("fails")
+                        body[i].stats.should.have.property("processing")
+                        body[i].stats.lag.should.equal(1)
+                        body[i].stats.fails.should.equal(0)
+                        body[i].stats.processing.should.equal(0)
+                    }
+                    done()
+                }) 
+            })
+        })
+
+    })
+
     describe("Limits",function(){
         it("should get an error if a posted message have more than 64kb",function(done){
             var b64kb = function(){

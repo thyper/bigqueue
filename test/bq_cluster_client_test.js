@@ -663,6 +663,67 @@ describe("Big Queue Cluster",function(){
         })
 
    })
-   
+
+    describe("#stats",function(done){
+        beforeEach(function(done){
+           bqClient.createTopic("testTopic",function(err){
+               bqClient.createConsumerGroup("testTopic","testConsumer",function(err){
+                  should.not.exist(err)
+                    done()
+               })
+           })
+        })
+        it("should return the stats from all redis clients",function(done){
+            bqClient.getConsumerStats("testTopic","testConsumer",function(err,data){
+                should.not.exist(err)
+                should.exist(data)
+                data.should.have.property("fails")
+                data.should.have.property("processing")
+                data.should.have.property("lag")
+                data.fails.should.equal(0)
+                data.lag.should.equal(0)
+                data.processing.should.equal(0)
+                bqClient.postMessage("testTopic",{msg:"test2"},function(err,key){
+                    bqClient.postMessage("testTopic",{msg:"test2"},function(err,key){
+                        bqClient.getConsumerStats("testTopic","testConsumer",function(err,data){
+                            should.not.exist(err)
+                            should.exist(data)
+                            data.should.have.property("fails")
+                            data.should.have.property("processing")
+                            data.should.have.property("lag")
+                            data.fails.should.equal(0)
+                            data.lag.should.equal(2)
+                            data.processing.should.equal(0)
+                            bqClient.getMessage("testTopic","testConsumer",undefined,function(err,msg){
+                                 bqClient.getConsumerStats("testTopic","testConsumer",function(err,data){
+                                    should.not.exist(err)
+                                    should.exist(data)
+                                    data.should.have.property("fails")
+                                    data.should.have.property("processing")
+                                    data.should.have.property("lag")
+                                    data.fails.should.equal(0)
+                                    data.lag.should.equal(1)
+                                    data.processing.should.equal(1)
+                                    bqClient.failMessage("testTopic","testConsumer",msg.recipientCallback,function(err){
+                                        bqClient.getConsumerStats("testTopic","testConsumer",function(err,data){
+                                            should.not.exist(err)
+                                            should.exist(data)
+                                            data.should.have.property("fails")
+                                            data.should.have.property("processing")
+                                            data.should.have.property("lag")
+                                            data.fails.should.equal(1)
+                                            data.lag.should.equal(1)
+                                            data.processing.should.equal(0)
+                                            done()
+                                        })
+                                    })
+                                })                                  
+                            })
+                        })
+                    })
+                })
+            }) 
+        })
+    })
         
 })

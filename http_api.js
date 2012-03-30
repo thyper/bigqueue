@@ -194,6 +194,59 @@ app.delete("/topics/:topic/consumerGroups/:consumer/messages/:recipientCallback"
 
 })
 
+app.get("/topics/:topic/consumerGroups/:consumer/stats",function(req,res){
+    try{
+        bqClient.getConsumerStats(req.params.topic,req.params.consumer,function(err,data){
+            if(err){
+                res.json({err:""+err},400)
+            }else{
+                res.json(data,200)
+            }
+        })
+    }catch(e){
+        log.err("Error getting the stats for consumer")
+        res.json({err:"Error processing request ["+e+"]"},500)
+    }
+})
+
+app.get("/topics/:topic/stats",function(req,res){
+    try{
+        bqClient.getConsumerGroups(req.params.topic,function(err,consumers){
+            if(err){
+                log.err("Error getting consumer groups for topic ["+topic+"], error: "+err)
+                res.json({err:""+err},400)
+                return
+            }
+            var total=consumers.length
+            var executed=0
+            var data=[]
+            if(total== 0){
+                res.json([],200)
+                return
+            }
+            consumers.forEach(function(consumer){
+                bqClient.getConsumerStats(req.params.topic,consumer,function(err,stats){
+                    if(err){
+                        res.json({err:""+err},400)
+                    }else{
+                        var d = {"consumer":consumer}
+                        d.stats=stats
+                        data.push(d)
+                        executed++
+                    }
+                    //If an error ocurs the executed never will be equals than total
+                    if(executed>=total){
+                        res.json(data,200)
+                    }
+                })
+            })
+        })
+    }catch(e){
+        log.err("Error getting the stats for topic")
+        res.json({err:"Error processing request ["+e+"]"},500)
+    }
+})
+
 exports.startup = function(config){
     if(config.loggerConf){
         app.use(express.logger(config.loggerConf));
