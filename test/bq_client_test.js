@@ -287,17 +287,117 @@ describe("Big Queue Client",function(){
         })
     })
 
-    describe("#getTopicsStats",function(){
-        it("should return the las message id")
-    })    
-
     describe("#getConsumerGroupStats",function(){
-        it("should get the amount of processing messages")
-        it("should get the amount of failed messages")
-        it("should get the amount of unprocess messages")
-        it("should fail if consumer group doesn't exist")
+         beforeEach(function(done){
+            bqClient.createTopic("testTopic",function(err){
+                bqClient.createConsumerGroup("testTopic","testConsumer",function(err){
+                    should.not.exist(err)
+                    done()
+                })
+            })
+        })
+
+        it("should get the amount of processing messages",function(done){
+            bqClient.getConsumerStats("testTopic","testConsumer",function(err,data){
+                should.exist(data)
+                should.not.exist(err)
+                data.should.have.property("processing")
+                data.processing.should.equal(0)
+                bqClient.postMessage("testTopic",{msg:"test"},function(err,key){
+                    bqClient.postMessage("testTopic",{msg:"test"},function(err,key){
+                        bqClient.getConsumerStats("testTopic","testConsumer",function(err,data){
+                            should.exist(data)
+                            should.not.exist(err)
+                            data.should.have.property("processing")
+                            data.processing.should.equal(0)
+                            bqClient.getMessage("testTopic","testConsumer",undefined,function(err,msg){
+                                bqClient.getConsumerStats("testTopic","testConsumer",function(err,data){
+                                    should.exist(data)
+                                    should.not.exist(err)
+                                    data.should.have.property("processing")
+                                    data.processing.should.equal(1)
+                                    bqClient.getMessage("testTopic","testConsumer",undefined,function(err,msg){
+                                        bqClient.getConsumerStats("testTopic","testConsumer",function(err,data){
+                                            should.not.exist(err)
+                                            should.exist(data)
+                                            data.should.have.property("processing")
+                                            data.processing.should.equal(2)
+                                            done()
+                                        })
+                                    })
+                                })
+                            })
+                        })
+                    })
+                })
+            })
+        })
+        it("should get the amount of failed messages",function(done){
+            bqClient.getConsumerStats("testTopic","testConsumer",function(err,data){
+                should.exist(data)
+                should.not.exist(err)
+                data.should.have.property("failed")
+                data.failed.should.equal(0)
+                bqClient.postMessage("testTopic",{msg:"test"},function(err,key){
+                    bqClient.getConsumerStats("testTopic","testConsumer",function(err,data){
+                        should.exist(data)
+                        should.not.exist(err)
+                        data.should.have.property("failed")
+                        data.failed.should.equal(0)
+                        bqClient.getMessage("testTopic","testConsumer",undefined,function(err,msg){
+                            bqClient.getConsumerStats("testTopic","testConsumer",function(err,data){
+                                should.exist(data)
+                                should.not.exist(err)
+                                data.should.have.property("failed")
+                                data.failed.should.equal(0)
+                                bqClient.failMessage("testTopic","testConsumer",msg.id,function(err){
+                                    bqClient.getConsumerStats("testTopic","testConsumer",function(err,data){
+                                       should.exist(data)
+                                       should.not.exist(err)
+                                       data.should.have.property("failed")
+                                       data.failed.should.equal(1)
+                                       done()
+                                    })
+                                })
+                            })
+                        })
+                    })
+                })
+            })
+        })
+        it("should get the amount of unprocess messages",function(done){
+            bqClient.getConsumerStats("testTopic","testConsumer",function(err,data){
+               should.exist(data)
+               should.not.exist(err)
+               data.should.have.property("lag")
+               data.lag.should.equal(0)
+               bqClient.postMessage("testTopic",{msg:"test"},function(err,key){
+                   bqClient.getConsumerStats("testTopic","testConsumer",function(err,data){
+                       should.exist(data)
+                       should.not.exist(err)
+                       data.should.have.property("lag")
+                       data.lag.should.equal(1)
+                       bqClient.getMessage("testTopic","testConsumer",undefined,function(err,msg){
+                           bqClient.getConsumerStats("testTopic","testConsumer",function(err,data){
+                               should.exist(data)
+                               should.not.exist(err)
+                               data.should.have.property("lag")
+                               data.lag.should.equal(0)
+                               done()
+                           })
+                       })
+                   })
+               })
+            })
+        })
+        it("should fail if consumer group doesn't exist",function(done){
+            bqClient.getConsumerStats("testTopic-doesntExist","testConsumer",function(err,data){
+                should.exist(err)
+                done()
+            })
+        })
     })
-    
+   
 
 })
 
