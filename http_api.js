@@ -39,7 +39,7 @@ app.post("/topics",function(req,res){
             bqClient.createTopic(topic.name,function(err){
                 if(err){
                     log.err("Error creating topic ["+log.pretty(err)+"]")
-                    res.json(err,409)
+                    res.json({err:""+err},409)
                 }else{
                     res.json({name:topic.name},201)
                 }
@@ -56,7 +56,7 @@ app.get("/topics/:topic/consumerGroups",function(req,res){
         bqClient.getConsumerGroups(req.params.topic,function(err,data){
             if(err){
                 log.err("Error creating consumer group ["+log.pretty(req.params)+"] ["+log.pretty(err)+"]")
-                res.json(err,400)
+                res.json({err:""+err},400)
             }else{
                 res.json(data,200)
             }
@@ -89,7 +89,7 @@ app.post("/topics/:topic/consumerGroups",function(req,res){
         try{
             bqClient.createConsumerGroup(topic,consumer.name,function(err){
                 if(err){
-                    res.json(err,409)
+                    res.json({err:""+err},409)
                 }else{
                     res.json({name:consumer.name},201)
                 }
@@ -118,15 +118,11 @@ app.post("/topics/:topic/messages",function(req,res){
             var message
             try{
                 message = JSON.parse(data)
-                if(message.msg instanceof Object){
-                    var orig = message.msg
-                    try{
-                        message.msg = JSON.stringify(message.msg) 
-                        message._json="true"
-                    }catch(e){
-                        nessage.msg = orig
+                Object.keys(message).forEach(function(val){
+                    if(message[val] instanceof Object){
+                        message[val] = JSON.stringify(message[val])
                     }
-                }
+                })
             }catch(e){
                 res.json({err:"Error parsing json ["+e+"]"},400)
                 return
@@ -134,7 +130,7 @@ app.post("/topics/:topic/messages",function(req,res){
             try{
                 bqClient.postMessage(req.params.topic,message,function(err,data){
                     if(err){
-                        res.json(err,400)
+                        res.json({err:""+err},400)
                     }else{
                         res.json(data,201)
                     }
@@ -152,18 +148,19 @@ app.get("/topics/:topic/consumerGroups/:consumer/messages",function(req,res){
     try{
         bqClient.getMessage(req.params.topic,req.params.consumer,req.query.visibilityWindow,function(err,data){
             if(err){
-                res.json(err,400)
+                res.json({err:""+err},400)
             }else{
                 if(data && data.id){
-                    if(data._json == "true"){
-                        var orig = data.msg
-                        try{
-                            data.msg = JSON.parse(orig)
-                        }catch(e){
-                            //Will do nothing because is a parse error
-                            data.msg = orig
+                    Object.keys(data).forEach(function(val){
+                        if(data[val].match(/\{.*\}/) || data[val].match(/\[.*\]/)){
+                            var orig = data[val]
+                            try{
+                                data[val] = JSON.parse(data[val])
+                            }catch(e){
+                                //On error do nothing
+                            }
                         }
-                    }
+                    })
                     res.json(data,200)
                 }else{
                     res.json({},204)
@@ -180,7 +177,7 @@ app.delete("/topics/:topic/consumerGroups/:consumer/messages/:recipientCallback"
     try{
         bqClient.ackMessage(req.params.topic,req.params.consumer,req.params.recipientCallback,function(err){
             if(err){
-                res.json(err,404)
+                res.json({err:""+err},404)
             }else{
                 res.json({},204)
             }
