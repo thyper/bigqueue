@@ -250,7 +250,7 @@ var loadApp = function(app){
 exports.startup = function(config){
     var app = express.createServer()
     if(config.loggerConf){
-        app.use(connect.logger(config.loggerConf));
+        app.use(express.logger(config.loggerConf));
     }
     loadApp(app) 
     log.setLevel(config.logLevel || "info")
