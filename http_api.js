@@ -1,5 +1,4 @@
 var express = require('express'),
-    connect = require('connect'),
     log = require('node-logging')
 
 var maxBody = 64*1024
