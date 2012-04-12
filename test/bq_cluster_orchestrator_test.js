@@ -302,5 +302,6 @@ describe("Orchestrator",function(){
             },200)
         })
     })
-
+    it("should not sync removed topics")
+    it("should not sync removed groups")
 })

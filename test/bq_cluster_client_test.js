@@ -2,6 +2,7 @@ var should = require('should'),
     redis = require('redis'),
     ZK = require('zookeeper'),
     bq = require('../lib/bq_client.js'),
+    bj = require("../lib/bq_journal_client_redis.js"),
     bqc = require('../lib/bq_cluster_client.js'),
     log = require('node-logging')
 
@@ -21,6 +22,7 @@ describe("Big Queue Cluster",function(){
     var bqClientConfig = {
         "zkConfig":zkConfig,
         "zkClusterPath":clusterPath,
+        "createJournalClientFunction":bj.createJournalClient,
         "createNodeClientFunction":bq.createClient
     }
 
@@ -29,7 +31,9 @@ describe("Big Queue Cluster",function(){
     var bqClient
     var redisClient1
     var redisClient2
-
+    var journalClient1
+    var journalClient2
+    
     before(function(done){
         log.setLevel("critical")
         redisClient1 = redis.createClient(6379,"127.0.0.1")
@@ -50,6 +54,16 @@ describe("Big Queue Cluster",function(){
             }
         })
     });
+    
+    before(function(done){
+        journalClient1 = bj.createJournalClient({host:"127.0.0.1",port:6379})
+        journalClient1.on("ready",function(){
+            journalClient2 = bj.createJournalClient({host:"127.0.0.1",port:6380})
+            journalClient2.on("ready",function(){
+                done()
+            })
+        })
+    })
     
     beforeEach(function(done){
         redisClient1.flushall(function(err,data){
@@ -100,11 +114,17 @@ describe("Big Queue Cluster",function(){
                     deleteAll(zk,"/bq/clusters/test",function(){
                         zk.a_create("/bq/clusters/test/topics","",0,function(rc,error,path){
                             zk.a_create("/bq/clusters/test/nodes","",0,function(rc,error,path){
-                                zk.a_create("/bq/clusters/test/nodes/redis1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}),0,function(rc,error,path){
-                                    zk.a_create("/bq/clusters/test/nodes/redis2",JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"UP"}),0,function(rc,error,path){
-                                        bqClient = bqc.createClusterClient(bqClientConfig)
-                                        bqClient.on("ready",function(){
-                                            done()
+                                zk.a_create("/bq/clusters/test/journals","",0,function(rc,error,path){
+                                    zk.a_create("/bq/clusters/test/nodes/redis1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"UP", "journals":["j1","j2"]}),0,function(rc,error,path){
+                                        zk.a_create("/bq/clusters/test/nodes/redis2",JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"UP", "journals":["j1","j2"]}),0,function(rc,error,path){
+                                            zk.a_create("/bq/clusters/test/journals/j1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}),0,function(rc,error,path){
+                                                zk.a_create("/bq/clusters/test/journals/j2",JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"UP"}),0,function(rc,error,path){
+                                                    bqClient = bqc.createClusterClient(bqClientConfig)
+                                                    bqClient.on("ready",function(){
+                                                        done()
+                                                    })
+                                                })
+                                            })
                                         })
                                     })
                                 })
@@ -309,33 +329,6 @@ describe("Big Queue Cluster",function(){
                 })
             })
         })
-        it("should cache the data and resend it if a node goes down",function(done){
-            var self = this
-            bqClient.postMessage("testTopic",{msg:"test1"},function(err,key){
-                bqClient.postMessage("testTopic",{msg:"test2"},function(err,key){
-                    redisClient2.get("topics:testTopic:head",function(err,data){
-                        var oldHead = parseInt(data)
-                        should.not.exist(err)
-                        should.exist(key)
-                        zk.a_set("/bq/clusters/test/nodes/redis1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"DOWN"}),-1,function(rc,error,stat){
-                            rc.should.equal(0)
-                            var check =function(){
-                                redisClient2.get("topics:testTopic:head",function(err,data){
-                                    var newHead = parseInt(data)
-                                    if(newHead != oldHead){
-                                        newHead.should.equal(oldHead + 1) 
-                                        done()
-                                    }else{
-                                        process.nextTick(check)
-                                    }
-                                })
-                            }
-                            check()
-                        })
-                    })
-                })
-            })
-        })
         it("should cache the data and resend it if a node is removed",function(done){
             var self = this
             bqClient.postMessage("testTopic",{msg:"test1"},function(err,key){
@@ -362,8 +355,43 @@ describe("Big Queue Cluster",function(){
                     })
                 })
             })
-
         })
+        it("should write to all journals declared for the node",function(done){
+            bqClient.postMessage("testTopic",{msg:"test1"},function(err,key1){
+                bqClient.postMessage("testTopic",{msg:"test2"},function(err,key2){
+                    journalClient1.retrieveMessages("redis1",key1.id,function(err,data){
+                        should.not.exist(err)
+                        should.exist(data)
+                        data.should.have.length(1)
+                        journalClient2.retrieveMessages("redis1",key1.id,function(err,data){
+                            should.not.exist(err)
+                            should.exist(data)
+                            data.should.have.length(1)
+                            journalClient1.retrieveMessages("redis2",key1.id,function(err,data){
+                                should.not.exist(err)
+                                should.exist(data)
+                                data.should.have.length(1)
+                                journalClient2.retrieveMessages("redis2",key1.id,function(err,data){
+                                    should.not.exist(err)
+                                    should.exist(data)
+                                    data.should.have.length(1)
+                                    done()
+                                })
+                            })
+                        })
+                    })
+                })
+            })
+        })
+        it("should return an error if an error ocurrs writing data to the journal",function(done){
+            zk.a_set("/bq/clusters/test/journals/j2",JSON.stringify({"host":"127.0.0.1","port":6381,"errors":0,"status":"UP"}),-1,function(rc, err,stat){
+                bqClient.postMessage("testTopic",{msg:"test1"},function(err,key){
+                    should.exist(err)
+                    done()
+                })
+            })
+        })
+        it("should increase the amount of errors of the failed journal")
     }) 
 
     describe("#getMessage",function(){

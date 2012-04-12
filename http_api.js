@@ -213,7 +213,7 @@ var loadApp = function(app){
         try{
             bqClient.getConsumerGroups(req.params.topic,function(err,consumers){
                 if(err){
-                    log.err("Error getting consumer groups for topic ["+topic+"], error: "+err)
+                    log.err("Error getting consumer groups for topic, error: "+err)
                     res.json({err:""+err},400)
                     return
                 }
