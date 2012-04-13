@@ -34,4 +34,4 @@ end
 -- Set the expire
 redis.call('expire',journalMessageKey,ttl)
 
-return 
+return {ok="wrote"} 

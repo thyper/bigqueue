@@ -2,7 +2,6 @@ local journalName = "journals:"..ARGV[1]
 local idFrom = tonumber(ARGV[2])
 
 local journalHead = journalName..":head"
-
 -- Get the journal head
 head = tonumber(redis.call("get",journalHead))
 if not head then

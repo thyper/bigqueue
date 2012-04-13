@@ -359,19 +359,19 @@ describe("Big Queue Cluster",function(){
         it("should write to all journals declared for the node",function(done){
             bqClient.postMessage("testTopic",{msg:"test1"},function(err,key1){
                 bqClient.postMessage("testTopic",{msg:"test2"},function(err,key2){
-                    journalClient1.retrieveMessages("redis1",key1.id,function(err,data){
+                    journalClient1.retrieveMessages("redis1",1,function(err,data){
                         should.not.exist(err)
                         should.exist(data)
                         data.should.have.length(1)
-                        journalClient2.retrieveMessages("redis1",key1.id,function(err,data){
+                        journalClient2.retrieveMessages("redis1",1,function(err,data){
                             should.not.exist(err)
                             should.exist(data)
                             data.should.have.length(1)
-                            journalClient1.retrieveMessages("redis2",key1.id,function(err,data){
+                            journalClient1.retrieveMessages("redis2",1,function(err,data){
                                 should.not.exist(err)
                                 should.exist(data)
                                 data.should.have.length(1)
-                                journalClient2.retrieveMessages("redis2",key1.id,function(err,data){
+                                journalClient2.retrieveMessages("redis2",1,function(err,data){
                                     should.not.exist(err)
                                     should.exist(data)
                                     data.should.have.length(1)
@@ -383,17 +383,49 @@ describe("Big Queue Cluster",function(){
                 })
             })
         })
-        it("should return an error if an error ocurrs writing data to the journal",function(done){
-            zk.a_set("/bq/clusters/test/journals/j2",JSON.stringify({"host":"127.0.0.1","port":6381,"errors":0,"status":"UP"}),-1,function(rc, err,stat){
-                bqClient.postMessage("testTopic",{msg:"test1"},function(err,key){
-                    should.exist(err)
-                    done()
+       it("should return an error if an error ocurrs writing data to the journal",function(done){
+           zk.a_create("/bq/clusters/test/journals/j3",JSON.stringify({"host":"127.0.0.1","port":6381,"errors":0,"status":"UP"}),0,function(rc, err,stat){
+                zk.a_set("/bq/clusters/test/nodes/redis1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"UP", "journals":["j1","j2","j3"]}),-1,function(rc, err,stat){
+                    zk.a_set("/bq/clusters/test/nodes/redis2",JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"UP", "journals":["j1","j2","j3"]}),-1,function(rc, err,stat){
+                       setTimeout(function(){
+                            bqClient.postMessage("testTopic",{msg:"test1"},function(err,key){
+                                should.exist(err)
+                                done()
+                            })
+                        },500)
+                    })
                 })
             })
         })
-        it("should increase the amount of errors of the failed journal")
-    }) 
+        it("should increase the amount of errors of the failed journal",function(done){
+           zk.a_create("/bq/clusters/test/journals/j3",JSON.stringify({"host":"127.0.0.1","port":6381,"errors":0,"status":"UP"}),0,function(rc, err,stat){
+                zk.a_set("/bq/clusters/test/nodes/redis1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"UP", "journals":["j1","j2","j3"]}),-1,function(rc, err,stat){
+                    zk.a_set("/bq/clusters/test/nodes/redis2",JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"UP", "journals":["j1","j2","j3"]}),-1,function(rc, err,stat){
 
+                        var oldData
+                        zk.aw_get("/bq/clusters/test/journals/j3",function(type,state,path){
+                            zk.a_get(path,false,function(rc,error,stat,data){
+                                var newData = JSON.parse(data)
+                                newData.host.should.equal(oldData.host)
+                                newData.port.should.equal(oldData.port)
+                                done()
+                            }) 
+                        },
+                        function (rc,error,stat,data){
+                            oldData = JSON.parse(data)
+                        })
+                        bqClient = bqc.createClusterClient(bqClientConfig)
+                        bqClient.on("ready",function(){
+                            bqClient.postMessage("testTopic",{msg:"test1"},function(err,key){
+                                bqClient.postMessage("testTopic",{msg:"test2"},function(err,key){
+                                })
+                            })
+                        })
+                    })
+                })
+           })
+       })
+    })
     describe("#getMessage",function(){
         beforeEach(function(done){
             bqClient.createTopic("testTopic",function(err){
