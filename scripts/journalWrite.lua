@@ -25,7 +25,7 @@ if id > head then
 end
 
 -- Transform json to hash table
-message = cjson.decode(jsonMessage)
+local message = cjson.decode(jsonMessage)
 
 for k,v in pairs(message) do
     redis.call('hmset',journalMessageKey,k,v) 

@@ -10,7 +10,7 @@ if not ttl then
     return {err="Ttl for is not set for topic ["..topic.."]"}
 end 
 
-message = cjson.decode(jsonMessage)
+local message = cjson.decode(jsonMessage)
 
 if message["msg"] == nil then
     return {err="Message must contains the msg property"}

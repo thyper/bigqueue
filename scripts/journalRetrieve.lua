@@ -3,7 +3,7 @@ local idFrom = tonumber(ARGV[2])
 
 local journalHead = journalName..":head"
 -- Get the journal head
-head = tonumber(redis.call("get",journalHead))
+local head = tonumber(redis.call("get",journalHead))
 if not head then
     return {err="Journal head not found for ["..journalName.."]"}
 end
