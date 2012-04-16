@@ -22,7 +22,8 @@ var redisLocalhost = {
 var httpApiConfig = {
     "port": 8080,
     "bqConfig": redisLocalhost, 
-    "bqClientCreateFunction": bq.createClient
+    "bqClientCreateFunction": bq.createClient,
+    "logLevel":"info"
 }
 
 //Check for external config

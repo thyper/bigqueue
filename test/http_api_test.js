@@ -617,7 +617,7 @@ describe("http api",function(){
                 headers:{"content-length":msg.length}
             },function(err,response,body){
                 should.not.exist(err)
-                response.statusCode.should.equal(414)
+                response.statusCode.should.equal(413)
                 done()
             })
         })

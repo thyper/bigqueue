@@ -88,8 +88,10 @@ describe("Orchestrator",function(){
                                         zk.a_delete_("/bq/clusters/test/nodes/redis2",-1,function(){
                                             zk.a_create("/bq/clusters/test/nodes/redis1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}),0,function(rc,error,path){
                                                 zk.a_create("/bq/clusters/test/nodes/redis2",JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"UP"}),0,function(rc,error,path){
-                                                    zk.a_create("/bq/clusters/test/journals/j1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"UP","start_date":new Date()}),0,function(rc,error,path){
-                                                        zk.a_create("/bq/clusters/test/journals/j2",JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"UP","start_date":new Date()}),0,function(rc,error,path){
+                                                    zk.a_create("/bq/clusters/test/journals/j1",
+                                                            JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"UP","start_date":new Date()}),0,function(rc,error,path){
+                                                        zk.a_create("/bq/clusters/test/journals/j2",
+                                                                JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"UP","start_date":new Date()}),0,function(rc,error,path){
                                                             done()
                                                         })
                                                     })
@@ -322,6 +324,7 @@ describe("Orchestrator",function(){
                         d.status.should.equal("UP")
                         d.errors.should.equal(0)
                         done()
+                        orch.shutdown()
                     })
                 },500)
             })
@@ -338,13 +341,52 @@ describe("Orchestrator",function(){
                         d.status.should.equal("DOWN")
                         d.errors.should.equal(0)
                         done()
+                        orch.shutdown()
                     })
                 },500)
             }) 
         })
     })
-    it("should check jorunals periodicly for connection problems")
-    it("should put down all nodes related when a down journal")
+    
+    it("should check journals periodicly for connection problems",function(done){
+       zk.a_create("/bq/clusters/test/journals/j3",JSON.stringify({"host":"127.0.0.1","port":6381,"errors":0,"status":"UP","start_date":new Date()}),0,function(rc,error,path){
+           var orch = oc.createOrchestrator(ocConfig)
+           orch.on("ready",function(){
+                setTimeout(function(){
+                    zk.a_get("/bq/clusters/test/journals/j3",false,function(rc,error,stat,data){
+                        should.exist(data)
+                        var d = JSON.parse(data)
+                        d.status.should.equal("DOWN")
+                        d.errors.should.equal(0)
+                        done()
+                        orch.shutdown()
+                    })
+                },500)
+           })
+        })
+    })
+
+    it("should put down all nodes related when a journal goes down",function(done){
+
+        var orch = oc.createOrchestrator(ocConfig)
+        orch.on("ready",function(){
+            zk.a_set("/bq/clusters/test/nodes/redis1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"UP","journals":["j3"]}),-1,function(){
+                zk.a_create("/bq/clusters/test/journals/j3",JSON.stringify({"host":"127.0.0.1","port":6381,"errors":0,"status":"UP","start_date":new Date()}),0,function(rc,error,path){
+                    setTimeout(function(){
+                         zk.a_get("/bq/clusters/test/nodes/redis1",false,function(rc,error,stat,data){
+                            should.exist(data)
+                            var d = JSON.parse(data)
+                            d.status.should.equal("DOWN")
+                            d.errors.should.equal(0)
+                            done()
+                            orch.shutdown()
+                        })
+                    },500)
+                })
+            })
+        })
+    })
+    it("should put a node down if same dependent journal is down")
     it("should re-sink a down datanode that goes up")
     it("should use the oldest journal ")
     it("should reset the up date of a journal when it goes up")
