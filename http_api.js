@@ -131,7 +131,7 @@ var loadApp = function(app){
                             message[val] = JSON.stringify(message[val])
                         }
                     })
-                    timer("[REST-API] Json parsed")
+                    timer("[REST-API] Json keys stringified")
                 }catch(e){
                     res.json({err:"Error parsing json ["+e+"]"},400)
                     return
