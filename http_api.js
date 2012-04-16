@@ -108,6 +108,7 @@ var loadApp = function(app){
     })
 
     app.post("/topics/:topic/messages",function(req,res){
+        var timer = log.startTimer()
         var excedes = false 
         var data = ""
         req.on("data",function(body){
@@ -134,6 +135,7 @@ var loadApp = function(app){
                 }
                 try{
                     bqClient.postMessage(req.params.topic,message,function(err,data){
+                        timer("Posted message throught rest-api")
                         if(err){
                             res.json({err:""+err},400)
                         }else{
@@ -150,6 +152,7 @@ var loadApp = function(app){
     })
 
     app.get("/topics/:topic/consumerGroups/:consumer/messages",function(req,res){
+        var timer = log.startTimer()
         try{
             bqClient.getMessage(req.params.topic,req.params.consumer,req.query.visibilityWindow,function(err,data){
                 if(err){
@@ -166,8 +169,10 @@ var loadApp = function(app){
                                 }
                             }
                         })
+                        timer("Getted message througt web-api")
                         res.json(data,200)
                     }else{
+                        timer("Getted void message throught web-api")
                         res.json({},204)
                     }
                 }

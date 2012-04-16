@@ -80,12 +80,18 @@ describe("Orchestrator",function(){
                 zk.a_create("/bq/clusters","",0,function(rc,error,path){
                     zk.a_create("/bq/clusters/test","",0,function(rc,error,path){
                        zk.a_create("/bq/clusters/test/topics","",0,function(rc,error,path){
-                            zk.a_create("/bq/clusters/test/nodes","",0,function(rc,error,path){
-                                zk.a_delete_("/bq/clusters/test/nodes/redis1",-1,function(){
-                                    zk.a_delete_("/bq/clusters/test/nodes/redis2",-1,function(){
-                                        zk.a_create("/bq/clusters/test/nodes/redis1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}),0,function(rc,error,path){
-                                            zk.a_create("/bq/clusters/test/nodes/redis2",JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"UP"}),0,function(rc,error,path){
-                                                done()
+                           zk.a_create("/bq/clusters/test/journals","",0,function(rc,error,path){
+                                zk.a_create("/bq/clusters/test/nodes","",0,function(rc,error,path){
+                                    zk.a_delete_("/bq/clusters/test/nodes/redis1",-1,function(){
+                                        zk.a_delete_("/bq/clusters/test/nodes/redis2",-1,function(){
+                                            zk.a_create("/bq/clusters/test/nodes/redis1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}),0,function(rc,error,path){
+                                                zk.a_create("/bq/clusters/test/nodes/redis2",JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"UP"}),0,function(rc,error,path){
+                                                    zk.a_create("/bq/clusters/test/journals/j1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"UP","start_date":new Date()}),0,function(rc,error,path){
+                                                        zk.a_create("/bq/clusters/test/journals/j2",JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"UP","start_date":new Date()}),0,function(rc,error,path){
+                                                            done()
+                                                        })
+                                                    })
+                                                })
                                             })
                                         })
                                     })
@@ -302,6 +308,29 @@ describe("Orchestrator",function(){
             },200)
         })
     })
+    
+/**    it("should check the journals status when any event is produced",function(done){
+       var orch = oc.createOrchestrator(ocConfig)
+       orch.on("ready",function(){
+            zk.a_set("/bq/clusters/test/journals/j1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":1,"status":"DOWN","start_date": new Date()}),-1,function(){
+                setTimeout(function(){
+                    zk.a_get("/bq/clusters/test/journals/j1",false,function(rc,error,stat,data){
+                        should.exist(data)
+                        var d = JSON.parse(data)
+                        d.status.should.equal("UP")
+                        d.errors.should.equal(0)
+                        done()
+                    })
+                },500)
+            })
+       })
+    })**/
+    it("should check jorunals periodicly for connection problems")
+    it("should put down all nodes related with a down journal")
+    it("should re-sink a down datanode that goes up")
+    it("should use the oldest journal ")
+    it("should reset the up date of a journal when it goes up")
+
     it("should not sync removed topics")
     it("should not sync removed groups")
 })
