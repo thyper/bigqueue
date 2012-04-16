@@ -120,27 +120,32 @@ var loadApp = function(app){
             }
         })
         req.on("end",function(){
+            timer("[REST-API] Starting post request (after data load)")
             if(!excedes){
                 var message
                 try{
                     message = JSON.parse(data)
+                    timer("[REST-API] Json parsed")
                     Object.keys(message).forEach(function(val){
                         if(message[val] instanceof Object){
                             message[val] = JSON.stringify(message[val])
                         }
                     })
+                    timer("[REST-API] Json parsed")
                 }catch(e){
                     res.json({err:"Error parsing json ["+e+"]"},400)
                     return
                 }
                 try{
+                    timer("[REST-API] Starting data save")
                     bqClient.postMessage(req.params.topic,message,function(err,data){
-                        timer("Posted message throught rest-api")
+                        timer("[REST-API]Posted message receive")
                         if(err){
                             res.json({err:""+err},400)
                         }else{
                             res.json(data,201)
                         }
+                        timer("[REST-API] Post user responsed")
                     })
                 }catch(e){
                     log.err("Error posting message ["+log.pretty(e)+"]",true)
