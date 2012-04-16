@@ -2,6 +2,7 @@ var should = require("should"),
     ZK = require("zookeeper"),
     oc = require("../lib/bq_cluster_orchestrator.js"),
     bq = require("../lib/bq_client.js"),
+    bj = require("../lib/bq_journal_client_redis.js"),
     redis = require("redis"),
     log = require("node-logging")
 
@@ -23,6 +24,7 @@ describe("Orchestrator",function(){
         "zkClustersPath":"/bq/clusters",
         "zkConfig":zkConfig,
         "createNodeClientFunction":bq.createClient,
+        "createJournalClientFunction":bj.createJournalClient,
         "checkInterval":500,
         "logLevel":"critical"
     }
@@ -309,7 +311,7 @@ describe("Orchestrator",function(){
         })
     })
     
-/**    it("should check the journals status when any event is produced",function(done){
+    it("should check the journals status when any event is produced",function(done){
        var orch = oc.createOrchestrator(ocConfig)
        orch.on("ready",function(){
             zk.a_set("/bq/clusters/test/journals/j1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":1,"status":"DOWN","start_date": new Date()}),-1,function(){
@@ -324,9 +326,25 @@ describe("Orchestrator",function(){
                 },500)
             })
        })
-    })**/
+    })
+    it("should put down a journal when it's the node is down",function(done){
+       var orch = oc.createOrchestrator(ocConfig)
+       orch.on("ready",function(){
+            zk.a_create("/bq/clusters/test/journals/j3",JSON.stringify({"host":"127.0.0.1","port":6381,"errors":0,"status":"UP","start_date":new Date()}),0,function(rc,error,path){
+                setTimeout(function(){
+                    zk.a_get("/bq/clusters/test/journals/j3",false,function(rc,error,stat,data){
+                        should.exist(data)
+                        var d = JSON.parse(data)
+                        d.status.should.equal("DOWN")
+                        d.errors.should.equal(0)
+                        done()
+                    })
+                },500)
+            }) 
+        })
+    })
     it("should check jorunals periodicly for connection problems")
-    it("should put down all nodes related with a down journal")
+    it("should put down all nodes related when a down journal")
     it("should re-sink a down datanode that goes up")
     it("should use the oldest journal ")
     it("should reset the up date of a journal when it goes up")
