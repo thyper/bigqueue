@@ -15,7 +15,8 @@ var externalConfig = process.argv[2]
 //Default redis conf
 var redisLocalhost = {
     host:"127.0.0.1",
-    port:6379
+    port:6379,
+    "options":{"command_queue_high_water":5000,"command_queue_low_water":1000}
 }
 
 //Default api conf

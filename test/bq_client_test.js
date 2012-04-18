@@ -30,7 +30,7 @@ describe("Big Queue Client",function(){
             bqClient.createTopic("testTopic",function(err){
                 should.not.exist(err)
                 redisClient.sismember("topics","testTopic",function(err,data){
-                    should.not.exist(err)
+                   should.not.exist(err)
                     data.should.equal(1)
                     done()
                 })

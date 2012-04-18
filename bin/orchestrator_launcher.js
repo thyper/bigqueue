@@ -2,7 +2,8 @@
 
 var ZK = require("zookeeper"),
     oc = require("../lib/bq_cluster_orchestrator.js"),
-    bq = require("../lib/bq_client.js")
+    bq = require("../lib/bq_client.js"),
+    bj = require("../lib/bq_journal_client_redis.js")
 
 var externalConfig = process.argv[2]
 
@@ -17,6 +18,7 @@ var ocConfig = {
     "zkClustersPath":"/bq/clusters",
     "zkConfig":zkConfig,
     "createNodeClientFunction":bq.createClient,
+    "createJournalClientFunction":bj.createJournalClient,
     "checkInterval":2000
 }
 
