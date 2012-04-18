@@ -359,19 +359,19 @@ describe("Big Queue Cluster",function(){
         it("should write to all journals declared for the node",function(done){
             bqClient.postMessage("testTopic",{msg:"test1"},function(err,key1){
                 bqClient.postMessage("testTopic",{msg:"test2"},function(err,key2){
-                    journalClient1.retrieveMessages("redis1",1,function(err,data){
+                    journalClient1.retrieveMessages("redis1","testTopic",1,function(err,data){
                         should.not.exist(err)
                         should.exist(data)
                         data.should.have.length(1)
-                        journalClient2.retrieveMessages("redis1",1,function(err,data){
+                        journalClient2.retrieveMessages("redis1","testTopic",1,function(err,data){
                             should.not.exist(err)
                             should.exist(data)
                             data.should.have.length(1)
-                            journalClient1.retrieveMessages("redis2",1,function(err,data){
+                            journalClient1.retrieveMessages("redis2","testTopic",1,function(err,data){
                                 should.not.exist(err)
                                 should.exist(data)
                                 data.should.have.length(1)
-                                journalClient2.retrieveMessages("redis2",1,function(err,data){
+                                journalClient2.retrieveMessages("redis2","testTopic",1,function(err,data){
                                     should.not.exist(err)
                                     should.exist(data)
                                     data.should.have.length(1)

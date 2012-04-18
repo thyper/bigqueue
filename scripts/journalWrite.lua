@@ -1,7 +1,7 @@
-local journalName = "journals:"..ARGV[1]
-local id = tonumber(ARGV[2])
-local jsonMessage = ARGV[3]
-local ttl = ARGV[4]
+local journalName = "journals:"..ARGV[1]..":"..ARGV[2]
+local id = tonumber(ARGV[3])
+local jsonMessage = ARGV[4]
+local ttl = ARGV[5]
 
 local journalHead = journalName..":head"
 local journalMessageKey = journalName..":messages:"..id

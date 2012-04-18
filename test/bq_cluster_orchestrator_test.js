@@ -367,7 +367,6 @@ describe("Orchestrator",function(){
     })
 
     it("should put down all nodes related when a journal goes down",function(done){
-
         var orch = oc.createOrchestrator(ocConfig)
         orch.on("ready",function(){
             zk.a_set("/bq/clusters/test/nodes/redis1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"UP","journals":["j3"]}),-1,function(){
@@ -386,10 +385,95 @@ describe("Orchestrator",function(){
             })
         })
     })
-    it("should put a node down if same dependent journal is down")
-    it("should re-sink a down datanode that goes up")
-    it("should use the oldest journal ")
-    it("should reset the up date of a journal when it goes up")
+    it("should put a node down if same dependent journal is down",function(done){
+        var orch = oc.createOrchestrator(ocConfig)
+        orch.on("ready",function(){
+            zk.a_create("/bq/clusters/test/journals/j3",JSON.stringify({"host":"127.0.0.1","port":6381,"errors":0,"status":"UP","start_date":new Date()}),0,function(rc,error,path){
+                zk.a_set("/bq/clusters/test/nodes/redis1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"UP","journals":["j3"]}),-1,function(){
+                    setTimeout(function(){
+                         zk.a_get("/bq/clusters/test/nodes/redis1",false,function(rc,error,stat,data){
+                            should.exist(data)
+                            var d = JSON.parse(data)
+                            d.status.should.equal("DOWN")
+                            d.errors.should.equal(0)
+                            done()
+                            orch.shutdown()
+                        })
+                    },500)
+
+                })
+            })
+
+        })
+    })
+
+    it("should re-sink a down datanode that goes up",function(done){
+         zk.a_set("/bq/clusters/test/nodes/redis1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"UP","journals":["j2"]}),-1,function(){
+             var orch = oc.createOrchestrator(ocConfig)
+             orch.on("ready",function(){
+                 zk.a_create("/bq/clusters/test/topics/test2","",0,function(rc,error,path){
+                    zk.a_create("/bq/clusters/test/topics/test2/consumerGroups","",0,function(rc,error,path){
+                        zk.a_create("/bq/clusters/test/topics/test2/consumerGroups/testConsumer","",0,function(rc,error,path){
+                            //Wait for sync
+                            setTimeout(function(){
+                                redisClient1.get("topics:test2:head",function(err,data){
+                                    should.not.exist(data)
+                                    var journal = bj.createJournalClient({"host":"127.0.0.1","port":6380,"errors":0,"status":"UP","start_date":new Date()})
+                                    journal.on("ready",function(){
+                                        journal.write("redis1","test2", 1, {"msg":"test"}, 120,function(){
+                                            journal.write("redis1","test2", 2, {"msg":"test"}, 120,function(){
+                                                zk.a_set("/bq/clusters/test/nodes/redis1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"DOWN","journals":["j2"]}),-1,function(){
+                                                     setTimeout(function(){
+                                                        redisClient1.get("topics:test2:head",function(err,data){
+                                                            data.should.equal(""+2)
+                                                            redisClient1.hgetall("topics:test2:messages:1",function(err,data){
+                                                                should.not.exist(err)
+                                                                should.exist(data)
+                                                                data.msg.should.equal("test") 
+                                                                setTimeout(function(){
+                                                                     zk.a_get("/bq/clusters/test/nodes/redis1",false,function(rc,error,stat,data){
+                                                                        should.exist(data)
+                                                                        var d = JSON.parse(data)
+                                                                        d.status.should.equal("UP")
+                                                                        d.errors.should.equal(0)
+                                                                        done()
+                                                                        orch.shutdown()
+                                                                    })
+                                                                },300)
+                                                            })
+                                                        })
+                                                     },300)
+                                                 })
+                                            })
+                                        })
+                                    })
+                                })
+                            },300)
+                        })
+                    })
+                })
+             })
+        })
+       
+    })
+
+    it("should reset the up date of a journal when it goes up",function(done){
+        var orch = oc.createOrchestrator(ocConfig)
+        orch.on("ready",function(){
+            var date = new Date()
+            zk.a_set("/bq/clusters/test/journals/j2",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"DOWN","start_date":date}),-1,function(){
+                setTimeout(function(){
+                    zk.a_get("/bq/clusters/test/journals/j2",false,function(rc,error,stat,data){
+                        var d = JSON.parse(data)
+                        var newDate = new Date(d.start_date)
+                        newDate.getMilliseconds().should.not.equal(date.getMilliseconds())
+                        done()
+                        orch.shutdown()
+                    })
+                },500)
+            })
+        })
+    })
 
     it("should not sync removed topics")
     it("should not sync removed groups")

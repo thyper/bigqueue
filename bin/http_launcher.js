@@ -1,4 +1,4 @@
-#!/usr/local/bin/node
+#!/usr/local/bin/node --debug
 
 /**
  * Executable to create the http api client

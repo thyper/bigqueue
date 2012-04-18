@@ -1,11 +1,15 @@
-local journalName = "journals:"..ARGV[1]
-local idFrom = tonumber(ARGV[2])
+local journalName = "journals:"..ARGV[1]..":"..ARGV[2]
+local idFrom = tonumber(ARGV[3])
 
 local journalHead = journalName..":head"
 -- Get the journal head
 local head = tonumber(redis.call("get",journalHead))
 if not head then
-    return {err="Journal head not found for ["..journalName.."]"}
+    if idFrom <= 0 then
+        return {}
+    else
+        return {err="Journal head not found for ["..journalName.."]"}
+    end
 end
 
 -- If the required from is grather than the head this journal has not the id's

@@ -398,6 +398,49 @@ describe("Big Queue Client",function(){
         })
     })
    
+    describe("Heads",function(){
+         beforeEach(function(done){
+            bqClient.createTopic("testTopic",function(err){
+                bqClient.createConsumerGroup("testTopic","testConsumer",function(err){
+                    should.not.exist(err)
+                    done()
+                })
+            })
+        })
 
+        it("should response -1 if the head for a topic doesn't exist",function(done){
+            bqClient.getHead("testTopic",function(err,data){
+                should.not.exist(err)
+                data.head.should.equal(-1)
+                done()
+            })
+        })
+        it("should return the head of an specific topic",function(done){
+            bqClient.postMessage("testTopic",{msg:"test"},function(err,data){
+                bqClient.postMessage("testTopic",{msg:"test"},function(err,data){
+                    bqClient.getHead("testTopic",function(err,data){
+                        should.not.exist(err)
+                        data.head.should.equal(""+2)
+                        done()
+                    })
+                })
+            })
+        })
+        it("should return all topic's head",function(done){
+            bqClient.createTopic("testTopic2",function(err){
+                bqClient.postMessage("testTopic",{msg:"test"},function(err,data){
+                    bqClient.postMessage("testTopic",{msg:"test"},function(err,data){
+                        bqClient.getHeads(function(err,data){
+                            should.not.exist(err)
+                            Object.keys(data).length.should.equal(2)
+                            data.testTopic.should.equal("2")
+                            data.testTopic2.should.equal(-1)
+                            done()
+                        })
+                    })
+                })
+            })
+        })
+    })
 })
 

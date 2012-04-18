@@ -1,6 +1,5 @@
 var express = require('express'),
     log = require('node-logging')
-
 var maxBody = "64kb"
 var bqClient
 
@@ -116,7 +115,6 @@ var loadApp = function(app){
             log.err("Error posting message ["+e+"]",true)
             return res.json({err:"Error processing request ["+e+"]"},500)
         }
-
     })
 
     app.get("/topics/:topic/consumerGroups/:consumer/messages",function(req,res){
@@ -220,20 +218,23 @@ var loadApp = function(app){
         }
     })
 }
-exports.startup = function(config){
-    
-    log.setLevel(config.logLevel || "info")
-    
-    var app = express.createServer()
 
-    if(config.loggerConf){
+
+
+exports.startup = function(config){
+    log.setLevel(config.logLevel || "info")
+     
+    var app = express.createServer()
+        if(config.loggerConf){
         log.inf("Using express logger")
         app.use(express.logger(config.loggerConf));
     }
     app.use(express.limit(maxBody));
     app.use(express.bodyParser());
     app.use(express.methodOverride());
+
     app.use(app.router); 
+
     loadApp(app) 
 
     app.listen(config.port)

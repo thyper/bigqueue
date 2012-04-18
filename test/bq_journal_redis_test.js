@@ -27,13 +27,13 @@ describe("Big Queue Redis Journal Client",function(){
 
     describe("#Journal Write",function(){
         it("should receive a message and store into a named journal",function(done){
-            journal.write("testJournal",1,{msg:"testMessage"},undefined,function(err){
+            journal.write("testJournal","testTopic",1,{msg:"testMessage"},undefined,function(err){
                 should.not.exist(err)
-                redisClient.get("journals:testJournal:head",function(err,data){
+                redisClient.get("journals:testJournal:testTopic:head",function(err,data){
                     should.not.exist(err)
                     should.exist(data)
                     data.should.equal("1")
-                    redisClient.hgetall("journals:testJournal:messages:1",function(err,data){
+                    redisClient.hgetall("journals:testJournal:testTopic:messages:1",function(err,data){
                         should.not.exist(err)
                         should.exist(data)
                         data.should.have.keys("msg")
@@ -44,7 +44,7 @@ describe("Big Queue Redis Journal Client",function(){
             })
         })
         it("should return an error if the message can't be stored",function(done){
-            journal.write("testJournal",1,"text is not json",undefined,function(err){
+            journal.write("testJournal","testTopic",1,"text is not json",undefined,function(err){
                 should.exist(err)
                 done()
             })
@@ -53,9 +53,9 @@ describe("Big Queue Redis Journal Client",function(){
 
     describe("#Journal retrive data",function(){
         beforeEach(function(done){
-            journal.write("testJournal",1,{msg:"testMessage"},undefined,function(err){
-                journal.write("testJournal",2,{msg:"testMessage"},undefined,function(err){
-                    journal.write("testJournal",3,{msg:"testMessage"},undefined,function(err){
+            journal.write("testJournal","testTopic",1,{msg:"testMessage"},undefined,function(err){
+                journal.write("testJournal","testTopic",2,{msg:"testMessage"},undefined,function(err){
+                    journal.write("testJournal","testTopic",3,{msg:"testMessage"},undefined,function(err){
                         should.not.exist(err)
                         done()
                     })
@@ -63,7 +63,7 @@ describe("Big Queue Redis Journal Client",function(){
             })
         })
         it("should enable to get the published messages from an id to the end",function(done){
-            journal.retrieveMessages("testJournal",1,function(err,data){
+            journal.retrieveMessages("testJournal","testTopic",1,function(err,data){
                 should.not.exist(err)
                 should.exist(data)
                 data.should.have.length(3)
@@ -75,11 +75,11 @@ describe("Big Queue Redis Journal Client",function(){
             })
         })
         it("should ignore unexistent messages id's",function(done){
-            journal.write("testJournal",10,{msg:"testMessage"},undefined,function(err){
-                redisClient.get("journals:testJournal:head",function(err,data){
+            journal.write("testJournal","testTopic",10,{msg:"testMessage"},undefined,function(err){
+                redisClient.get("journals:testJournal:testTopic:head",function(err,data){
                     should.not.exist(err)
                     data.should.equal(""+10)
-                    journal.retrieveMessages("testJournal",1,function(err,data){
+                    journal.retrieveMessages("testJournal","testTopic",1,function(err,data){
                         should.not.exist(err)
                         should.exist(data)
                         data.should.have.length(4)
@@ -93,10 +93,18 @@ describe("Big Queue Redis Journal Client",function(){
             })
         })
         it("should fail if the last message sent is higher than the last message stored",function(done){
-            journal.retrieveMessages("testJournal",5,function(err,data){
+            journal.retrieveMessages("testJournal","testTopic",5,function(err,data){
                 should.exist(err)
                 done()
             })
+        })
+        it("should return void list if the id required is 0 and doesn't exist",function(done){
+             journal.retrieveMessages("testJournal","testunexistentTopic",0,function(err,data){
+                should.not.exist(err)
+                data.should.have.length(0)
+                done()
+            })
+
         })
     })
 
