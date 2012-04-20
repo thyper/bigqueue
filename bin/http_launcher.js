@@ -10,6 +10,9 @@ var bq = require('../lib/bq_client.js'),
     bqc = require('../lib/bq_cluster_client.js'),
     http_api = require("../http_api.js")
 
+var cluster = require('cluster');
+var http = require('http');
+var numCPUs = require('os').cpus().length;
 var externalConfig = process.argv[2]
 
 //Default redis conf
@@ -37,4 +40,17 @@ if(externalConfig){
 
 //Run config
 console.log("Using config: "+JSON.stringify(config))
-http_api.startup(config)
+if (cluster.isMaster) {
+  // Fork workers.
+  for (var i = 0; i < numCPUs; i++) {
+    cluster.fork();
+  }
+
+  cluster.on('death', function(worker) {
+    console.log('worker ' + worker.pid + ' died');
+    cluster.fork()
+  });
+} else {
+    http_api.startup(config)
+}
+

@@ -329,33 +329,6 @@ describe("Big Queue Cluster",function(){
                 })
             })
         })
-        it("should cache the data and resend it if a node is removed",function(done){
-            var self = this
-            bqClient.postMessage("testTopic",{msg:"test1"},function(err,key){
-                bqClient.postMessage("testTopic",{msg:"test2"},function(err,key){
-                    redisClient2.get("topics:testTopic:head",function(err,data){
-                        var oldHead = parseInt(data)
-                        should.not.exist(err)
-                        should.exist(key)
-                        zk.a_delete_("/bq/clusters/test/nodes/redis1",-1,function(rc,error,stat){
-                            rc.should.equal(0)
-                            var check =function(){
-                                redisClient2.get("topics:testTopic:head",function(err,data){
-                                    var newHead = parseInt(data)
-                                    if(newHead != oldHead){
-                                        newHead.should.equal(oldHead + 1) 
-                                        done()
-                                    }else{
-                                        process.nextTick(check)
-                                    }
-                                })
-                            }
-                            check()
-                        })
-                    })
-                })
-            })
-        })
         it("should write to all journals declared for the node",function(done){
             bqClient.postMessage("testTopic",{msg:"test1"},function(err,key1){
                 bqClient.postMessage("testTopic",{msg:"test2"},function(err,key2){
