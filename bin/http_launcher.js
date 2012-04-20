@@ -45,18 +45,6 @@ if(externalConfig){
 //Run config
 console.log("Using config: "+JSON.stringify(config))
 
-if (cluster.isMaster) {
-  // Fork workers.
-  for (var i = 0; i < numCPUs; i++) {
-    cluster.fork();
-  }
-
-  cluster.on('death', function(worker) {
-    console.log('worker ' + worker.pid + ' died');
-    http_api.startup(config)
-  });
-} else {
   // Worker processes have a http server.
-  http_api.startup(config)
-}
+http_api.startup(config)
 
