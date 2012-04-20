@@ -14,7 +14,7 @@ end
 
 -- If the required from is grather than the head this journal has not the id's
 if head < idFrom then
-    return {err="Head bigest than the if required"}
+    return {}
 end
 
 local msgs = {}

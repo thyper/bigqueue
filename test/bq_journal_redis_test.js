@@ -92,9 +92,10 @@ describe("Big Queue Redis Journal Client",function(){
                 })
             })
         })
-        it("should fail if the last message sent is higher than the last message stored",function(done){
+        it("should return void list if the last message sent is higher than the last message stored",function(done){
             journal.retrieveMessages("testJournal","testTopic",5,function(err,data){
-                should.exist(err)
+                should.not.exist(err)
+                data.should.have.length(0)
                 done()
             })
         })
