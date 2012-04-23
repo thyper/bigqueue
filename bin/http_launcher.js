@@ -15,9 +15,6 @@ var http = require('http');
 var numCPUs = require('os').cpus().length;
 var externalConfig = process.argv[2]
 
-var cluster = require('cluster');
-var http = require('http');
-var numCPUs = require('os').cpus().length;
 
 //Default redis conf
 var redisLocalhost = {
@@ -46,5 +43,22 @@ if(externalConfig){
 console.log("Using config: "+JSON.stringify(config))
 
   // Worker processes have a http server.
-http_api.startup(config)
+if (cluster.isMaster) {
+  // Fork workers.
+  for (var i = 0; i < numCPUs; i++) {
+    cluster.fork();
+  }
+
+  cluster.on('death', function(worker) {
+    console.log('worker ' + worker.pid + ' died, process restarted');
+    setTimeout(function(){
+        console.log("restarting fork")
+        cluster.fork()
+    },1000)
+  });
+} else {
+  // Worker processes have a http server.
+    http_api.startup(config)
+}
+
 
