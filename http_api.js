@@ -117,6 +117,50 @@ var loadApp = function(app){
         }
     })
 
+    app.post("/messages",function(req,res){
+        if(!req.is("json")){
+            return res.json({err:"Message should be json"},400)
+        }
+        var topics = req.body.topics
+        if(!topics){
+            return res.json({err:"should be declared the 'topics' property"},400)
+        }
+        delete req.body["topics"]
+        var message
+        try{
+            message = req.body
+            Object.keys(message).forEach(function(val){
+                if(message[val] instanceof Object){
+                    message[val] = JSON.stringify(message[val])
+                }
+            })
+        }catch(e){
+            return res.json({err:"Error parsing json ["+e+"]"},400)
+        }
+ 
+        var errors = []
+        var datas = []
+        var executed = 0
+        for(var i in topics){
+            bqClient.postMessage(topics[i],message,function(err,data){
+               if(err){
+                    errors.push(err)
+                }
+                if(data){
+                    datas.push(data)
+                }
+                executed++
+                if(executed == topics.length){
+                    if(errors.length>0){
+                        return res.json({err:"An error ocurrs posting the messages","errors":errors},500)
+                    }else{
+                        return res.json(datas,201)
+                    }
+                }
+            })
+        }
+    })
+
     app.get("/topics/:topic/consumerGroups/:consumer/messages",function(req,res){
         var timer = log.startTimer()
         try{

@@ -177,8 +177,21 @@ describe("http api",function(){
                         json:{name:"testConsumer2"}
 
                     },function(error,response,body){
-                        response.statusCode.should.equal(201)
-                        done()
+                        request({
+                            url:"http://127.0.0.1:8080/topics",
+                            method:"POST",
+                            json:{name:"testTopic2"}
+                        },function(error,response,body){
+                            response.statusCode.should.equal(201)
+                            request({
+                                url:"http://127.0.0.1:8080/topics/testTopic2/consumerGroups",
+                                method:"POST",
+                                json:{name:"testConsumer1"}
+                            },function(error,response,body){
+                                response.statusCode.should.equal(201)
+                                done()
+                            })
+                        }) 
                     })
                 })
             }) 
@@ -195,16 +208,73 @@ describe("http api",function(){
             })
         })
 
-        it("should receive posted messages",function(done){
+        it("should receive posted messages on multi-topic post",function(done){
             request({
-                uri:"http://127.0.0.1:8080/topics/testTopic/messages",
+                uri:"http://127.0.0.1:8080/messages",
                 method:"POST",
-                json:{msg:"testMessage"}
+                json:{msg:"testMessage",topics:["testTopic","testTopic2"]}
             },function(error,response,body){
                 should.exist(response)
                 response.statusCode.should.equal(201)
-                body.should.have.property("id")
-                var postId = body.id
+                response.body.should.have.length(2)
+                var postId1
+                var postId2
+                if(response.body[0].topic = "testTopic"){
+                    postId1 = response.body[0].id
+                    postId2 = response.body[1].id
+                }else{
+                    postId1 = response.body[1].id
+                    postId2 = response.body[0].id
+                }
+                request({
+                    uri:"http://127.0.0.1:8080/topics/testTopic/consumerGroups/testConsumer1/messages",
+                    method:"GET",
+                    json:true
+                },function(error,response,body){
+                    should.exist(response)
+                    response.statusCode.should.equal(200)
+                    body.should.have.property("id")
+                    body.should.have.property("msg")
+                    body.id.should.equal(""+postId1)
+                    body.msg.should.equal("testMessage")
+                    request({
+                        uri:"http://127.0.0.1:8080/topics/testTopic2/consumerGroups/testConsumer1/messages",
+                        method:"GET",
+                        json:true
+                    },function(error,response,body){
+                        should.exist(response)
+                        response.statusCode.should.equal(200)
+                        body.should.have.property("id")
+                        body.should.have.property("msg")
+                        body.id.should.equal(""+postId2)
+                        body.msg.should.equal("testMessage")
+                        done() 
+                    })
+                })
+            })
+        })
+
+        it("should fail if fail writting to same topic",function(done){
+           request({
+                uri:"http://127.0.0.1:8080/messages",
+                method:"POST",
+                json:{msg:"testMessage",topics:["testTopic","testTopic-no-existent"]}
+            },function(error,response,body){
+                response.statusCode.should.equal(500)
+                response.body.errors.should.have.length(1)
+                done()
+            })
+        })
+        it("should support write a message to multiple topics",function(done){
+           request({
+                uri:"http://127.0.0.1:8080/messages",
+                method:"POST",
+                json:{msg:"testMessage",topics:["testTopic"]}
+            },function(error,response,body){
+                should.exist(response)
+                response.statusCode.should.equal(201)
+                body[0].should.have.property("id")
+                var postId = body[0].id
                 request({
                     uri:"http://127.0.0.1:8080/topics/testTopic/consumerGroups/testConsumer1/messages",
                     method:"GET",
@@ -219,17 +289,19 @@ describe("http api",function(){
                     done()
                 })
             })
+
         })
+
         it("should receive json's as messages and transform it's to string, when the message come back should be as json format",function(done){
             request({
-                uri:"http://127.0.0.1:8080/topics/testTopic/messages",
+                uri:"http://127.0.0.1:8080/messages",
                 method:"POST",
-                json:{msg:{test:"message"}}
+                json:{msg:{test:"message"},topics:["testTopic"]}
             },function(error,response,body){
                 should.exist(response)
                 response.statusCode.should.equal(201)
-                body.should.have.property("id")
-                var postId = body.id
+                body[0].should.have.property("id")
+                var postId = body[0].id
                 request({
                     uri:"http://127.0.0.1:8080/topics/testTopic/consumerGroups/testConsumer1/messages",
                     method:"GET",
@@ -248,14 +320,14 @@ describe("http api",function(){
         })
         it("should return message if the _json property exists and the message is not json",function(done){
             request({
-                uri:"http://127.0.0.1:8080/topics/testTopic/messages",
+                uri:"http://127.0.0.1:8080/messages",
                 method:"POST",
-                json:{msg:"testMessage",_json:"true"}
+                json:{msg:"testMessage",_json:"true",topics:["testTopic"]}
             },function(error,response,body){
                 should.exist(response)
                 response.statusCode.should.equal(201)
-                body.should.have.property("id")
-                var postId = body.id
+                body[0].should.have.property("id")
+                var postId = body[0].id
                 request({
                     uri:"http://127.0.0.1:8080/topics/testTopic/consumerGroups/testConsumer1/messages",
                     method:"GET",
@@ -294,14 +366,14 @@ describe("http api",function(){
         })
         it("should can get the same message if there are 2 consumer groups",function(done){
             request({
-                uri:"http://127.0.0.1:8080/topics/testTopic/messages",
+                uri:"http://127.0.0.1:8080/messages",
                 method:"POST",
-                json:{msg:"testMessage"}
+                json:{msg:"testMessage",topics:["testTopic"]}
             },function(error,response,body){
                 should.exist(response)
                 response.statusCode.should.equal(201)
-                body.should.have.property("id")
-                var postId = body.id
+                body[0].should.have.property("id")
+                var postId = body[0].id
                 request({
                     uri:"http://127.0.0.1:8080/topics/testTopic/consumerGroups/testConsumer1/messages",
                     method:"GET",
@@ -331,23 +403,23 @@ describe("http api",function(){
         })
         it("should get different messages if 2 members of the same consumer group do a 'get message'",function(done){
             request({
-                uri:"http://127.0.0.1:8080/topics/testTopic/messages",
+                uri:"http://127.0.0.1:8080/messages",
                 method:"POST",
-                json:{msg:"testMessage"}
+                json:{msg:"testMessage",topics:["testTopic"]}
             },function(error,response,body){
                 should.exist(response)
                 response.statusCode.should.equal(201)
-                body.should.have.property("id")
-                var postId1 = body.id
+                body[0].should.have.property("id")
+                var postId1 = body[0].id
                 request({
-                    uri:"http://127.0.0.1:8080/topics/testTopic/messages",
+                    uri:"http://127.0.0.1:8080/messages",
                     method:"POST",
-                    json:{msg:"testMessage"}
+                    json:{msg:"testMessage",topics:["testTopic"]}
                 },function(error,response,body){
                     should.exist(response)
                     response.statusCode.should.equal(201)
-                    body.should.have.property("id")
-                    var postId2 = body.id
+                    body[0].should.have.property("id")
+                    var postId2 = body[0].id
                     request({
                         uri:"http://127.0.0.1:8080/topics/testTopic/consumerGroups/testConsumer1/messages",
                         method:"GET",
@@ -378,14 +450,14 @@ describe("http api",function(){
         })
         it("should receive the same message if the visibility window is rached",function(done){
             request({
-                uri:"http://127.0.0.1:8080/topics/testTopic/messages",
+                uri:"http://127.0.0.1:8080/messages",
                 method:"POST",
-                json:{msg:"testMessage"}
+                json:{msg:"testMessage",topics:["testTopic"]}
             },function(error,response,body){
                 should.exist(response)
                 response.statusCode.should.equal(201)
-                body.should.have.property("id")
-                var postId = body.id
+                body[0].should.have.property("id")
+                var postId = body[0].id
                 request({
                     uri:"http://127.0.0.1:8080/topics/testTopic/consumerGroups/testConsumer1/messages?visibilityWindow=1",
                     method:"GET",
@@ -419,14 +491,14 @@ describe("http api",function(){
         })
         it("should enable to do a DELETE of a message so this message shouldn't be received another time",function(done){
             request({
-                uri:"http://127.0.0.1:8080/topics/testTopic/messages",
+                uri:"http://127.0.0.1:8080/messages",
                 method:"POST",
-                json:{msg:"testMessage"}
+                json:{msg:"testMessage",topics:["testTopic"]}
             },function(error,response,body){
                 should.exist(response)
                 response.statusCode.should.equal(201)
-                body.should.have.property("id")
-                var postId = body.id
+                body[0].should.have.property("id")
+                var postId = body[0].id
                 request({
                     uri:"http://127.0.0.1:8080/topics/testTopic/consumerGroups/testConsumer1/messages?visibilityWindow=1",
                     method:"GET",
@@ -553,9 +625,9 @@ describe("http api",function(){
 
         it("should response the consumer groups stats at /topics/topic/consumerGroups/consumer/stats",function(done){
             request({
-                uri:"http://127.0.0.1:8080/topics/testTopic/messages",
+                uri:"http://127.0.0.1:8080/messages",
                 method:"POST",
-                json:{msg:"test"},
+                json:{msg:"test",topics:["testTopic"]},
             },function(err,response,body){
                  request({
                     uri:"http://127.0.0.1:8080/topics/testTopic/consumerGroups/testConsumer1/stats",
@@ -574,9 +646,9 @@ describe("http api",function(){
         })
         it("should response the topic stats at /topics/topic/consumerGroups/consumer/stats",function(done){
             request({
-                uri:"http://127.0.0.1:8080/topics/testTopic/messages",
+                uri:"http://127.0.0.1:8080/messages",
                 method:"POST",
-                json:{msg:"test"},
+                json:{msg:"test",topics:["testTopic"]},
             },function(err,response,body){
                  request({
                     uri:"http://127.0.0.1:8080/topics/testTopic/stats",
@@ -600,6 +672,7 @@ describe("http api",function(){
         })
 
     })
+
 
     describe("Limits",function(){
         it("should get an error if a posted message have more than 64kb",function(done){
