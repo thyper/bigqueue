@@ -9,7 +9,6 @@ local failsList = consumerKey..":fails"
 local processingList = consumerKey..":processing"
 
 local head = redis.call("get",topicHead)
-
 if head == nil then
     return {err="Head for topic ["..topic.."] not found"}
 end

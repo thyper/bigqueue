@@ -7,7 +7,7 @@ local msgKey = topicKey..':messages:'..key
 -- If no ttl send an error
 local ttl = redis.call('get',topicKey..':ttl')
 if not ttl then
-    return {err="Ttl for is not set for topic ["..topic.."]"}
+    return {err="Ttl for is not set for topic ["..topicKey.."]"}
 end 
 
 local message = cjson.decode(jsonMessage)

@@ -1,6 +1,7 @@
 var should = require('should'),
     redis = require('redis'),
     ZK = require('zookeeper'),
+    utils = require('../lib/bq_client_utils.js'),
     bq = require('../lib/bq_client.js'),
     bj = require("../lib/bq_journal_client_redis.js"),
     bqc = require('../lib/bq_cluster_client.js'),
@@ -73,45 +74,11 @@ describe("Big Queue Cluster",function(){
         })
     })
    
-    /**
-      * Delete recursively all 
-      */ 
-    var deleteAll = function(zk,path,cb,c){
-        c = c || 0
-        zk.a_get_children(path,false,function(rc,error,children){
-            var total = 0
-            if(children)
-                total = children.length
-            var count = 0
-            if(total == 0){
-                if(c>0){
-                    zk.a_delete_(path,-1,function(rc,error){
-                        cb()
-                    })
-                }else{
-                    cb()
-                }
-            }
-            for(var i in children){
-                var p = path+"/"+children[i]
-                deleteAll(zk,p,function(){
-                    count++;
-                    if(count >= total){
-                        zk.a_delete_(p,-1,function(rc,error){
-                            cb()
-                        })
-                     }
-                },c++)
-            }
-        })
-
-    }
-
     beforeEach(function(done){
+        utils.deleteZkRecursive(zk,"/bq",function(){
         zk.a_create("/bq","",0,function(rc,error,path){    
             zk.a_create("/bq/clusters","",0,function(rc,error,path){
                 zk.a_create("/bq/clusters/test","",0,function(rc,error,path){
-                    deleteAll(zk,"/bq/clusters/test",function(){
                         zk.a_create("/bq/clusters/test/topics","",0,function(rc,error,path){
                             zk.a_create("/bq/clusters/test/nodes","",0,function(rc,error,path){
                                 zk.a_create("/bq/clusters/test/journals","",0,function(rc,error,path){
@@ -411,15 +378,17 @@ describe("Big Queue Cluster",function(){
         })
 
         it("should generate and add a recipientCallback to the returned message",function(done){
-            //2 post because get message using round-robin
+            //because get message using round-robin
             bqClient.postMessage("testTopic",{msg:"testMessage"},function(err,key){
                 bqClient.postMessage("testTopic",{msg:"testMessage"},function(err,key){
-                    bqClient.getMessage("testTopic","testGroup",undefined,function(err,data){
-                        should.not.exist(err)
-                        should.exist(data)
-                        data.should.have.property("uid")
-                        data.should.have.property("recipientCallback")
-                        done()
+                    bqClient.postMessage("testTopic",{msg:"testMessage"},function(err,key){
+                        bqClient.getMessage("testTopic","testGroup",undefined,function(err,data){
+                            should.not.exist(err)
+                            should.exist(data)
+                            data.should.have.property("uid")
+                            data.should.have.property("recipientCallback")
+                            done()
+                        })
                     })
                 })
            })
@@ -758,5 +727,7 @@ describe("Big Queue Cluster",function(){
             }) 
         })
     })
-        
+   describe("background",function(){
+       it("should re-sink nodes from zookeeper periodically")
+   }) 
 })
