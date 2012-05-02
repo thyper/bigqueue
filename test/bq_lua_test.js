@@ -301,19 +301,24 @@ describe("Redis lua scripts",function(){
                 })
             })
         })
-        it("should move to topics:topic:consumers:consumer:fails the expired message into topics:topic:consumers:consumer:processing",function(done){
+        it("should move to topics:topic:consumers:consumer:fails the expired messages into topics:topic:consumers:consumer:processing",function(done){
             var expiredTime = tms -1
             var noExpiredTime = tms + 1
             redisClient.zadd("topics:testTopic:consumers:testConsumer:processing",noExpiredTime,"1",function(err,data){
                 redisClient.zadd("topics:testTopic:consumers:testConsumer:processing",expiredTime,"2",function(err,data){
                     redisClient.zadd("topics:testTopic:consumers:testConsumer:processing",expiredTime,"3",function(err,data){
-                        should.not.exist(err)
-                        redisClient.eval(getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data){
-                            redisClient.lrange("topics:testTopic:consumers:testConsumer:fails",0,-1,function(err,data){
-                                data.should.have.length(2)
-                                data.should.include("2")
-                                data.should.include("3")
-                                done()
+                        redisClient.zadd("topics:testTopic:consumers:testConsumer:processing",expiredTime,"4",function(err,data){
+                            should.not.exist(err)
+                            redisClient.eval(getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data){
+                                //Because expired message doesn't exist
+                                should.exist(err)
+                                redisClient.lrange("topics:testTopic:consumers:testConsumer:fails",0,-1,function(err,data){
+                                    //The first should be returned at the get phase with error because the message dosn't exist
+                                    data.should.have.length(2)
+                                    data.should.include("3")
+                                    data.should.include("4")
+                                    done()
+                                })
                             })
                         })
                     })
@@ -450,10 +455,22 @@ describe("Redis lua scripts",function(){
                 done()
             })
         })
-        it("should fail if the consumerGrouo dosn't exist",function(done){
+        it("should fail if the consumerGroup dosn't exist",function(done){
             redisClient.eval(getMessageScript,0,tms,"testTopic","testConsumer-no-exist","20",function(err,obj){
                 should.exist(err)
                 done()
+            })
+        })
+        it("should not re-process an expired failed message",function(done){
+            redisClient.lpush("topics:testTopic:consumers:testConsumer:fails","2",function(err,data){
+                should.not.exist(err)
+                redisClient.eval(getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data){
+                    should.exist(err)
+                    redisClient.zcard("topics:testTopic:processing",function(err,data){
+                        data.should.equal(0)
+                        done()
+                    })
+                })
             })
         })
     })

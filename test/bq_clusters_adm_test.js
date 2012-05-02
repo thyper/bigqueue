@@ -1,17 +1,19 @@
 var should = require('should'),
-    ZK = require('zookeeper') 
-    bqadm = require("../lib/bq_clusters_adm.js"),
-    bqc = require("../lib/bq_cluster_client.js"),
+    ZK = require("zookeeper"),
+    redis = require("redis"),
     bq = require('../lib/bq_client.js'),
-    bj = require('../lib/bq_journal_client_redis.js'),
+    bqadm = require("../lib/bq_clusters_adm.js"),
+    request = require('request'),
+    log = require("node-logging"),
     utils = require('../lib/bq_client_utils.js'),
-    redis = require('redis')
+    bj = require('../lib/bq_journal_client_redis.js')
+    bqc = require('../lib/bq_cluster_client.js')
 
 describe("Clusters administratition for multicluster purposes",function(){
     
     var bqPath = "/bq"
     var clustersPath = bqPath+"/clusters"
-
+   
     var zkConfig = {
         connect: "localhost:2181",
         timeout: 200000,

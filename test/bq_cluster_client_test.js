@@ -357,8 +357,6 @@ describe("Big Queue Cluster",function(){
                         bqClient = bqc.createClusterClient(bqClientConfig)
                         bqClient.on("ready",function(){
                             bqClient.postMessage("testTopic",{msg:"test1"},function(err,key){
-                                bqClient.postMessage("testTopic",{msg:"test2"},function(err,key){
-                                })
                             })
                         })
                     })

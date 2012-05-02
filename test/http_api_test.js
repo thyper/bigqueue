@@ -1,6 +1,6 @@
 var should = require('should'),
     bq = require('../lib/bq_client.js'),
-    httpApi = require("../http_api.js")
+    httpApi = require("../ext/http_api.js")
     redis = require('redis'),
     request = require('request'),
     log = require("node-logging")

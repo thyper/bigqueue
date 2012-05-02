@@ -8,7 +8,7 @@
 var bq = require('../lib/bq_client.js'),
     ZK = require('zookeeper'),
     bqc = require('../lib/bq_cluster_client.js'),
-    http_api = require("../http_api.js")
+    http_api = require("../ext/http_api.js")
 
 var cluster = require('cluster');
 var http = require('http');

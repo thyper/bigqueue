@@ -43,7 +43,7 @@ end
 ---- Check for expired id's
 local expired = redis.call("zrangebyscore",processingList,"-inf",tms)
 for k,v in pairs(expired) do
-    redis.call("lpush",failsList,v)
+    redis.call("rpush",failsList,v)
     redis.call("zrem",processingList,v)
 end
 
@@ -53,7 +53,6 @@ end
 local failed = redis.call("lrange",failsList,0,0) 
 -- The message to be returned
 local message 
-
 if isEmpty(failed) then
     -- Standar flow if no failed found
    
@@ -82,6 +81,8 @@ else
     local msgId = failed[1]
     message = getMessage(msgId)
     if isEmpty(message) then
+        -- Remove the message from the fail list because it was expired
+        redis.call("lpop",failsList)
         return {err="Message with id ["..msgId.."] was expired"}
     end
     addToProcessing(msgId)
