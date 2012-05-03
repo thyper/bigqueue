@@ -45,7 +45,7 @@ var loadApp = function(app){
         }
     })
 
-    app.get("/topics/:topic/consumerGroups",function(req,res){
+    app.get("/topics/:topic/consumers",function(req,res){
         try{
             bqClient.getConsumerGroups(req.params.topic,function(err,data){
                 if(err){
@@ -62,7 +62,7 @@ var loadApp = function(app){
 
     })
 
-    app.post("/topics/:topic/consumerGroups",function(req,res){
+    app.post("/topics/:topic/consumers",function(req,res){
             if(!req.is("json")){
                 return res.json({err:"Content should be json"},400)
             }
@@ -161,7 +161,7 @@ var loadApp = function(app){
         }
     })
 
-    app.get("/topics/:topic/consumerGroups/:consumer/messages",function(req,res){
+    app.get("/topics/:topic/consumers/:consumer/messages",function(req,res){
         var timer = log.startTimer()
         try{
             bqClient.getMessage(req.params.topic,req.params.consumer,req.query.visibilityWindow,function(err,data){
@@ -193,7 +193,7 @@ var loadApp = function(app){
         }
     })
 
-    app.delete("/topics/:topic/consumerGroups/:consumer/messages/:recipientCallback",function(req,res){
+    app.delete("/topics/:topic/consumers/:consumer/messages/:recipientCallback",function(req,res){
         try{
             bqClient.ackMessage(req.params.topic,req.params.consumer,req.params.recipientCallback,function(err){
                 if(err){
@@ -209,7 +209,7 @@ var loadApp = function(app){
 
     })
 
-    app.get("/topics/:topic/consumerGroups/:consumer/stats",function(req,res){
+    app.get("/topics/:topic/consumers/:consumer/stats",function(req,res){
         try{
             bqClient.getConsumerStats(req.params.topic,req.params.consumer,function(err,data){
                 if(err){

@@ -99,7 +99,7 @@ describe("http api",function(){
         })
         it("should enable to create consumer groups and return the create group",function(done){
             request({
-                url:"http://127.0.0.1:8080/topics/testTopic/consumerGroups",
+                url:"http://127.0.0.1:8080/topics/testTopic/consumers",
                 method:"POST",
                 json:{name:"testConsumer"}
             },function(error,response,body){
@@ -113,14 +113,14 @@ describe("http api",function(){
 
         it("should get an error if consumer group already exist",function(done){
             request({
-                url:"http://127.0.0.1:8080/topics/testTopic/consumerGroups",
+                url:"http://127.0.0.1:8080/topics/testTopic/consumers",
                 method:"POST",
                 json:{name:"testConsumer"}
             },function(error,response,body){
                 should.not.exist(error)
                 should.exist(response)
                 request({
-                    url:"http://127.0.0.1:8080/topics/testTopic/consumerGroups",
+                    url:"http://127.0.0.1:8080/topics/testTopic/consumers",
                     method:"POST",
                     json:{name:"testConsumer"}
                 },function(error,response,body){
@@ -135,7 +135,7 @@ describe("http api",function(){
         })
         it("should get an error on invalid json",function(done){
             request({
-                url:"http://127.0.0.1:8080/topics/testTopic/consumerGroups",
+                url:"http://127.0.0.1:8080/topics/testTopic/consumers",
                 method:"POST",
                 body:"foo" 
             },function(error,response,body){
@@ -146,7 +146,7 @@ describe("http api",function(){
 
         it("should get an error if topic doesn't exist",function(done){
             request({
-                url:"http://127.0.0.1:8080/topics/testTopic-no-exist/consumerGroups",
+                url:"http://127.0.0.1:8080/topics/testTopic-no-exist/consumers",
                 method:"POST",
                 json:{name:"testConsumer"}
             },function(error,response,body){
@@ -166,13 +166,13 @@ describe("http api",function(){
             },function(error,response,body){
                 response.statusCode.should.equal(201)
                 request({
-                    url:"http://127.0.0.1:8080/topics/testTopic/consumerGroups",
+                    url:"http://127.0.0.1:8080/topics/testTopic/consumers",
                     method:"POST",
                     json:{name:"testConsumer1"}
                 },function(error,response,body){
                     response.statusCode.should.equal(201)
                     request({
-                        url:"http://127.0.0.1:8080/topics/testTopic/consumerGroups",
+                        url:"http://127.0.0.1:8080/topics/testTopic/consumers",
                         method:"POST",
                         json:{name:"testConsumer2"}
 
@@ -184,7 +184,7 @@ describe("http api",function(){
                         },function(error,response,body){
                             response.statusCode.should.equal(201)
                             request({
-                                url:"http://127.0.0.1:8080/topics/testTopic2/consumerGroups",
+                                url:"http://127.0.0.1:8080/topics/testTopic2/consumers",
                                 method:"POST",
                                 json:{name:"testConsumer1"}
                             },function(error,response,body){
@@ -227,7 +227,7 @@ describe("http api",function(){
                     postId2 = response.body[0].id
                 }
                 request({
-                    uri:"http://127.0.0.1:8080/topics/testTopic/consumerGroups/testConsumer1/messages",
+                    uri:"http://127.0.0.1:8080/topics/testTopic/consumers/testConsumer1/messages",
                     method:"GET",
                     json:true
                 },function(error,response,body){
@@ -238,7 +238,7 @@ describe("http api",function(){
                     body.id.should.equal(""+postId1)
                     body.msg.should.equal("testMessage")
                     request({
-                        uri:"http://127.0.0.1:8080/topics/testTopic2/consumerGroups/testConsumer1/messages",
+                        uri:"http://127.0.0.1:8080/topics/testTopic2/consumers/testConsumer1/messages",
                         method:"GET",
                         json:true
                     },function(error,response,body){
@@ -276,7 +276,7 @@ describe("http api",function(){
                 body[0].should.have.property("id")
                 var postId = body[0].id
                 request({
-                    uri:"http://127.0.0.1:8080/topics/testTopic/consumerGroups/testConsumer1/messages",
+                    uri:"http://127.0.0.1:8080/topics/testTopic/consumers/testConsumer1/messages",
                     method:"GET",
                     json:true
                 },function(error,response,body){
@@ -303,7 +303,7 @@ describe("http api",function(){
                 body[0].should.have.property("id")
                 var postId = body[0].id
                 request({
-                    uri:"http://127.0.0.1:8080/topics/testTopic/consumerGroups/testConsumer1/messages",
+                    uri:"http://127.0.0.1:8080/topics/testTopic/consumers/testConsumer1/messages",
                     method:"GET",
                     json:true
                 },function(error,response,body){
@@ -329,7 +329,7 @@ describe("http api",function(){
                 body[0].should.have.property("id")
                 var postId = body[0].id
                 request({
-                    uri:"http://127.0.0.1:8080/topics/testTopic/consumerGroups/testConsumer1/messages",
+                    uri:"http://127.0.0.1:8080/topics/testTopic/consumers/testConsumer1/messages",
                     method:"GET",
                     json:true
                 },function(error,response,body){
@@ -346,7 +346,7 @@ describe("http api",function(){
         })
         it("should return 204 http status if no data could be getted",function(done){
             request({
-                uri:"http://127.0.0.1:8080/topics/testTopic/consumerGroups/testConsumer1/messages",
+                uri:"http://127.0.0.1:8080/topics/testTopic/consumers/testConsumer1/messages",
                 method:"GET",
                 json:true
             },function(error,response,body){
@@ -356,7 +356,7 @@ describe("http api",function(){
         })
         it("should get an error if we try to get messages from non existent topic",function(done){
             request({
-                uri:"http://127.0.0.1:8080/topics/testTopic-dsadsa/consumerGroups/testConsumer1/messages",
+                uri:"http://127.0.0.1:8080/topics/testTopic-dsadsa/consumers/testConsumer1/messages",
                 method:"GET",
                 json:true
             },function(error,response,body){
@@ -375,7 +375,7 @@ describe("http api",function(){
                 body[0].should.have.property("id")
                 var postId = body[0].id
                 request({
-                    uri:"http://127.0.0.1:8080/topics/testTopic/consumerGroups/testConsumer1/messages",
+                    uri:"http://127.0.0.1:8080/topics/testTopic/consumers/testConsumer1/messages",
                     method:"GET",
                     json:true
                 },function(error,response,body){
@@ -386,7 +386,7 @@ describe("http api",function(){
                     body.id.should.equal(""+postId)
                     body.msg.should.equal("testMessage")
                     request({
-                        uri:"http://127.0.0.1:8080/topics/testTopic/consumerGroups/testConsumer2/messages",
+                        uri:"http://127.0.0.1:8080/topics/testTopic/consumers/testConsumer2/messages",
                         method:"GET",
                         json:true
                     },function(error,response,body){
@@ -421,7 +421,7 @@ describe("http api",function(){
                     body[0].should.have.property("id")
                     var postId2 = body[0].id
                     request({
-                        uri:"http://127.0.0.1:8080/topics/testTopic/consumerGroups/testConsumer1/messages",
+                        uri:"http://127.0.0.1:8080/topics/testTopic/consumers/testConsumer1/messages",
                         method:"GET",
                         json:true
                     },function(error,response,body){
@@ -432,7 +432,7 @@ describe("http api",function(){
                         body.id.should.equal(""+postId1)
                         body.msg.should.equal("testMessage")
                         request({
-                            uri:"http://127.0.0.1:8080/topics/testTopic/consumerGroups/testConsumer1/messages",
+                            uri:"http://127.0.0.1:8080/topics/testTopic/consumers/testConsumer1/messages",
                             method:"GET",
                             json:true
                         },function(error,response,body){
@@ -459,7 +459,7 @@ describe("http api",function(){
                 body[0].should.have.property("id")
                 var postId = body[0].id
                 request({
-                    uri:"http://127.0.0.1:8080/topics/testTopic/consumerGroups/testConsumer1/messages?visibilityWindow=1",
+                    uri:"http://127.0.0.1:8080/topics/testTopic/consumers/testConsumer1/messages?visibilityWindow=1",
                     method:"GET",
                     json:true
                 },function(error,response,body){
@@ -472,7 +472,7 @@ describe("http api",function(){
                     body.msg.should.equal("testMessage")
                     setTimeout(function(){
                         request({
-                            uri:"http://127.0.0.1:8080/topics/testTopic/consumerGroups/testConsumer1/messages?visibilityWindow=1",
+                            uri:"http://127.0.0.1:8080/topics/testTopic/consumers/testConsumer1/messages?visibilityWindow=1",
                             method:"GET",
                             json:true
                         },function(error,response,body){
@@ -500,7 +500,7 @@ describe("http api",function(){
                 body[0].should.have.property("id")
                 var postId = body[0].id
                 request({
-                    uri:"http://127.0.0.1:8080/topics/testTopic/consumerGroups/testConsumer1/messages?visibilityWindow=1",
+                    uri:"http://127.0.0.1:8080/topics/testTopic/consumers/testConsumer1/messages?visibilityWindow=1",
                     method:"GET",
                     json:true
                 },function(error,response,body){
@@ -511,14 +511,14 @@ describe("http api",function(){
                     body.id.should.equal(""+postId)
                     body.msg.should.equal("testMessage")
                     request({
-                        uri:"http://127.0.0.1:8080/topics/testTopic/consumerGroups/testConsumer1/messages/"+body.recipientCallback,
+                        uri:"http://127.0.0.1:8080/topics/testTopic/consumers/testConsumer1/messages/"+body.recipientCallback,
                         method:"DELETE",
                         json:true
                     },function(err,response,body){
                         response.statusCode.should.equal(204)
                         setTimeout(function(){
                             request({
-                                uri:"http://127.0.0.1:8080/topics/testTopic/consumerGroups/testConsumer1/messages?visibilityWindow=1",
+                                uri:"http://127.0.0.1:8080/topics/testTopic/consumers/testConsumer1/messages?visibilityWindow=1",
                                 method:"GET",
                                 json:true
                             },function(error,response,body){
@@ -560,7 +560,7 @@ describe("http api",function(){
                 })
             })
         })
-        it("Should list all consumer groups if a get is execute over /topics/topic/consumerGroups",function(done){
+        it("Should list all consumer groups if a get is execute over /topics/topic/consumers",function(done){
             request({
                 url:"http://127.0.0.1:8080/topics",
                 method:"POST",
@@ -568,19 +568,19 @@ describe("http api",function(){
             },function(error,response,body){
                 response.statusCode.should.equal(201)
                 request({
-                    url:"http://127.0.0.1:8080/topics/testTopic/consumerGroups",
+                    url:"http://127.0.0.1:8080/topics/testTopic/consumers",
                     method:"GET",
                     json:true
                 },function(error,response,body){
                     response.statusCode.should.equal(200)
                     body.should.be.empty
                     request({
-                        url:"http://127.0.0.1:8080/topics/testTopic/consumerGroups",
+                        url:"http://127.0.0.1:8080/topics/testTopic/consumers",
                         method:"POST",
                         json:{name:"testConsumer"}
                     },function(error,response,body){
                         request({
-                            url:"http://127.0.0.1:8080/topics/testTopic/consumerGroups",
+                            url:"http://127.0.0.1:8080/topics/testTopic/consumers",
                             method:"GET",
                             json:true
                         },function(error,response,body){
@@ -604,13 +604,13 @@ describe("http api",function(){
             },function(error,response,body){
                 response.statusCode.should.equal(201)
                 request({
-                    url:"http://127.0.0.1:8080/topics/testTopic/consumerGroups",
+                    url:"http://127.0.0.1:8080/topics/testTopic/consumers",
                     method:"POST",
                     json:{name:"testConsumer1"}
                 },function(error,response,body){
                     response.statusCode.should.equal(201)
                     request({
-                        url:"http://127.0.0.1:8080/topics/testTopic/consumerGroups",
+                        url:"http://127.0.0.1:8080/topics/testTopic/consumers",
                         method:"POST",
                         json:{name:"testConsumer2"}
 
@@ -623,14 +623,14 @@ describe("http api",function(){
 
         })
 
-        it("should response the consumer groups stats at /topics/topic/consumerGroups/consumer/stats",function(done){
+        it("should response the consumer groups stats at /topics/topic/consumers/consumer/stats",function(done){
             request({
                 uri:"http://127.0.0.1:8080/messages",
                 method:"POST",
                 json:{msg:"test",topics:["testTopic"]},
             },function(err,response,body){
                  request({
-                    uri:"http://127.0.0.1:8080/topics/testTopic/consumerGroups/testConsumer1/stats",
+                    uri:"http://127.0.0.1:8080/topics/testTopic/consumers/testConsumer1/stats",
                     json:true
                 },function(err,response,body){
                     response.statusCode.should.equal(200)
@@ -644,7 +644,7 @@ describe("http api",function(){
                 }) 
             })
         })
-        it("should response the topic stats at /topics/topic/consumerGroups/consumer/stats",function(done){
+        it("should response the topic stats at /topics/topic/consumers/consumer/stats",function(done){
             request({
                 uri:"http://127.0.0.1:8080/messages",
                 method:"POST",

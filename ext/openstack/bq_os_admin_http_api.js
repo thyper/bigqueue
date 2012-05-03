@@ -1,9 +1,27 @@
 var express = require('express'),
-    log = require('node-logging')
-    bqAdm = require('../../lib/bq_clusters_adm.js')
+    log = require('node-logging'),
+    bqAdm = require('../../lib/bq_clusters_adm.js'),
+    keystoneMiddlware = require("../../ext/openstack/keystone_middleware.js")
 
 var loadApp = function(app){
     var admClient = app.settings.bqAdm
+
+    var authorizeTenant = function(userData,tenant){
+        var authorized = false
+        try{
+            var tenants = userData.access.token.tenants
+            tenants.forEach(function(val){
+                if(val.name == tenant){
+                    authorized = true
+                    return
+                }
+            })
+        }catch(e){
+            //Property doesn't exist
+        }
+        return authorized
+    }
+
     app.get(app.settings.basePath+"/clusters",function(req,res){
         admClient.listClusters(function(err,clusters){
             if(err)
@@ -35,6 +53,10 @@ var loadApp = function(app){
         if(!req.is("json")){    
             return res.json({err:"Error parsing json"},400)
         }
+        var tenant = req.params.tenantId
+        if(req.keystone && req.keystone.authorized && !authorizeTenant(req.keystone.userData, tenant)){
+            return res.json({"err":"Invalid token for tenant ["+req.params.tenantId+"]"},401)
+        }
         if(!req.body.name){
             return res.json({err:"Topics should contains a name"},400)
         }
@@ -46,6 +68,50 @@ var loadApp = function(app){
         })
     })
     
+    app.get(app.settings.basePath+"/topics/:tenantId/:topic",function(req,res){
+        var topic = req.params.tenantId+"-"+req.params.topic
+        admClient.getTopicData(topic,function(err,data){
+            if(err){
+              return res.json({"err":err},500)
+            }
+            return res.json(data,200)
+        })
+    })
+
+    app.post(app.settings.basePath+"/topics/:tenantIdTopic/:topicId/consumers/:tenantIdConsumer",function(req,res){
+        if(!req.is("json")){    
+            return res.json({err:"Error parsing json"},400)
+        }
+        
+        var tenant = req.params.tenantIdConsumer
+        if(req.keystone && req.keystone.authorized && !authorizeTenant(req.keystone.userData, tenant)){
+            return res.json({"err":"Invalid token for tenant ["+req.params.tenantId+"]"},401)
+        }
+
+        if(!req.body.name){
+            return res.json({err:"Consumer should contains a name"},400)
+        }
+        var topic = req.params.tenantIdTopic+"-"+req.params.topicId
+        var consumer = req.params.tenantIdConsumer+"-"+req.body.name
+        admClient.createConsumer(topic,consumer,function(err){
+            if(err)
+              return res.json({"err":err},500)
+            return res.json({"name":req.body.name},201) 
+        })
+
+    })
+}
+
+var authFilter = function(config){
+
+    return function(req,res,next){
+        //All post should be authenticated
+        if(req.method === "POST" && !req.keystone.authorized){
+            res.json({"err":"All post to admin api should be authenticated using X-Auth-Token header"},401)
+        }else{
+            next()
+        }
+    }
 }
 
 exports.startup = function(config){
@@ -59,6 +125,10 @@ exports.startup = function(config){
         
     app.use(express.bodyParser());
 
+    if(config.keystoneConfig){
+        app.use(keystoneMiddlware.auth(config.keystoneConfig))
+        app.use(authFilter())
+    }
     app.use(app.router); 
 
     app.set("basePath",config.basePath)

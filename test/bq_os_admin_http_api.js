@@ -1,16 +1,18 @@
 var should = require('should'),
     ZK = require("zookeeper"),
+    http = require('http'),
     redis = require("redis"),
     bq = require('../lib/bq_client.js'),
     httpApi = require("../ext/openstack/bq_os_admin_http_api.js")
     request = require('request'),
     log = require("node-logging"),
     utils = require('../lib/bq_client_utils.js'),
-    bj = require('../lib/bq_journal_client_redis.js')
+    bj = require('../lib/bq_journal_client_redis.js'),
+    express = require('express')
 
 describe("openstack admin http api",function(){
    
-   var bqPath = "/bq"
+    var bqPath = "/bq"
     
     var zkConfig = {
         connect: "localhost:2181",
@@ -33,6 +35,12 @@ describe("openstack admin http api",function(){
         "port":8080,
         "basePath":"/bigqueue",
         "logLevel":"critical"
+    }
+
+    var keystoneConfig = {
+        "keystoneUrl":"http://localhost:35357/v2.0",
+        "adminToken":"admin",
+        "foceAuth":false
     }
 
     var zk = new ZK(zkConfig)
@@ -90,7 +98,6 @@ describe("openstack admin http api",function(){
     })
 
 
-
     describe("Cluster Admin",function(){
         it("should enable to create new clusters",function(done){
             request({
@@ -139,7 +146,7 @@ describe("openstack admin http api",function(){
             })
         })
         it("should support cluster deletes")
-        it("if keystone is set should validate the token")
+
     })
     
     describe("Topics and consumers",function(){
@@ -228,16 +235,201 @@ describe("openstack admin http api",function(){
                 })
             })
         })
-        it("should support create consumers in any topic using your tenant id")
+        it("should support create consumers in any topic using your tenant id",function(done){
+            request({
+                url:"http://127.0.0.1:8080/bigqueue/topics/1234",
+                method:"POST",
+                json:{"name":"test"}
+            },function(error,response,body){
+                response.statusCode.should.equal(201)
+                request({
+                    url:"http://127.0.0.1:8080/bigqueue/topics/1234/test",
+                    method:"GET",
+                    json:true
+                },function(error,response,body){
+                    response.statusCode.should.equal(200)
+                    body.consumers.should.have.length(0)
+                    request({
+                        url:"http://127.0.0.1:8080/bigqueue/topics/1234/test/consumers/456",
+                        method:"POST",
+                        json:{"name":"test-consumer"}
+                    },function(error,response,body){
+                        response.statusCode.should.equal(201)
+                        request({
+                            url:"http://127.0.0.1:8080/bigqueue/topics/1234/test",
+                            method:"GET",
+                            json:true
+                        },function(error,response,body){
+                            response.statusCode.should.equal(200)
+                            body.consumers.should.have.length(1)
+                            body.consumers[0].consumer.should.equal("456-test-consumer")
+                            done()
+                        })
+                    })
+                })
+            })
+        })
         it("should support topic deletes")
         it("should support consumers delete")
-        it("if keyston is set should validate the token")
     })
 
-    describe("stats",function(){
-        it("should retrive stats for clusters")
-        it("should retrive stats for topics using the tenant id")
-        it("should retrive stats for consumer groups using the tenant id")
-    })
+    describe("Keyston authorization", function(){
+        var fakekeystone
+        before(function(){
+            fakekeystone = express.createServer()
+            fakekeystone.get("/v2.0/tokens/:token",function(req,res){
+                if(req.params.token === "user123" && req.headers["x-auth-token"] === "admin"){
+                    return res.json({
+                        "access": {
+                            "token":{
+                                "tenants":[
+                                     {
+                                         "id": "1", 
+                                         "name": "1234"
+                                     }
+                                ]
+                            }
+                        }
 
+                    },200)
+                }
+                if(req.params.token === "someone" && req.headers["x-auth-token"] === "admin"){
+                    return res.json({
+                        "access": {
+                            "token":{
+                                "tenants":[
+                                     {
+                                         "id": "2", 
+                                         "name": "someone"
+                                     }
+                                ]
+                            }
+                        }
+
+                    },200)
+                }
+
+                return res.json({err:"token not found"},404)
+            })
+            fakekeystone.listen(35357)
+        })
+
+        after(function(){
+            if(fakekeystone){
+                fakekeystone.close()
+            }
+        })
+        
+        beforeEach(function(){
+            api.shutdown()
+            var intConf = httpConfig
+            intConf["keystoneConfig"] = keystoneConfig 
+            api = httpApi.startup(intConf)
+        })
+
+        it("Should validate the token at cluster creation",function(done){
+            request({
+                url:"http://127.0.0.1:8080/bigqueue/clusters",
+                method:"POST",
+                json:{"name":"test"}
+            },function(error,response,body){
+                response.statusCode.should.equal(401)
+                request({
+                    url:"http://127.0.0.1:8080/bigqueue/clusters",
+                    method:"POST",
+                    json:{"name":"test"},
+                    headers:{"X-Auth-Token":"123"}
+                },function(error,response,body){
+                    response.statusCode.should.equal(401)
+                    request({
+                        url:"http://127.0.0.1:8080/bigqueue/clusters",
+                        method:"POST",
+                        json:{"name":"test"},
+                        headers:{"X-Auth-Token":"user123"}
+                    },function(error,response,body){
+                        response.statusCode.should.equal(201)
+                        done()
+                    })
+
+                })
+            })
+        })
+
+        it("Should validate tenant on topic creation",function(done){
+            request({
+                url:"http://127.0.0.1:8080/bigqueue/clusters",
+                method:"POST",
+                json:{"name":"test"},
+                headers:{"X-Auth-Token":"user123"}
+            },function(error,response,body){
+                response.statusCode.should.equal(201)
+                request({
+                    url:"http://127.0.0.1:8080/bigqueue/topics/1234",
+                    method:"POST",
+                    json:{"name":"test"}
+                },function(error,response,body){
+                    response.statusCode.should.equal(401)
+                    request({
+                        url:"http://127.0.0.1:8080/bigqueue/topics/1234",
+                        method:"POST",
+                        json:{"name":"test"},
+                        headers:{"X-Auth-Token":"someone"}
+                    },function(error,response,body){
+                        response.statusCode.should.equal(401)
+                        request({
+                            url:"http://127.0.0.1:8080/bigqueue/topics/1234",
+                            method:"POST",
+                            json:{"name":"test"},
+                            headers:{"X-Auth-Token":"user123"}
+                        },function(error,response,body){
+                            response.statusCode.should.equal(201)
+                            done()
+                        })
+                    })
+                })
+            })
+        })
+        it("Should validate tenant on consumer creation",function(done){
+            request({
+                url:"http://127.0.0.1:8080/bigqueue/clusters",
+                method:"POST",
+                json:{"name":"test"},
+                headers:{"X-Auth-Token":"user123"}
+            },function(error,response,body){
+                response.statusCode.should.equal(201)
+                request({
+                    url:"http://127.0.0.1:8080/bigqueue/topics/someone",
+                    method:"POST",
+                    json:{"name":"test"},
+                    headers:{"X-Auth-Token":"someone"}
+                },function(error,response,body){
+                    response.statusCode.should.equal(201)
+                    request({
+                        url:"http://127.0.0.1:8080/bigqueue/topics/someone/test/consumers/1234",
+                        method:"POST",
+                        json:{"name":"test"},
+                    },function(error,response,body){
+                        response.statusCode.should.equal(401)
+                        request({
+                            url:"http://127.0.0.1:8080/bigqueue/topics/someone/test/consumers/1234",
+                            method:"POST",
+                            json:{"name":"test"},
+                            headers:{"X-Auth-Token":"someone"}
+                        },function(error,response,body){
+                            response.statusCode.should.equal(401)
+                            request({
+                                url:"http://127.0.0.1:8080/bigqueue/topics/someone/test/consumers/1234",
+                                method:"POST",
+                                json:{"name":"test"},
+                                headers:{"X-Auth-Token":"user123"}
+                            },function(error,response,body){
+                                response.statusCode.should.equal(201)
+                                done()
+                            })
+                        })
+                    })
+                })
+            })
+        })
+    })
 })
