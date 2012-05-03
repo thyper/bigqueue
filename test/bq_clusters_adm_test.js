@@ -85,7 +85,9 @@ describe("Clusters administratition for multicluster purposes",function(){
                         zk.a_create("/bq/admin","",0,function(rc,error,path){
                             zk.a_create("/bq/admin/indexes","",0,function(rc,error,path){
                                 zk.a_create("/bq/admin/indexes/topics","",0,function(rc,error,path){
-                                    done()
+                                    zk.a_create("/bq/admin/indexes/groups","",0,function(rc,error,path){
+                                        done()
+                                    })
                                 })
                             })
                         })
@@ -338,9 +340,9 @@ describe("Clusters administratition for multicluster purposes",function(){
                     ]
                },function(err){
                    should.not.exist(err)
-                   admClient.createTopic("test-c1","test1",function(err){
+                   admClient.createTopic({"name":"test-c1","group":"test"},"test1",function(err){
                        should.not.exist(err)
-                       admClient.createTopic("test-c2","test2",function(err){
+                       admClient.createTopic({"name":"test-c2","group":"test"},"test2",function(err){
                            should.not.exist(err)
                            done()
                        })
@@ -384,6 +386,14 @@ describe("Clusters administratition for multicluster purposes",function(){
         it("should get data about cluster",function(done){
             admClient.getClusterData("test1",function(err,data){
                 data.should.have.keys("cluster","topics","nodes","entrypoints")
+                done()
+            })
+        })
+        it("should get all topics for a group",function(done){
+            admClient.getGroupTopics("test",function(err,data){
+                data.should.have.length(2)
+                data.should.include("test-c1")
+                data.should.include("test-c2")
                 done()
             })
         })

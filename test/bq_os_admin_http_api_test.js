@@ -74,7 +74,9 @@ describe("openstack admin http api",function(){
                         zk.a_create("/bq/admin","",0,function(rc,error,path){
                             zk.a_create("/bq/admin/indexes","",0,function(rc,error,path){
                                 zk.a_create("/bq/admin/indexes/topics","",0,function(rc,error,path){
-                                    done()
+                                    zk.a_create("/bq/admin/indexes/groups","",0,function(rc,error,path){
+                                        done()
+                                    })
                                 })
                             })
                         })
@@ -192,7 +194,7 @@ describe("openstack admin http api",function(){
                 response.statusCode.should.equal(200)
                 body.topics.should.have.length(0)
                 request({
-                    url:"http://127.0.0.1:8080/bigqueue/topics/1234",
+                    url:"http://127.0.0.1:8080/bigqueue/1234/topics",
                     method:"POST",
                     json:{"name":"test"}
                 },function(error,response,body){
@@ -218,7 +220,7 @@ describe("openstack admin http api",function(){
                 response.statusCode.should.equal(200)
                 body.topics.should.have.length(0)
                 request({
-                    url:"http://127.0.0.1:8080/bigqueue/topics/1234",
+                    url:"http://127.0.0.1:8080/bigqueue/1234/topics",
                     method:"POST",
                     json:{"name":"test","cluster":"test2"}
                 },function(error,response,body){
@@ -237,26 +239,26 @@ describe("openstack admin http api",function(){
         })
         it("should support create consumers in any topic using your tenant id",function(done){
             request({
-                url:"http://127.0.0.1:8080/bigqueue/topics/1234",
+                url:"http://127.0.0.1:8080/bigqueue/1234/topics",
                 method:"POST",
                 json:{"name":"test"}
             },function(error,response,body){
                 response.statusCode.should.equal(201)
                 request({
-                    url:"http://127.0.0.1:8080/bigqueue/topics/1234/test",
+                    url:"http://127.0.0.1:8080/bigqueue/1234/topics/test",
                     method:"GET",
                     json:true
                 },function(error,response,body){
                     response.statusCode.should.equal(200)
                     body.consumers.should.have.length(0)
                     request({
-                        url:"http://127.0.0.1:8080/bigqueue/topics/1234/test/consumers/456",
+                        url:"http://127.0.0.1:8080/bigqueue/1234/topics/test/consumers/456",
                         method:"POST",
                         json:{"name":"test-consumer"}
                     },function(error,response,body){
                         response.statusCode.should.equal(201)
                         request({
-                            url:"http://127.0.0.1:8080/bigqueue/topics/1234/test",
+                            url:"http://127.0.0.1:8080/bigqueue/1234/topics/test",
                             method:"GET",
                             json:true
                         },function(error,response,body){
@@ -268,6 +270,43 @@ describe("openstack admin http api",function(){
                     })
                 })
             })
+        })
+        it("should support list all topics of a tenant",function(done){
+            request({
+                url:"http://127.0.0.1:8080/bigqueue/1234/topics",
+                method:"POST",
+                json:{"name":"test"}
+            },function(error,response,body){
+                response.statusCode.should.equal(201)
+                request({
+                    url:"http://127.0.0.1:8080/bigqueue/1234/topics",
+                    method:"GET",
+                    json:true
+                },function(error,response,body){
+                    response.statusCode.should.equal(200)
+                    body.should.have.length(1)
+                    body.should.include("test")
+                     request({
+                        url:"http://127.0.0.1:8080/bigqueue/1234/topics",
+                        method:"POST",
+                        json:{"name":"test1"}
+                    },function(error,response,body){
+                        response.statusCode.should.equal(201)
+                        request({
+                            url:"http://127.0.0.1:8080/bigqueue/1234/topics",
+                            method:"GET",
+                            json:true
+                        },function(error,response,body){
+                            response.statusCode.should.equal(200)
+                            body.should.have.length(2)
+                            body.should.include("test")
+                            body.should.include("test1")
+                            done()
+                        })
+                    })
+                })
+            })
+
         })
         it("should support topic deletes")
         it("should support consumers delete")
@@ -364,20 +403,20 @@ describe("openstack admin http api",function(){
             },function(error,response,body){
                 response.statusCode.should.equal(201)
                 request({
-                    url:"http://127.0.0.1:8080/bigqueue/topics/1234",
+                    url:"http://127.0.0.1:8080/bigqueue/1234/topics",
                     method:"POST",
                     json:{"name":"test"}
                 },function(error,response,body){
                     response.statusCode.should.equal(401)
                     request({
-                        url:"http://127.0.0.1:8080/bigqueue/topics/1234",
+                        url:"http://127.0.0.1:8080/bigqueue/1234/topics",
                         method:"POST",
                         json:{"name":"test"},
                         headers:{"X-Auth-Token":"someone"}
                     },function(error,response,body){
                         response.statusCode.should.equal(401)
                         request({
-                            url:"http://127.0.0.1:8080/bigqueue/topics/1234",
+                            url:"http://127.0.0.1:8080/bigqueue/1234/topics",
                             method:"POST",
                             json:{"name":"test"},
                             headers:{"X-Auth-Token":"user123"}
@@ -398,27 +437,27 @@ describe("openstack admin http api",function(){
             },function(error,response,body){
                 response.statusCode.should.equal(201)
                 request({
-                    url:"http://127.0.0.1:8080/bigqueue/topics/someone",
+                    url:"http://127.0.0.1:8080/bigqueue/someone/topics",
                     method:"POST",
                     json:{"name":"test"},
                     headers:{"X-Auth-Token":"someone"}
                 },function(error,response,body){
                     response.statusCode.should.equal(201)
                     request({
-                        url:"http://127.0.0.1:8080/bigqueue/topics/someone/test/consumers/1234",
+                        url:"http://127.0.0.1:8080/bigqueue/someone/topics/test/consumers/1234",
                         method:"POST",
                         json:{"name":"test"},
                     },function(error,response,body){
                         response.statusCode.should.equal(401)
                         request({
-                            url:"http://127.0.0.1:8080/bigqueue/topics/someone/test/consumers/1234",
+                            url:"http://127.0.0.1:8080/bigqueue/someone/topics/test/consumers/1234",
                             method:"POST",
                             json:{"name":"test"},
                             headers:{"X-Auth-Token":"someone"}
                         },function(error,response,body){
                             response.statusCode.should.equal(401)
                             request({
-                                url:"http://127.0.0.1:8080/bigqueue/topics/someone/test/consumers/1234",
+                                url:"http://127.0.0.1:8080/bigqueue/someone/topics/test/consumers/1234",
                                 method:"POST",
                                 json:{"name":"test"},
                                 headers:{"X-Auth-Token":"user123"}

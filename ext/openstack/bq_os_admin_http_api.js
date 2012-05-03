@@ -49,7 +49,21 @@ var loadApp = function(app){
         })
     })
 
-    app.post(app.settings.basePath+"/topics/:tenantId",function(req,res){
+    app.get(app.settings.basePath+"/:tenantId/topics",function(req,res){
+        admClient.getGroupTopics(req.params.tenantId,function(err,data){
+           if(err)
+                return res.json({"err":err},500)
+            for(var i in data){
+                var pos = data[i].indexOf("-")
+                if(pos != -1){
+                    data[i] = data[i].substr(pos+1)
+                }
+            }
+            return res.json(data,200)
+        })
+    })
+
+    app.post(app.settings.basePath+"/:tenantId/topics",function(req,res){
         if(!req.is("json")){    
             return res.json({err:"Error parsing json"},400)
         }
@@ -61,14 +75,14 @@ var loadApp = function(app){
             return res.json({err:"Topics should contains a name"},400)
         }
         var topic = req.params.tenantId+"-"+req.body.name
-        admClient.createTopic(topic,req.body.cluster,function(err){
+        admClient.createTopic({"name":topic,"group":tenant},req.body.cluster,function(err){
             if(err)
               return res.json({"err":err},500)
             return res.json({"name":req.body.name},201) 
         })
     })
     
-    app.get(app.settings.basePath+"/topics/:tenantId/:topic",function(req,res){
+    app.get(app.settings.basePath+"/:tenantId/topics/:topic",function(req,res){
         var topic = req.params.tenantId+"-"+req.params.topic
         admClient.getTopicData(topic,function(err,data){
             if(err){
@@ -78,7 +92,7 @@ var loadApp = function(app){
         })
     })
 
-    app.post(app.settings.basePath+"/topics/:tenantIdTopic/:topicId/consumers/:tenantIdConsumer",function(req,res){
+    app.post(app.settings.basePath+"/:tenantIdTopic/topics/:topicId/consumers/:tenantIdConsumer",function(req,res){
         if(!req.is("json")){    
             return res.json({err:"Error parsing json"},400)
         }
