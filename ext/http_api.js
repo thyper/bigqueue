@@ -197,7 +197,7 @@ var loadApp = function(app){
         try{
             bqClient.ackMessage(req.params.topic,req.params.consumer,req.params.recipientCallback,function(err){
                 if(err){
-                    res.json({err:""+err},404)
+                    res.json({err:""+err},200)
                 }else{
                     res.json({},204)
                 }

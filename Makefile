@@ -19,7 +19,7 @@ test:
 	
 
 	node_modules/zookeeper/build/zookeeper-3.4.3/bin/zkServer.sh start ${ZOOCFG}
-	sleep 10 
+#	sleep 10 
 
 	./node_modules/.bin/_mocha --globals myThis,myHolder,myCallee,State_myThis --reporter spec -t 5000 -s 3000 ${TESTFILE}
 

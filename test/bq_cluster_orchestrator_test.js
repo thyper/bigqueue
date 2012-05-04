@@ -4,7 +4,8 @@ var should = require("should"),
     bq = require("../lib/bq_client.js"),
     bj = require("../lib/bq_journal_client_redis.js"),
     redis = require("redis"),
-    log = require("node-logging")
+    log = require("node-logging"),
+    utils = require("../lib/bq_client_utils.js")
 
 describe("Orchestrator",function(){
     var clusterPath = "/bq/clusters/test"
@@ -42,59 +43,22 @@ describe("Orchestrator",function(){
             }
         })
     });
-    /**
-      * Delete recursively all 
-      */ 
-    var deleteAll = function(zk,path,cb,c){
-        c = c || 0
-        zk.a_get_children(path,false,function(rc,error,children){
-            var total = 0
-            if(children)
-                total = children.length
-            var count = 0
-            if(total == 0){
-                if(c>0){
-                    zk.a_delete_(path,-1,function(rc,error){
-                        cb()
-                    })
-                }else{
-                    cb()
-                }
-            }
-            for(var i in children){
-                var p = path+"/"+children[i]
-                deleteAll(zk,p,function(){
-                    count++;
-                    if(count >= total){
-                        zk.a_delete_(p,-1,function(rc,error){
-                            cb()
-                        })
-                     }
-                },c++)
-            }
-        })
-
-    }
 
     beforeEach(function(done){
-        deleteAll(zk,"/bq",function(){
+        utils.deleteZkRecursive(zk,"/bq",function(){
             zk.a_create("/bq","",0,function(rc,error,path){    
                 zk.a_create("/bq/clusters","",0,function(rc,error,path){
                     zk.a_create("/bq/clusters/test","",0,function(rc,error,path){
                        zk.a_create("/bq/clusters/test/topics","",0,function(rc,error,path){
                            zk.a_create("/bq/clusters/test/journals","",0,function(rc,error,path){
                                 zk.a_create("/bq/clusters/test/nodes","",0,function(rc,error,path){
-                                    zk.a_delete_("/bq/clusters/test/nodes/redis1",-1,function(){
-                                        zk.a_delete_("/bq/clusters/test/nodes/redis2",-1,function(){
-                                            zk.a_create("/bq/clusters/test/nodes/redis1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}),0,function(rc,error,path){
-                                                zk.a_create("/bq/clusters/test/nodes/redis2",JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"UP"}),0,function(rc,error,path){
-                                                    zk.a_create("/bq/clusters/test/journals/j1",
-                                                            JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"UP","start_date":new Date()}),0,function(rc,error,path){
-                                                        zk.a_create("/bq/clusters/test/journals/j2",
-                                                                JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"UP","start_date":new Date()}),0,function(rc,error,path){
-                                                            done()
-                                                        })
-                                                    })
+                                    zk.a_create("/bq/clusters/test/nodes/redis1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}),0,function(rc,error,path){
+                                        zk.a_create("/bq/clusters/test/nodes/redis2",JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"UP"}),0,function(rc,error,path){
+                                            zk.a_create("/bq/clusters/test/journals/j1",
+                                                    JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"UP","start_date":new Date()}),0,function(rc,error,path){
+                                                zk.a_create("/bq/clusters/test/journals/j2",
+                                                        JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"UP","start_date":new Date()}),0,function(rc,error,path){
+                                                    done()
                                                 })
                                             })
                                         })
@@ -252,32 +216,34 @@ describe("Orchestrator",function(){
 
     })
     it("Should sync new nodes in new clusters",function(done){
-        deleteAll(zk,"/bq/clusters",function(){
-            var orch = oc.createOrchestrator(ocConfig)
-            orch.on("ready",function(){
-                redisClient1.sismember("topics","test2",function(err,data){
-                    data.should.equal(0)
-                    redisClient1.exists("topics:test2:consumers:testConsumer:last",function(err,data){
+        utils.deleteZkRecursive(zk,"/bq/clusters",function(){
+            zk.a_create("/bq/clusters","",0,function(rc,error,path){
+                var orch = oc.createOrchestrator(ocConfig)
+                orch.on("ready",function(){
+                    redisClient1.sismember("topics","test2",function(err,data){
                         data.should.equal(0)
-                        redisClient1.sismember("topics","test2",function(err,data){
+                        redisClient1.exists("topics:test2:consumers:testConsumer:last",function(err,data){
                             data.should.equal(0)
-                            zk.a_create("/bq/clusters/test2","",0,function(rc,error,path){
-                                zk.a_create("/bq/clusters/test2/nodes","",0,function(rc,error,path){
-                                   zk.a_create("/bq/clusters/test2/nodes/redis-test",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"DOWN"}),0,function(rc,error,path){
-                                        zk.a_create("/bq/clusters/test2/topics","",0,function(rc,error,path){
-                                            zk.a_create("/bq/clusters/test2/topics/test2","",0,function(rc,error,path){
-                                                zk.a_create("/bq/clusters/test2/topics/test2/consumerGroups","",0,function(rc,error,path){
-                                                    zk.a_create("/bq/clusters/test2/topics/test2/consumerGroups/testConsumer","",0,function(rc,error,path){
-                                                        setTimeout(function(){
-                                                            redisClient1.sismember("topics","test2",function(err,data){
-                                                                data.should.equal(1)
-                                                                redisClient1.exists("topics:test2:consumers:testConsumer:last",function(err,data){
+                            redisClient1.sismember("topics","test2",function(err,data){
+                                data.should.equal(0)
+                                zk.a_create("/bq/clusters/test2","",0,function(rc,error,path){
+                                    zk.a_create("/bq/clusters/test2/nodes","",0,function(rc,error,path){
+                                       zk.a_create("/bq/clusters/test2/nodes/redis-test",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"DOWN"}),0,function(rc,error,path){
+                                            zk.a_create("/bq/clusters/test2/topics","",0,function(rc,error,path){
+                                                zk.a_create("/bq/clusters/test2/topics/test2","",0,function(rc,error,path){
+                                                    zk.a_create("/bq/clusters/test2/topics/test2/consumerGroups","",0,function(rc,error,path){
+                                                        zk.a_create("/bq/clusters/test2/topics/test2/consumerGroups/testConsumer","",0,function(rc,error,path){
+                                                            setTimeout(function(){
+                                                                redisClient1.sismember("topics","test2",function(err,data){
                                                                     data.should.equal(1)
-                                                                    done()
-                                                                    orch.shutdown()
+                                                                    redisClient1.exists("topics:test2:consumers:testConsumer:last",function(err,data){
+                                                                        data.should.equal(1)
+                                                                        done()
+                                                                        orch.shutdown()
+                                                                    })
                                                                 })
-                                                            })
-                                                        },1200)
+                                                            },1200)
+                                                        })
                                                     })
                                                 })
                                             })
@@ -475,6 +441,63 @@ describe("Orchestrator",function(){
         })
     })
 
-    it("should not sync removed topics")
-    it("should not sync removed groups")
+    it("should not sync removed topics",function(done){
+        zk.a_create("/bq/clusters/test/topics/test2","",0,function(rc,error,path){
+            zk.a_create("/bq/clusters/test/topics/test2/consumerGroups","",0,function(rc,error,path){
+               var orch = oc.createOrchestrator(ocConfig)
+               orch.on("ready",function(){
+                    setTimeout(function(){
+                        redisClient1.sismember("topics","test2",function(err,data){
+                            data.should.equal(1)
+                            utils.deleteZkRecursive(zk,"/bq/clusters/test/topics/test2",function(rc,err){
+                                redisClient1.srem("topics","test2",function(err,data){
+                                    setTimeout(function(){
+                                        redisClient1.sismember("topics","test2",function(err,data){
+                                            data.should.equal(0)
+                                            done()
+                                        })
+                                    },500)
+                                })
+                            })
+
+                        })
+
+                    },500)
+               })
+            })
+        })
+    })
+    it("should not sync removed groups",function(done){
+        zk.a_create("/bq/clusters/test/topics/test2","",0,function(rc,error,path){
+            zk.a_create("/bq/clusters/test/topics/test2/consumerGroups","",0,function(rc,error,path){
+                zk.a_create("/bq/clusters/test/topics/test2/consumerGroups/test","",0,function(rc,error,path){
+                    zk.a_create("/bq/clusters/test/topics/test2/consumerGroups/test1","",0,function(rc,error,path){
+                        var orch = oc.createOrchestrator(ocConfig)
+                        orch.on("ready",function(){
+                            setTimeout(function(){
+                                redisClient1.sismember("topics:test2:consumers","test",function(err,data){
+                                    redisClient1.sismember("topics:test2:consumers","test1",function(err,data){
+                                        data.should.equal(1)
+                                        utils.deleteZkRecursive(zk,"/bq/clusters/test/topics/test2/consumerGroups/test",function(rc,err){
+                                            redisClient1.srem("topics:test2:consumers","test",function(err,data){
+                                                setTimeout(function(){
+                                                    redisClient1.sismember("topics:test2:consumers","test1",function(err,data){
+                                                        data.should.equal(1)
+                                                        redisClient1.sismember("topics:test2:consumers","test",function(err,data){
+                                                            data.should.equal(0)
+                                                            done()
+                                                        })
+                                                    })
+                                                },500)
+                                            })
+                                        })
+                                    })
+                                })
+                            },500)
+                        })
+                    })
+                })
+            })
+        })
+    })
 })

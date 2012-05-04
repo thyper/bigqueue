@@ -531,6 +531,17 @@ describe("http api",function(){
                 })
             })
         })
+
+        it("should get a 200 if the recipient callback doesn't exists",function(done){
+             request({
+                uri:"http://127.0.0.1:8080/topics/testTopic/consumers/testConsumer1/messages/non-existent-recipient-callback",
+                method:"DELETE",
+                json:true
+            },function(err,response,body){
+                response.statusCode.should.equal(200)
+                done()
+            }) 
+        })
     })
 
     describe("List Elements",function(done){

@@ -1,4 +1,4 @@
-#!/usr/local/bin/node --debug
+#!/usr/local/bin/node 
 
 var ZK = require("zookeeper"),
     oc = require("../lib/bq_cluster_orchestrator.js"),
