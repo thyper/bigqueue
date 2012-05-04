@@ -28,4 +28,13 @@ test:
 	kill `cat /tmp/redis1.pid`
 	kill `cat /tmp/redis1.pid`
 
+prepare_development:
+	cd /tmp; git clone https://github.com/antirez/redis.git; cd redis; git checkout 5471b8babddbb99a50010593483f24187e51981a; make install;
+	cd /tmp; wget http://nodejs.org/dist/v0.6.16/node-v0.6.16.tar.gz; tar -xvzf node-v0.6.16.tar.gz; cd node-v0.6.16; ./configure && make && make install;
+	npm install;
+
+run_development:
+	redis-server &
+	./bin/http_launcher.js
+
 .PHONY: test
