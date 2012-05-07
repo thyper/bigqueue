@@ -4,7 +4,12 @@
     "version": "0.1.0",
     "author": "",
     "engines": { "node":">= 0.6.7" },
-    "bin":{ "bigqueue-http":"./bin/http_launcher.js","bigqueue-orchestrator":"./bin/orchestrator_launcher.js" },
+    "bin":{ 
+        "bigqueue-http":"./bin/http_launcher.js",
+        "bigqueue-orchestrator":"./bin/orchestrator_launcher.js",
+        "os-http-admin-api":"./bin/os_http_admin_launcher.js",
+        "os-http-api":"./bin/os_http_launcher.js"
+    },
     "main":"lib/index",
     "repository": {
         "type": "git",
