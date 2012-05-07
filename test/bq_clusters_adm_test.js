@@ -252,6 +252,21 @@ describe("Clusters administratition for multicluster purposes",function(){
                 })
             })
         })
+
+        it("should enable to create topics with an specific ttl",function(done){
+            admClient.createTopic({"name":"test","ttl":100},undefined,function(err){
+                should.not.exist(err)
+                var clusterClient = bqc.createClusterClient(cluster1Config)
+                clusterClient.on("ready",function(){
+                    clusterClient.getTopicTtl("test",function(err,data){
+                        should.exist(data)
+                        data.should.equal(""+100)
+                        done()
+                    })
+                })
+            })
+        })
+
         it("should enable to create topics into an specific cluster",function(done){
             admClient.createTopic("test","test2",function(err){
                 should.not.exist(err)
@@ -357,6 +372,7 @@ describe("Clusters administratition for multicluster purposes",function(){
                 should.not.exist(err)
                 should.exist(data)
                 data.topic.should.equal("test-c1")
+                should.exist(data.ttl)
                 data.entrypoints.should.have.length(2)
                 data.entrypoints[0].host.should.equal("127.0.0.1")
                 data.entrypoints[0].port.should.equal(8080)

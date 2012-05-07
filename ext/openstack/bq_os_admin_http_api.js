@@ -75,7 +75,11 @@ var loadApp = function(app){
             return res.json({err:"Topics should contains a name"},400)
         }
         var topic = req.params.tenantId+"-"+req.body.name
-        admClient.createTopic({"name":topic,"group":tenant},req.body.cluster,function(err){
+        var ttl = req.body.ttl
+        if(ttl && ttl > app.settings.maxTtl){
+            return res.json({"err":"Max ttl exceeded, max ttl possible: "+app.settings.maxTtl},406)
+        }
+        admClient.createTopic({"name":topic,"group":tenant,"ttl":ttl},req.body.cluster,function(err){
             if(err)
               return res.json({"err":err},500)
             return res.json({"name":req.body.name},201) 
@@ -130,7 +134,8 @@ var authFilter = function(config){
 
 exports.startup = function(config){
     log.setLevel(config.logLevel || "info")
-     
+    //Default 5 days
+    var maxTtl = config.maxTtl || 5*24*60*60 
     var app = express.createServer()
         if(config.loggerConf){
         log.inf("Using express logger")
@@ -147,6 +152,7 @@ exports.startup = function(config){
 
     app.set("basePath",config.basePath)
     app.set("bqAdm", bqAdm.createClustersAdminClient(config.admConfig))
+    app.set("maxTtl",maxTtl)
 
     loadApp(app) 
     app.listen(config.port)

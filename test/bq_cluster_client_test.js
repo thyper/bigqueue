@@ -159,6 +159,36 @@ describe("Big Queue Cluster",function(){
                 })
             })
         })
+
+        it("should enable to create a topic with specific ttl",function(done){
+            bqClient.createTopic("testTopic1",1,function(err){
+                should.not.exist(err)
+                redisClient1.get("topics:testTopic1:ttl",function(err,data){
+                    should.not.exist(err)
+                    should.exist(data)
+                    data.should.equal(""+1)
+                    redisClient2.get("topics:testTopic1:ttl",function(err,data){
+                        should.not.exist(err)
+                        should.exist(data)
+                        data.should.equal(""+1)
+                        bqClient.createTopic("testTopic2",2,function(err){
+                            should.not.exist(err)
+                            redisClient1.get("topics:testTopic2:ttl",function(err,data){
+                                should.not.exist(err)
+                                should.exist(data)
+                                data.should.equal(""+2)
+                                redisClient2.get("topics:testTopic2:ttl",function(err,data){
+                                    should.not.exist(err)
+                                    should.exist(data)
+                                    data.should.equal(""+2)
+                                    done()
+                                })
+                            })
+                        })
+                    })
+                })
+            })
+        })
     })
 
     describe("#createConsumer",function(done){
@@ -723,6 +753,26 @@ describe("Big Queue Cluster",function(){
                     })
                 })
             }) 
+        })
+
+        it("should get topic ttl",function(done){
+            bqClient.createTopic("testTopic1",1,function(err){
+                should.not.exist(err)
+                bqClient.getTopicTtl("testTopic1",function(err,data){
+                    should.not.exist(err)
+                    should.exist(data)
+                    data.should.equal(""+1)
+                    bqClient.createTopic("testTopic2",2,function(err){
+                        should.not.exist(err)
+                        bqClient.getTopicTtl("testTopic2",function(err,data){
+                            should.not.exist(err)
+                            should.exist(data)
+                            data.should.equal(""+2)
+                            done()
+                        })
+                    })
+                })
+            })
         })
     })
    describe("background",function(){

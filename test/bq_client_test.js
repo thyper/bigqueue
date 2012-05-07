@@ -442,5 +442,27 @@ describe("Big Queue Client",function(){
             })
         })
     })
+
+    describe("Topic data",function(){
+        it("should get ttl",function(done){
+            bqClient.createTopic("testTopic1",1,function(err){
+                should.not.exist(err)
+                bqClient.getTopicTtl("testTopic1",function(err,data){
+                    should.not.exist(err)
+                    should.exist(data)
+                    data.should.equal(""+1)
+                    bqClient.createTopic("testTopic2",2,function(err){
+                        should.not.exist(err)
+                        bqClient.getTopicTtl("testTopic2",function(err,data){
+                            should.not.exist(err)
+                            should.exist(data)
+                            data.should.equal(""+2)
+                            done()
+                        })
+                    })
+                })
+            })
+        })
+    })
 })
 

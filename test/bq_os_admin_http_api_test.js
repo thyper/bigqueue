@@ -33,6 +33,7 @@ describe("openstack admin http api",function(){
     var httpConfig = {
         "admConfig":admConfig,
         "port":8080,
+        "maxTtl":500,
         "basePath":"/bigqueue",
         "logLevel":"critical"
     }
@@ -310,6 +311,33 @@ describe("openstack admin http api",function(){
         })
         it("should support topic deletes")
         it("should support consumers delete")
+    })
+
+    describe("Limits",function(done){
+        it("should limit the ttl time to the default ttl",function(done){
+            request({
+                url:"http://127.0.0.1:8080/bigqueue/clusters",
+                method:"POST",
+                json:{"name":"test"}
+            },function(error,response,body){
+                response.statusCode.should.equal(201)
+                request({
+                    url:"http://127.0.0.1:8080/bigqueue/1234/topics",
+                    method:"POST",
+                    json:{"name":"test","ttl":500}
+                },function(error,response,body){
+                    response.statusCode.should.equal(201)
+                    request({
+                        url:"http://127.0.0.1:8080/bigqueue/1234/topics",
+                        method:"POST",
+                        json:{"name":"test","ttl":501}
+                    },function(error,response,body){
+                        response.statusCode.should.equal(406)
+                        done()
+                    })
+                })
+            })
+        })
     })
 
     describe("Keyston authorization", function(){
