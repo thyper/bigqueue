@@ -10,10 +10,10 @@
         "os-http-admin-api":"./bin/os_http_admin_launcher.js",
         "os-http-api":"./bin/os_http_launcher.js"
     },
-    "main":"lib/index",
+    "main":"lib/index.js",
     "repository": {
         "type": "git",
-        "url": "https://github.com/geisbruch/bigqueue"
+        "url": "https://github.com/mercadolibre/bigqueue"
     }, 
     "dependencies": {
         "express" : "2.5.x",

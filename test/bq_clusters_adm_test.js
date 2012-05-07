@@ -210,9 +210,84 @@ describe("Clusters administratition for multicluster purposes",function(){
     })
 
     describe("Modify clusters",function(){
-        it("should support add nodes")
-        it("should support add journals")
-        it("should validate the structure on modify")
+        beforeEach(function(done){
+            admClient.createBigQueueCluster({
+                name:"test1",
+                nodes:[
+                    {name:"node1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}},
+                    {name:"node2",config:{"host":"127.0.0.1","port":6380,"errors":0,"status":"UP"}}
+                ],
+                journals:[
+                    {name:"j1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}}
+                ]
+            },function(err){
+                should.not.exist(err)
+                done()
+            })
+        })
+        it("should support add nodes",function(done){
+            admClient.addNodeToCluster("test1",{name:"node1",config:{"host":"127.0.0.1","port":6381,"errors":0}},function(err){
+                should.exist(err)
+                admClient.addNodeToCluster("test1",{name:"node3"},function(err){
+                    should.exist(err)
+                    admClient.addNodeToCluster("test1",{name:"node3",config:{"host":"127.0.0.1","port":6381,"errors":0}},function(err){
+                        should.not.exist(err)
+                        zk.a_get(clustersPath+"/test1/nodes/node3",false,function(rc,error,stat,data){
+                            rc.should.equal(0)
+                            var d = JSON.parse(data)
+                            d.host.should.equal("127.0.0.1")
+                            d.port.should.equal(6381)
+                            done()
+                        })
+                    })
+                })
+            })
+        })
+
+        it("should support servers modify",function(done){
+            admClient.updateNodeData("test1",{name:"node3",config:{"port":6382}},function(err){
+                should.exist(err)
+                admClient.updateNodeData("test1",{name:"node2",config:{"port":6382}},function(err){
+                    zk.a_get(clustersPath+"/test1/nodes/node2",false,function(rc,error,stat,data){
+                        rc.should.equal(0)
+                        var d = JSON.parse(data)
+                        d.host.should.equal("127.0.0.1")
+                        d.port.should.equal(6382)
+                        admClient.updateNodeData("test1",{name:"node1",config:{"port":6383,"host":"1234","description":"test"}},function(err){
+                            zk.a_get(clustersPath+"/test1/nodes/node1",false,function(rc,error,stat,data){
+                                rc.should.equal(0)
+                                var d = JSON.parse(data)
+                                d.host.should.equal("1234")
+                                d.port.should.equal(6383)
+                                d.description.should.equal("test")
+                                done()
+                            })
+                        })
+                    })
+                })
+            })
+        })
+
+        it("should support add journals",function(done){
+            admClient.addJournalToCluster("test1",{name:"j1",config:{"host":"127.0.0.1","port":6381,"errors":0}},function(err){
+                should.exist(err)
+                admClient.addJournalToCluster("test1",{name:"j2"},function(err){
+                    should.exist(err)
+                    admClient.addJournalToCluster("test1",{name:"j2",config:{"host":"127.0.0.1","port":6381}},function(err){
+                        should.not.exist(err)
+                        zk.a_get(clustersPath+"/test1/journals/j2",false,function(rc,error,stat,data){
+                            rc.should.equal(0)
+                            var d = JSON.parse(data)
+                            d.host.should.equal("127.0.0.1")
+                            d.port.should.equal(6381)
+                            done()
+                        })
+                    })
+                })
+            })
+        })
+        it("should support remove journals")
+        it("should validate before journal remove that this journal is unused")
     })
 
     describe("Create topics and groups",function(){
