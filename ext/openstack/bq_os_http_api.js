@@ -10,7 +10,7 @@ var loadApp = function(app){
       res.end("pong")
     })
 
-    app.post("/:tenantOwner/messages",function(req,res){
+    app.post(app.settings.basePath+"/messages",function(req,res){
         if(!req.is("json")){
             return res.json({err:"Message should be json"},400)
         }
@@ -35,7 +35,7 @@ var loadApp = function(app){
         var datas = []
         var executed = 0
         for(var i in topics){
-            bqClient.postMessage(req.params.tenantOwner+"-"+topics[i],message,function(err,data){
+            app.settings.bqClient.postMessage(topics[i],message,function(err,data){
                if(err){
                     errors.push(err)
                 }
@@ -54,12 +54,12 @@ var loadApp = function(app){
         }
     })
 
-    app.get("/:tenantOwner/topics/:topic/consumers/:consumerOwner/:consumer/messages",function(req,res){
+    app.get(app.settings.basePath+"/topics/:topic/consumers/:consumer/messages",function(req,res){
         var timer = log.startTimer()
         try{
-            var topic = req.params.tenantOwner+"-"+req.params.topic
-            var consumer = req.params.consumerOwner+"-"+req.params.consumer
-            bqClient.getMessage(topic,consumer,req.query.visibilityWindow,function(err,data){
+            var topic = req.params.topic
+            var consumer = req.params.consumer
+            app.settings.bqClient.getMessage(topic,consumer,req.query.visibilityWindow,function(err,data){
                 if(err){
                     res.json({err:""+err},400)
                 }else{
@@ -88,11 +88,11 @@ var loadApp = function(app){
         }
     })
 
-    app.delete("/:tenantOwner/topics/:topic/consumers/:tenantConsumer/:consumerName/messages/:recipientCallback",function(req,res){
+    app.delete(app.settings.basePath+"/topics/:topic/consumers/:consumerName/messages/:recipientCallback",function(req,res){
         try{
-            var topic = req.params.tenantOwner+"-"+req.params.topic
-            var consumer = req.params.tenantConsumer+"-"+req.params.consumerName
-            bqClient.ackMessage(topic,consumer,req.params.recipientCallback,function(err){
+            var topic = req.params.topic
+            var consumer = req.params.consumerName
+            app.settings.bqClient.ackMessage(topic,consumer,req.params.recipientCallback,function(err){
                 if(err){
                     res.json({err:""+err},200)
                 }else{
@@ -115,6 +115,9 @@ exports.startup = function(config){
         log.inf("Using express logger")
         app.use(express.logger(config.loggerConf));
     }
+    app.set("bqClient",config.bqClientCreateFunction(config.bqConfig))
+    app.set("basePath",config.basePath || "")
+
     app.use(express.limit(maxBody));
     app.use(express.bodyParser());
     app.use(express.methodOverride());
@@ -124,7 +127,6 @@ exports.startup = function(config){
     loadApp(app) 
 
     app.listen(config.port)
-    bqClient = config.bqClientCreateFunction(config.bqConfig)
     console.log("http api running on ["+config.port+"]")
     this.app = app
 }
