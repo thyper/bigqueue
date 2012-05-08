@@ -49,46 +49,54 @@ var loadApp = function(app){
         })
     })
 
-    app.get(app.settings.basePath+"/:tenantId/topics",function(req,res){
-        admClient.getGroupTopics(req.params.tenantId,function(err,data){
+    app.get(app.settings.basePath+"/topics",function(req,res){
+        var group = req.query[app.settings.groupEntity]
+        if(!group){
+            return res.json({err:"The parameter ["+app.settings.groupEntity+"] must be set"},400)
+        }
+        admClient.getGroupTopics(group,function(err,data){
            if(err)
                 return res.json({"err":err},500)
-            for(var i in data){
-                var pos = data[i].indexOf("-")
-                if(pos != -1){
-                    data[i] = data[i].substr(pos+1)
-                }
-            }
             return res.json(data,200)
         })
     })
 
-    app.post(app.settings.basePath+"/:tenantId/topics",function(req,res){
+    app.post(app.settings.basePath+"/topics",function(req,res){
         if(!req.is("json")){    
             return res.json({err:"Error parsing json"},400)
         }
-        var tenant = req.params.tenantId
-        if(req.keystone && req.keystone.authorized && !authorizeTenant(req.keystone.userData, tenant)){
-            return res.json({"err":"Invalid token for tenant ["+req.params.tenantId+"]"},401)
+        var group = req.body[app.settings.groupEntity]
+
+        if(!group){
+            res.json({"err":"The property ["+app.settings.groupEntity+"] must be set"},400)
+        }
+
+        if(req.keystone && req.keystone.authorized && !authorizeTenant(req.keystone.userData, group)){
+            return res.json({"err":"Invalid token for tenant ["+group+"]"},401)
         }
         if(!req.body.name){
             return res.json({err:"Topics should contains a name"},400)
         }
-        var topic = req.params.tenantId+"-"+req.body.name
+        var topic = group+"-"+req.body.name
         var ttl = req.body.ttl
         if(ttl && ttl > app.settings.maxTtl){
             return res.json({"err":"Max ttl exceeded, max ttl possible: "+app.settings.maxTtl},406)
         }
-        admClient.createTopic({"name":topic,"group":tenant,"ttl":ttl},req.body.cluster,function(err){
+        admClient.createTopic({"name":topic,"group":group,"ttl":ttl},req.body.cluster,function(err){
             if(err)
               return res.json({"err":err},500)
-            return res.json({"name":req.body.name},201) 
+            admClient.getTopicData(topic,function(err,data){
+                if(err){
+                  return res.json({"err":err},500)
+                }
+                return res.json(data,201)
+            })
+
         })
     })
     
-    app.get(app.settings.basePath+"/:tenantId/topics/:topic",function(req,res){
-        var topic = req.params.tenantId+"-"+req.params.topic
-        admClient.getTopicData(topic,function(err,data){
+    app.get(app.settings.basePath+"/topics/:topicId",function(req,res){
+        admClient.getTopicData(req.params.topicId,function(err,data){
             if(err){
               return res.json({"err":err},500)
             }
@@ -96,28 +104,56 @@ var loadApp = function(app){
         })
     })
 
-    app.post(app.settings.basePath+"/:tenantIdTopic/topics/:topicId/consumers/:tenantIdConsumer",function(req,res){
+    app.get(app.settings.basePath+"/topics/:topicId/consumers",function(req,res){
+        admClient.getTopicData(req.params.topicId,function(err,data){
+           if(err){
+              return res.json({"err":err},500)
+            }
+            return res.json(data.consumers,200)
+        })
+    })
+    app.post(app.settings.basePath+"/topics/:topicId/consumers",function(req,res){
         if(!req.is("json")){    
             return res.json({err:"Error parsing json"},400)
         }
-        
-        var tenant = req.params.tenantIdConsumer
-        if(req.keystone && req.keystone.authorized && !authorizeTenant(req.keystone.userData, tenant)){
-            return res.json({"err":"Invalid token for tenant ["+req.params.tenantId+"]"},401)
+
+        var group = req.body[app.settings.groupEntity]
+
+        if(!group){
+            res.json({"err":"The property ["+app.settings.groupEntity+"] must be set"},400)
+        }
+
+       
+        if(req.keystone && req.keystone.authorized && !authorizeTenant(req.keystone.userData, group)){
+            return res.json({"err":"Invalid token for tenant ["+group+"]"},401)
         }
 
         if(!req.body.name){
             return res.json({err:"Consumer should contains a name"},400)
         }
-        var topic = req.params.tenantIdTopic+"-"+req.params.topicId
-        var consumer = req.params.tenantIdConsumer+"-"+req.body.name
+        var topic = req.params.topicId
+        var consumer = group+"-"+req.body.name
         admClient.createConsumer(topic,consumer,function(err){
             if(err)
               return res.json({"err":err},500)
-            return res.json({"name":req.body.name},201) 
+            admClient.getConsumerData(topic,consumer,function(err,data){
+                if(err){
+                  return res.json({"err":err},500)
+                }
+                return res.json(data,201)
+            })
         })
-
     })
+
+    app.get(app.settings.basePath+"/topics/:topicId/consumers/:consumerId",function(req,res){
+        admClient.getConsumerData(req.params.topicId,req.params.consumerId,function(err,data){
+            if(err){
+              return res.json({"err":err},500)
+            }
+            return res.json(data,200)
+        })
+    })
+
 }
 
 var authFilter = function(config){
@@ -153,6 +189,9 @@ exports.startup = function(config){
     app.set("basePath",config.basePath)
     app.set("bqAdm", bqAdm.createClustersAdminClient(config.admConfig))
     app.set("maxTtl",maxTtl)
+
+    var groupEntity = config.groupEntity || "group"
+    app.set("groupEntity",groupEntity )
 
     loadApp(app) 
     app.listen(config.port)

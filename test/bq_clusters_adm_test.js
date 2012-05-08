@@ -446,7 +446,7 @@ describe("Clusters administratition for multicluster purposes",function(){
             admClient.getTopicData("test-c1",function(err,data){
                 should.not.exist(err)
                 should.exist(data)
-                data.topic.should.equal("test-c1")
+                data.topic_id.should.equal("test-c1")
                 should.exist(data.ttl)
                 data.entrypoints.should.have.length(2)
                 data.entrypoints[0].host.should.equal("127.0.0.1")
@@ -459,7 +459,7 @@ describe("Clusters administratition for multicluster purposes",function(){
                     admClient.getTopicData("test-c2",function(err,data){
                         should.not.exist(err)
                         should.exist(data)
-                        data.topic.should.equal("test-c2")
+                        data.topic_id.should.equal("test-c2")
                         data.entrypoints.should.have.length(2)
                         data.entrypoints[0].host.should.equal("127.0.0.1")
                         data.entrypoints[0].port.should.equal(8080)
