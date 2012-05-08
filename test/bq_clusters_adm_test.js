@@ -476,7 +476,7 @@ describe("Clusters administratition for multicluster purposes",function(){
         })
         it("should get data about cluster",function(done){
             admClient.getClusterData("test1",function(err,data){
-                data.should.have.keys("cluster","topics","nodes","entrypoints")
+                data.should.have.keys("cluster","topics","nodes","entrypoints","journals")
                 done()
             })
         })

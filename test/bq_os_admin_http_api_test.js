@@ -149,6 +149,170 @@ describe("openstack admin http api",function(){
                 })
             })
         })
+
+        it("should support add nodes",function(done){
+            request({
+                url:"http://127.0.0.1:8080/bigqueue/clusters",
+                method:"POST",
+                json:{"name":"test"}
+            },function(error,response,body){
+                response.statusCode.should.equal(201)
+                request({
+                    url:"http://127.0.0.1:8080/bigqueue/clusters/test",
+                    method:"GET",
+                    json:true
+                },function(err,response,body){
+                    response.statusCode.should.equal(200)
+                    body.nodes.should.have.length(0)
+                    request({
+                        url:"http://127.0.0.1:8080/bigqueue/clusters/test/nodes",
+                        method:"POST",
+                        json:{"name":"test1",config:{"host":"127.0.0.1","port":6379}}
+                    },function(err,response,body){
+                        response.statusCode.should.equal(201)
+                        request({
+                            url:"http://127.0.0.1:8080/bigqueue/clusters/test",
+                            method:"GET",
+                            json:true
+                        },function(err,response,body){
+                            response.statusCode.should.equal(200)
+                            body.nodes.should.have.length(1)
+                            body.nodes[0].host.should.equal("127.0.0.1")
+                            body.nodes[0].port.should.equal(6379)
+                            body.nodes[0].host.should.equal("127.0.0.1")
+                            done()
+                        })
+                    })
+
+                })
+            })
+        })
+        it("should support modify nodes",function(done){
+            request({
+                url:"http://127.0.0.1:8080/bigqueue/clusters",
+                method:"POST",
+                json:{"name":"test"}
+            },function(error,response,body){
+                response.statusCode.should.equal(201)
+                request({
+                    url:"http://127.0.0.1:8080/bigqueue/clusters/test",
+                    method:"GET",
+                    json:true
+                },function(err,response,body){
+                    response.statusCode.should.equal(200)
+                    body.nodes.should.have.length(0)
+                    request({
+                        url:"http://127.0.0.1:8080/bigqueue/clusters/test/nodes",
+                        method:"POST",
+                        json:{"name":"test1",config:{"host":"127.0.0.1","port":6379}}
+                    },function(err,response,body){
+                        response.statusCode.should.equal(201)
+                        request({
+                            url:"http://127.0.0.1:8080/bigqueue/clusters/test",
+                            method:"GET",
+                            json:true
+                        },function(err,response,body){
+                            response.statusCode.should.equal(200)
+                            body.nodes.should.have.length(1)
+                            body.nodes[0].host.should.equal("127.0.0.1")
+                            body.nodes[0].port.should.equal(6379)
+                            request({
+                                url:"http://127.0.0.1:8080/bigqueue/clusters/test/nodes/test1",
+                                method:"PUT",
+                                json:{config:{"host":"localhost","port":6379}}
+                            },function(err,response,body){
+                                response.statusCode.should.equal(200)
+                                request({
+                                    url:"http://127.0.0.1:8080/bigqueue/clusters/test",
+                                    method:"GET",
+                                    json:true
+                                },function(err,response,body){
+                                    response.statusCode.should.equal(200)
+                                    body.nodes.should.have.length(1)
+                                    body.nodes[0].host.should.equal("localhost")
+                                    body.nodes[0].port.should.equal(6379)
+                                    done()
+                                })
+                            })
+                        })
+                    })
+                })
+            })
+        })
+        it("should support add entry points",function(done){
+            request({
+                url:"http://127.0.0.1:8080/bigqueue/clusters",
+                method:"POST",
+                json:{"name":"test"}
+            },function(error,response,body){
+                response.statusCode.should.equal(201)
+                request({
+                    url:"http://127.0.0.1:8080/bigqueue/clusters/test",
+                    method:"GET",
+                    json:true
+                },function(err,response,body){
+                    response.statusCode.should.equal(200)
+                    body.entrypoints.should.have.length(0)
+                    request({
+                        url:"http://127.0.0.1:8080/bigqueue/clusters/test/entrypoints",
+                        method:"POST",
+                        json:{"name":"test1",config:{"host":"127.0.0.1","port":6379}}
+                    },function(err,response,body){
+                        response.statusCode.should.equal(201)
+                        request({
+                            url:"http://127.0.0.1:8080/bigqueue/clusters/test",
+                            method:"GET",
+                            json:true
+                        },function(err,response,body){
+                            response.statusCode.should.equal(200)
+                            body.entrypoints.should.have.length(1)
+                            body.entrypoints[0].host.should.equal("127.0.0.1")
+                            body.entrypoints[0].port.should.equal(6379)
+                            done()
+                        })
+                    })
+
+                })
+            })
+        })
+        it("should support delete entrypoints")
+        it("should support delete journals")
+        it("should support add journals",function(done){
+            request({
+                url:"http://127.0.0.1:8080/bigqueue/clusters",
+                method:"POST",
+                json:{"name":"test"}
+            },function(error,response,body){
+                response.statusCode.should.equal(201)
+                request({
+                    url:"http://127.0.0.1:8080/bigqueue/clusters/test",
+                    method:"GET",
+                    json:true
+                },function(err,response,body){
+                    response.statusCode.should.equal(200)
+                    body.journals.should.have.length(0)
+                    request({
+                        url:"http://127.0.0.1:8080/bigqueue/clusters/test/journals",
+                        method:"POST",
+                        json:{"name":"test1",config:{"host":"127.0.0.1","port":6379}}
+                    },function(err,response,body){
+                        response.statusCode.should.equal(201)
+                        request({
+                            url:"http://127.0.0.1:8080/bigqueue/clusters/test",
+                            method:"GET",
+                            json:true
+                        },function(err,response,body){
+                            response.statusCode.should.equal(200)
+                            body.journals.should.have.length(1)
+                            body.journals[0].host.should.equal("127.0.0.1")
+                            body.journals[0].port.should.equal(6379)
+                            done()
+                        })
+                    })
+
+                })
+            })
+        })
         it("should support cluster deletes")
 
     })

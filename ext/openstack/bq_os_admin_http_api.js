@@ -41,6 +41,62 @@ var loadApp = function(app){
         })
     })
 
+    app.post(app.settings.basePath+"/clusters/:cluster/nodes",function(req,res){
+        if(!req.is("json")){    
+            return res.json({err:"Error parsing json"},400)
+        }
+        if(!req.body.name){
+            return res.json({err:"Node should contains name"},400)
+        }
+        admClient.addNodeToCluster(req.params.cluster,req.body,function(err){
+            if(err)
+                return res.json({"err":err},500)
+            return res.json({"cluster":req.body.name},201)
+        })
+    })
+
+    app.post(app.settings.basePath+"/clusters/:cluster/journals",function(req,res){
+        if(!req.is("json")){    
+            return res.json({err:"Error parsing json"},400)
+        }
+        if(!req.body.name){
+            return res.json({err:"Node should contains name"},400)
+        }
+        admClient.addJournalToCluster(req.params.cluster,req.body,function(err){
+            if(err)
+                return res.json({"err":err},500)
+            return res.json({"cluster":req.body.name},201)
+        })
+    })
+
+    app.post(app.settings.basePath+"/clusters/:cluster/entrypoints",function(req,res){
+        if(!req.is("json")){    
+            return res.json({err:"Error parsing json"},400)
+        }
+        if(!req.body.name){
+            return res.json({err:"Node should contains name"},400)
+        }
+        admClient.addEntrypointToCluster(req.params.cluster,req.body,function(err){
+            if(err)
+                return res.json({"err":err},500)
+            return res.json({"cluster":req.body.name},201)
+        })
+    })
+
+
+    app.put(app.settings.basePath+"/clusters/:cluster/nodes/:node",function(req,res){
+        if(!req.is("json")){    
+            return res.json({err:"Error parsing json"},400)
+        }
+        var node = req.body
+        node["name"] = req.params.node 
+        admClient.updateNodeData(req.params.cluster,node,function(err){
+            if(err)
+                return res.json({"err":err},500)
+            return res.json({"cluster":req.body.name},200)
+        })
+    })
+
     app.get(app.settings.basePath+"/clusters/:cluster",function(req,res){
         admClient.getClusterData(req.params.cluster,function(err,data){
             if(err)
