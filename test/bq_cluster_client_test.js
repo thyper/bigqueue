@@ -393,6 +393,10 @@ describe("Big Queue Cluster",function(){
                 })
            })
        })
+
+       it("should ignore force down status")
+       it("should ignore force readonly status")
+
     })
     describe("#getMessage",function(){
         beforeEach(function(done){
@@ -445,6 +449,7 @@ describe("Big Queue Cluster",function(){
            })
 
         })
+
         it("should run ok if a node is down",function(done){
             bqClient.postMessage("testTopic",{msg:"testMessage"},function(err,data){
                 bqClient.postMessage("testTopic",{msg:"testMessage"},function(err,data){
@@ -523,6 +528,8 @@ describe("Big Queue Cluster",function(){
                })
            })
         })
+
+        it("should ignore force down status")
     })
 
     describe("ack",function(){
