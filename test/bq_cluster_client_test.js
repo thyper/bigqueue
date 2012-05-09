@@ -394,8 +394,46 @@ describe("Big Queue Cluster",function(){
            })
        })
 
-       it("should ignore force down status")
-       it("should ignore force readonly status")
+       it("should ignore force down status",function(done){
+            zk.a_set("/bq/clusters/test/nodes/redis2",JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"FORCEDOWN"}),-1,function(rc, err,stat){
+                setTimeout(function(){
+                    bqClient.postMessage("testTopic",{msg:"test1"},function(err,key){
+                        bqClient.postMessage("testTopic",{msg:"test2"},function(err,key){
+                            bqClient.postMessage("testTopic",{msg:"test3"},function(err,key){
+                                bqClient.postMessage("testTopic",{msg:"test4"},function(err,key){
+                                    redisClient1.get("topics:testTopic:head",function(err,data){
+                                        should.not.exist(err)
+                                        should.exist(data)
+                                        data.should.equal(""+4)
+                                        done()
+                                    })
+                                })
+                            })
+                        })
+                    })
+                },200)
+            })
+       })
+       it("should ignore readonly status",function(done){
+            zk.a_set("/bq/clusters/test/nodes/redis2",JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"READONLY"}),-1,function(rc, err,stat){
+                setTimeout(function(){
+                    bqClient.postMessage("testTopic",{msg:"test1"},function(err,key){
+                        bqClient.postMessage("testTopic",{msg:"test2"},function(err,key){
+                            bqClient.postMessage("testTopic",{msg:"test3"},function(err,key){
+                                bqClient.postMessage("testTopic",{msg:"test4"},function(err,key){
+                                    redisClient1.get("topics:testTopic:head",function(err,data){
+                                        should.not.exist(err)
+                                        should.exist(data)
+                                        data.should.equal(""+4)
+                                        done()
+                                    })
+                                })
+                            })
+                        })
+                    })
+                },200)
+            })
+       })
 
     })
     describe("#getMessage",function(){
@@ -448,6 +486,34 @@ describe("Big Queue Cluster",function(){
                 })
            })
 
+        })
+
+        it("should read messages from readonly nodes",function(done){
+            bqClient.postMessage("testTopic",{msg:"testMessage"},function(err,data){
+                bqClient.postMessage("testTopic",{msg:"testMessage"},function(err,data){
+                   zk.a_set("/bq/clusters/test/nodes/redis2",JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"READONLY"}),-1,function(rc, err,stat){
+                      process.nextTick(function(){
+                        bqClient.getMessage("testTopic","testGroup",undefined,function(err,data){
+                                should.not.exist(err)
+                                should.exist(data)
+                                data.should.have.property("uid")
+                                data.should.have.property("recipientCallback")
+                                bqClient.getMessage("testTopic","testGroup",undefined,function(err,data){
+                                    should.not.exist(err)
+                                    should.exist(data)
+                                    data.should.have.property("uid")
+                                    data.should.have.property("recipientCallback")
+                                    bqClient.getMessage("testTopic","testGroup",undefined,function(err,data){
+                                        should.not.exist(err)
+                                        should.not.exist(data)
+                                        done()
+                                    })
+                                })
+                            })
+                        })
+                    })
+                })
+            })
         })
 
         it("should run ok if a node is down",function(done){
@@ -529,7 +595,27 @@ describe("Big Queue Cluster",function(){
            })
         })
 
-        it("should ignore force down status")
+        it("should ignore down status",function(done){
+             bqClient.postMessage("testTopic",{msg:"testMessage"},function(err,data){
+                bqClient.postMessage("testTopic",{msg:"testMessage"},function(err,data){
+                   zk.a_set("/bq/clusters/test/nodes/redis2",JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"FORCEDOWN"}),-1,function(rc, err,stat){
+                      setTimeout(function(){
+                        bqClient.getMessage("testTopic","testGroup",undefined,function(err,data){
+                                should.not.exist(err)
+                                should.exist(data)
+                                data.should.have.property("uid")
+                                data.should.have.property("recipientCallback")
+                                bqClient.getMessage("testTopic","testGroup",undefined,function(err,data){
+                                    should.not.exist(err)
+                                    should.not.exist(data)
+                                    done()
+                                })
+                            })
+                        },200)
+                    })
+                })
+            })
+        })
     })
 
     describe("ack",function(){

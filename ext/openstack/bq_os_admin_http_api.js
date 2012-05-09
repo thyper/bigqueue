@@ -11,7 +11,7 @@ var loadApp = function(app){
         try{
             var tenants = userData.access.token.tenants
             tenants.forEach(function(val){
-                if(val.name == tenant){
+                if(val.id == tenant){
                     authorized = true
                     return
                 }
@@ -20,6 +20,21 @@ var loadApp = function(app){
             //Property doesn't exist
         }
         return authorized
+    }
+
+    var isAdmin = function(userData){
+        var idToFind = app.settings.adminRoleId
+        var found = false
+        var roles = userData.user.roles
+        if(roles){
+            roles.forEach(function(val){
+                if(val.id == idToFind){
+                    found = true
+                    return
+                }
+            })
+        }
+        return found
     }
 
     app.get(app.settings.basePath+"/clusters",function(req,res){
@@ -69,7 +84,7 @@ var loadApp = function(app){
         })
     })
 
-    app.post(app.settings.basePath+"/clusters/:cluster/entrypoints",function(req,res){
+    app.post(app.settings.basePath+"/clusters/:cluster/endpoints",function(req,res){
         if(!req.is("json")){    
             return res.json({err:"Error parsing json"},400)
         }
@@ -124,7 +139,7 @@ var loadApp = function(app){
         var group = req.body[app.settings.groupEntity]
 
         if(!group){
-            res.json({"err":"The property ["+app.settings.groupEntity+"] must be set"},400)
+            return res.json({"err":"The property ["+app.settings.groupEntity+"] must be set"},400)
         }
 
         if(req.keystone && req.keystone.authorized && !authorizeTenant(req.keystone.userData, group)){
@@ -176,21 +191,26 @@ var loadApp = function(app){
         }
 
         var group = req.body[app.settings.groupEntity]
+        var topic = req.params.topicId
+        var consumer = group+"-"+req.body.name
 
         if(!group){
             res.json({"err":"The property ["+app.settings.groupEntity+"] must be set"},400)
         }
 
        
-        if(req.keystone && req.keystone.authorized && !authorizeTenant(req.keystone.userData, group)){
-            return res.json({"err":"Invalid token for tenant ["+group+"]"},401)
+        if(req.keystone && req.keystone.authorized){
+            if(!authorizeTenant(req.keystone.userData, group))
+                return res.json({"err":"Invalid token for tenant ["+group+"]"},401)
+                
+            //Consumers can be only created if these belongs to the same tenant or the user has the admin role     
+            if(topic.lastIndexOf(group,0) != 0 && !isAdmin(req.keystone.userData))
+                return res.json({"err":"Tenant ["+group+"] can't create consumers on ["+topic+"]]"},401)    
         }
 
         if(!req.body.name){
             return res.json({err:"Consumer should contains a name"},400)
         }
-        var topic = req.params.topicId
-        var consumer = group+"-"+req.body.name
         admClient.createConsumer(topic,consumer,function(err){
             if(err)
               return res.json({"err":err},500)
@@ -241,20 +261,20 @@ exports.startup = function(config){
     if(config.keystoneConfig){
         app.use(keystoneMiddlware.auth(config.keystoneConfig))
         app.use(authFilter())
+        app.set("adminRoleId",config.keystoneConfig.adminRoleId || -1)
     }
     app.use(app.router); 
 
-    app.set("basePath",config.basePath)
+    app.set("basePath",config.basePath || "")
     app.set("bqAdm", bqAdm.createClustersAdminClient(config.admConfig))
     app.set("maxTtl",maxTtl)
 
-    var groupEntity = config.groupEntity || "group"
+    var groupEntity = config.groupEntity || "tenantId"
     app.set("groupEntity",groupEntity )
 
     loadApp(app) 
     app.listen(config.port)
     this.app = app
-
     return this
 }
 

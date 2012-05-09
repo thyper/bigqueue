@@ -128,7 +128,7 @@ describe("Clusters administratition for multicluster purposes",function(){
                             zk.a_exists(clustersPath+"/test1/journals",false,function (rc,error,stat){
                                 should.exist(rc)
                                 rc.should.equal(0)
-                                zk.a_exists(clustersPath+"/test1/entrypoints",false,function (rc,error,stat){
+                                zk.a_exists(clustersPath+"/test1/endpoints",false,function (rc,error,stat){
                                     should.exist(rc)
                                     rc.should.equal(0)
                                     done()
@@ -192,15 +192,15 @@ describe("Clusters administratition for multicluster purposes",function(){
         it("should support add entry points on create",function(done){
             var clusterData={
                     name:"test1",
-                    entrypoints:[
+                    endpoints:[
                         {name:"e1",config:{host:"127.0.0.1",port:"8080"}},
                         {name:"e2",config:{host:"127.0.0.1",port:"8080"}}
                     ]
                }
             admClient.createBigQueueCluster(clusterData,function(err){
-                zk.a_get(clustersPath+"/test1/entrypoints/e1",false,function (rc,error,stat,data){
+                zk.a_get(clustersPath+"/test1/endpoints/e1",false,function (rc,error,stat,data){
                     JSON.parse(data).host.should.equal("127.0.0.1")
-                    zk.a_get(clustersPath+"/test1/entrypoints/e2",false,function (rc,error,stat,data){
+                    zk.a_get(clustersPath+"/test1/endpoints/e2",false,function (rc,error,stat,data){
                         JSON.parse(data).host.should.equal("127.0.0.1")
                         done()
                     })
@@ -411,7 +411,7 @@ describe("Clusters administratition for multicluster purposes",function(){
                     {name:"node1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}},
                     {name:"node2",config:{"host":"127.0.0.1","port":6380,"errors":0,"status":"UP"}}
                 ],
-                entrypoints:[
+                endpoints:[
                     {name:"e1",config:{"host":"127.0.0.1","port":8080}},
                     {name:"e2",config:{"host":"127.0.0.1","port":8081}}
                 ]
@@ -424,7 +424,7 @@ describe("Clusters administratition for multicluster purposes",function(){
                         {name:"node1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}},
                         {name:"node2",config:{"host":"127.0.0.1","port":6380,"errors":0,"status":"UP"}}
                     ],
-                    entrypoints:[
+                    endpoints:[
                         {name:"e1",config:{"host":"127.0.0.1","port":8080}},
                         {name:"e2",config:{"host":"127.0.0.1","port":8081}}
                     ]
@@ -448,11 +448,11 @@ describe("Clusters administratition for multicluster purposes",function(){
                 should.exist(data)
                 data.topic_id.should.equal("test-c1")
                 should.exist(data.ttl)
-                data.entrypoints.should.have.length(2)
-                data.entrypoints[0].host.should.equal("127.0.0.1")
-                data.entrypoints[0].port.should.equal(8080)
-                data.entrypoints[1].host.should.equal("127.0.0.1")
-                data.entrypoints[1].port.should.equal(8081)
+                data.endpoints.should.have.length(2)
+                data.endpoints[0].host.should.equal("127.0.0.1")
+                data.endpoints[0].port.should.equal(8080)
+                data.endpoints[1].host.should.equal("127.0.0.1")
+                data.endpoints[1].port.should.equal(8081)
                 data.consumers.should.have.length(0)
                 admClient.createConsumer("test-c2","test",function(err,data){
                     should.not.exist(err)
@@ -460,11 +460,11 @@ describe("Clusters administratition for multicluster purposes",function(){
                         should.not.exist(err)
                         should.exist(data)
                         data.topic_id.should.equal("test-c2")
-                        data.entrypoints.should.have.length(2)
-                        data.entrypoints[0].host.should.equal("127.0.0.1")
-                        data.entrypoints[0].port.should.equal(8080)
-                        data.entrypoints[1].host.should.equal("127.0.0.1")
-                        data.entrypoints[1].port.should.equal(8081)
+                        data.endpoints.should.have.length(2)
+                        data.endpoints[0].host.should.equal("127.0.0.1")
+                        data.endpoints[0].port.should.equal(8080)
+                        data.endpoints[1].host.should.equal("127.0.0.1")
+                        data.endpoints[1].port.should.equal(8081)
                         data.consumers.should.have.length(1)
                         data.consumers[0].should.have.keys("consumer","stats")
                         data.consumers[0].stats.should.have.keys("lag","processing","fails")
@@ -476,7 +476,7 @@ describe("Clusters administratition for multicluster purposes",function(){
         })
         it("should get data about cluster",function(done){
             admClient.getClusterData("test1",function(err,data){
-                data.should.have.keys("cluster","topics","nodes","entrypoints","journals")
+                data.should.have.keys("cluster","topics","nodes","endpoints","journals")
                 done()
             })
         })
