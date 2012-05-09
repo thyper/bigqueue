@@ -139,14 +139,16 @@ var loadApp = function(app){
             return res.json({"err":"Max ttl exceeded, max ttl possible: "+app.settings.maxTtl},406)
         }
         admClient.createTopic({"name":topic,"group":group,"ttl":ttl},req.body.cluster,function(err){
-            if(err)
+            if(err){
               return res.json({"err":err},500)
-            admClient.getTopicData(topic,function(err,data){
-                if(err){
-                  return res.json({"err":err},500)
-                }
-                return res.json(data,201)
-            })
+            }else{
+                admClient.getTopicData(topic,function(err,data){
+                    if(err){
+                      return res.json({"err":err},500)
+                    }
+                    return res.json(data,201)
+                })
+            }
 
         })
     })
