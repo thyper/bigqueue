@@ -888,7 +888,44 @@ describe("openstack admin http api",function(){
                 })
             })
         })
-        it("should only create consumer into a topic if these has the admin role",function(done){
+
+        it("should only create topic without the specific tenant if the user is admin",function(done){
+            request({
+                url:"http://127.0.0.1:8080/clusters",
+                method:"POST",
+                json:{"name":"test",
+                      "nodes":[{
+                        "name":"redis1", 
+                        "config":{
+                            "host":"127.0.0.1",
+                            "port":6379,
+                            "status":"UP"
+                         }
+                    }]},
+                headers:{"X-Auth-Token":"user123"}
+            },function(error,response,body){
+               request({
+                    url:"http://127.0.0.1:8080/topics",
+                    method:"POST",
+                    json:{"tenantId":"user345","name":"test"},
+                    headers:{"X-Auth-Token":"someone"}
+                },function(error,response,body){
+                   response.statusCode.should.equal(401)
+                   request({
+                        url:"http://127.0.0.1:8080/topics",
+                        method:"POST",
+                        json:{"tenantId":"user345","name":"test"},
+                        headers:{"X-Auth-Token":"user123"}
+                    },function(error,response,body){
+                        response.statusCode.should.equal(201)
+                        done()
+                    })
+                })
+            })
+
+        })
+
+        it("should only create consumer into a topic if is not the has the tenant, if the user  has the admin role",function(done){
            request({
                 url:"http://127.0.0.1:8080/clusters",
                 method:"POST",
