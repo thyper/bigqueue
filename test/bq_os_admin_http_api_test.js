@@ -652,12 +652,12 @@ describe("openstack admin http api",function(){
                     return res.json({
                         "access": {
                             "token":{
-                                "tenants":[
+                                "tenant":
                                      {
                                          "id": "1", 
                                          "name": "1234"
                                      }
-                                ]
+                                
                             }
                         },
                         "user":{
@@ -676,12 +676,12 @@ describe("openstack admin http api",function(){
                     return res.json({
                         "access": {
                             "token":{
-                                "tenants":[
+                                "tenant":
                                      {
                                          "id": "3", 
                                          "name": "345"
                                      }
-                                ]
+                                
                             }
                         },
                         "user":{
@@ -694,12 +694,12 @@ describe("openstack admin http api",function(){
                     return res.json({
                         "access": {
                             "token":{
-                                "tenants":[
+                                "tenant":
                                      {
                                          "id": "2", 
                                          "name": "someone"
                                      }
-                                ]
+                                
                             }
                         },
                         "user":{}

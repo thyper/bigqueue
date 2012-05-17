@@ -70,6 +70,8 @@ if isEmpty(failed) then
         if msgId <= topicHead then
             redis.call("incr",lastPointer)
             return {err="Message with id ["..msgId.."] was expired"}
+        else
+            return  {}
         end
     else
         addToProcessing(msgId)

@@ -6,16 +6,13 @@ var express = require('express'),
 var loadApp = function(app){
     var admClient = app.settings.bqAdm
 
-    var authorizeTenant = function(userData,tenant){
+    var authorizeTenant = function(userData,tenantId){
         var authorized = false
         try{
-            var tenants = userData.access.token.tenants
-            tenants.forEach(function(val){
-                if(val.id == tenant){
-                    authorized = true
-                    return
-                }
-            })
+            var tenant = userData.access.token.tenant
+            if(tenant && tenant.id == tenantId){
+                authorized = true
+            }
         }catch(e){
             //Property doesn't exist
         }
