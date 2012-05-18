@@ -196,12 +196,12 @@ var loadApp = function(app){
         }
 
        
-        if(req.keystone && req.keystone.authorized){
+        if(req.keystone && req.keystone.authorized && !isAdmin(req.keystone.userData)){
             if(!authorizeTenant(req.keystone.userData, group))
                 return res.json({"err":"Invalid token for tenant ["+group+"]"},401)
                 
             //Consumers can be only created if these belongs to the same tenant or the user has the admin role     
-            if(topic.lastIndexOf(group,0) != 0 && !isAdmin(req.keystone.userData))
+            if(topic.lastIndexOf(group,0) != 0)
                 return res.json({"err":"Tenant ["+group+"] can't create consumers on ["+topic+"]]"},401)    
         }
 

@@ -44,6 +44,10 @@ describe("Orchestrator",function(){
         })
     });
 
+    after(function(){
+        zk.close()
+    })
+
     beforeEach(function(done){
         utils.deleteZkRecursive(zk,"/bq",function(){
             zk.a_create("/bq","",0,function(rc,error,path){    

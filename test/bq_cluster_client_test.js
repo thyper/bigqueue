@@ -107,6 +107,9 @@ describe("Big Queue Cluster",function(){
         bqClient.shutdown()
     })
 
+    after(function(){
+        zk.close()
+    })
     //End of prepare stage 
 
     describe("#createTopic",function(){
