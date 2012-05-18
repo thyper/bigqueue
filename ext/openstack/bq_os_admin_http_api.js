@@ -22,7 +22,7 @@ var loadApp = function(app){
     var isAdmin = function(userData){
         var idToFind = app.settings.adminRoleId
         var found = false
-        var roles = userData.user.roles
+        var roles = userData.access.user.roles
         if(roles){
             roles.forEach(function(val){
                 if(val.id == idToFind){
@@ -258,7 +258,7 @@ exports.startup = function(config){
     if(config.keystoneConfig){
         app.use(keystoneMiddlware.auth(config.keystoneConfig))
         app.use(authFilter())
-        app.set("adminRoleId",config.keystoneConfig.adminRoleId || -1)
+        app.set("adminRoleId",config.admConfig.adminRoleId || -1)
     }
     app.use(app.router); 
 

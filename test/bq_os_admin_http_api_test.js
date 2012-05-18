@@ -27,6 +27,7 @@ describe("openstack admin http api",function(){
         "createNodeClientFunction":bq.createClient,
         "createJournalClientFunction":bj.createJournalClient,
         "logLevel":"error",
+        "adminRoleId":3,
         "defaultCluster":"test"
     }
     
@@ -40,8 +41,7 @@ describe("openstack admin http api",function(){
     var keystoneConfig = {
         "keystoneUrl":"http://localhost:35357/v2.0",
         "adminToken":"admin",
-        "foceAuth":false,
-        "adminRoleId":3
+        "foceAuth":false
     }
 
     var zk = new ZK(zkConfig)
@@ -658,16 +658,16 @@ describe("openstack admin http api",function(){
                                          "name": "1234"
                                      }
                                 
+                            },
+                            "user":{
+                                "roles": [
+                                    {
+                                        "id": "3", 
+                                        "name": "Admin", 
+                                        "tenantId": "1"
+                                    }
+                                ]
                             }
-                        },
-                        "user":{
-                            "roles": [
-                                {
-                                    "id": "3", 
-                                    "name": "Admin", 
-                                    "tenantId": "1"
-                                }
-                            ]
                         }
 
                     },200)
@@ -682,11 +682,11 @@ describe("openstack admin http api",function(){
                                          "name": "345"
                                      }
                                 
+                            },
+                            "user":{
                             }
-                        },
-                        "user":{
                         }
-
+                
                     },200)
                 }
 
@@ -700,9 +700,9 @@ describe("openstack admin http api",function(){
                                          "name": "someone"
                                      }
                                 
-                            }
-                        },
-                        "user":{}
+                            },
+                            "user":{}
+                        }
 
                     },200)
                 }
