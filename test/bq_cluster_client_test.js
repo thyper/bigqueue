@@ -103,12 +103,19 @@ describe("Big Queue Cluster",function(){
         })
     }) 
 
-    afterEach(function(){
+    afterEach(function(done){
         bqClient.shutdown()
+        process.nextTick(function(){
+            done()
+        })
     })
 
-    after(function(){
+    after(function(done){
         zk.close()
+        process.nextTick(function(){
+            done()
+        })
+
     })
     //End of prepare stage 
 
@@ -374,7 +381,6 @@ describe("Big Queue Cluster",function(){
            zk.a_create("/bq/clusters/test/journals/j3",JSON.stringify({"host":"127.0.0.1","port":6381,"errors":0,"status":"UP"}),0,function(rc, err,stat){
                 zk.a_set("/bq/clusters/test/nodes/redis1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"UP", "journals":["j1","j2","j3"]}),-1,function(rc, err,stat){
                     zk.a_set("/bq/clusters/test/nodes/redis2",JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"UP", "journals":["j1","j2","j3"]}),-1,function(rc, err,stat){
-
                         var oldData
                         zk.aw_get("/bq/clusters/test/journals/j3",function(type,state,path){
                             zk.a_get(path,false,function(rc,error,stat,data){

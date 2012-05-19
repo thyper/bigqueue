@@ -16,24 +16,24 @@ local failsList = consumerKey..":fails"
 local processingList = consumerKey..":processing"
 
 -- Functions
-function getExpireTime()
+local function getExpireTime()
     return tms+visibilityWindow
 end
 
-function isEmpty(t)
+local function isEmpty(t)
     return table.getn(t) <=0
 end
 
-function getMessage(messageId)
+local function getMessage(messageId)
     return redis.call("hgetall",topicKey..":messages:"..messageId)
 end
 
-function addToProcessing(messageId)
+local function addToProcessing(messageId)
     local expire = getExpireTime()
     redis.call("zadd",consumerKey..":processing",expire,messageId)
 end
 
-function addIdToMessage(msgId,message)
+local function addIdToMessage(msgId,message)
     table.insert(message,"id")
     table.insert(message,msgId)
 end
