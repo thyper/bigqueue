@@ -6,8 +6,8 @@ if not (ttl == nil) and (type(ttl) == "string") then
 end
 
 if ttl == nil or ttl <= 0 then
-    -- Default ttl 5 days
-    ttl = 5*24*60*60
+    -- Default ttl 3 days
+    ttl = 3*24*60*60
 end
 
 local exist = redis.call("sismember","topics",topic)
