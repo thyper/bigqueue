@@ -1,4 +1,4 @@
-- Vars
+-- Vars
 
 local tms = ARGV[1]
 local topic = ARGV[2]
