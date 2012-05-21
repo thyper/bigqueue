@@ -1,4 +1,4 @@
--- Vars
+- Vars
 
 local tms = ARGV[1]
 local topic = ARGV[2]
@@ -67,7 +67,7 @@ if isEmpty(failed) then
         if not topicHead then
            return {}
         end
-        if msgId <= topicHead then
+        if tonumber(msgId) <= tonumber(topicHead) then
             redis.call("incr",lastPointer)
             return {err="Message with id ["..msgId.."] was expired"}
         else
