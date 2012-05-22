@@ -459,6 +459,7 @@ describe("Orchestrator",function(){
                                     setTimeout(function(){
                                         redisClient1.sismember("topics","test2",function(err,data){
                                             data.should.equal(0)
+                                            orch.shutdown()
                                             done()
                                         })
                                     },500)
@@ -490,6 +491,7 @@ describe("Orchestrator",function(){
                                                         data.should.equal(1)
                                                         redisClient1.sismember("topics:test2:consumers","test",function(err,data){
                                                             data.should.equal(0)
+                                                            orch.shutdown()
                                                             done()
                                                         })
                                                     })
