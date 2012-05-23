@@ -11,6 +11,8 @@ describe("Redis lua scripts",function(){
     var ackMessageScript; 
     var failMessageScript; 
     var redisClient;
+    var deleteConsumerScript;
+    var deleteTopicScript;
     before(function(done){
         fs.readFile('scripts/getMessage.lua','ascii',function(err,strFile){
             should.not.exist(err)
@@ -30,11 +32,19 @@ describe("Redis lua scripts",function(){
                             fs.readFile('scripts/fail.lua','ascii',function(err,strFile){
                                 should.not.exist(err)
                                 failMessageScript = strFile
-                                redisClient = redis.createClient(6379,"127.0.0.1")
-                                redisClient.on("ready",function(){
-                                    done()
+                                fs.readFile('scripts/deleteConsumer.lua','ascii',function(err,strFile){
+                                    should.not.exist(err)
+                                    deleteConsumerScript = strFile
+                                    fs.readFile('scripts/deleteTopic.lua','ascii',function(err,strFile){
+                                        should.not.exist(err)
+                                        deleteTopicScript = strFile
+                                        redisClient = redis.createClient(6379,"127.0.0.1")
+                                        redisClient.on("ready",function(){
+                                            done()
+                                        })
+                                        redisClient.on("error",function(){})
+                                    })
                                 })
-                                redisClient.on("error",function(){})
                             })
                         })
                     })
@@ -579,6 +589,77 @@ describe("Redis lua scripts",function(){
                 done()
             })
         })
-   
     })
+
+
+    describe("#delete",function(){
+        beforeEach(function(done){
+            redisClient.flushall(function(err,data){
+                redisClient.eval(createTopicScript, 0, "testTopic", function(err,data){
+                    should.not.exist(err)
+                    redisClient.eval(createConsumerScript, 0, "testTopic", "testConsumer", function(err,data){
+                        should.not.exist(err)
+                        redisClient.eval(createConsumerScript, 0, "testTopic", "testConsumer2", function(err,data){
+                            should.not.exist(err)
+                            done()
+                        })
+                    })
+                })
+            })
+        })
+
+        it("should delete an existent consumer",function(done){
+            redisClient.eval(deleteConsumerScript,0,"testTopic","testConsumer",function(err,data){
+                should.not.exist(err)
+                redisClient.smembers("topics:testTopic:consumers",function(err,data){
+                    should.not.exist(err)
+                    data.length.should.equal(1)
+                    data[0].should.equal("testConsumer2")
+                    redisClient.exists("topics:testTopics:consumers:testConsumer:last",function(err,data){
+                        data.should.equal(0)
+                        done()
+                    })
+                })
+            })
+        })
+        it("should get an error if the consumer doesn't exists",function(done){
+            redisClient.eval(deleteConsumerScript,0,"testTopic","testConsumer-no-exist",function(err,data){
+                should.exist(err)
+                done()
+            })
+        })
+        
+        it("should get an error on topic delete if already contains consumers",function(done){
+             redisClient.eval(deleteTopicScript,0,"testTopic",function(err,data){
+                 should.exist(err)
+                 done()
+             })
+        })
+        it("should delete an existent topics",function(done){
+            redisClient.eval(deleteConsumerScript,0,"testTopic","testConsumer",function(err,data){
+                should.not.exist(err)
+                redisClient.eval(deleteConsumerScript,0,"testTopic","testConsumer2",function(err,data){
+                    should.not.exist(err)
+                    redisClient.eval(deleteTopicScript,0,"testTopic",function(err,data){
+                        should.not.exist(err)
+                        redisClient.smembers("topics",function(err,data){
+                            should.not.exist(err)
+                            data.length.should.equal(0)
+                            redisClient.exists("topics:testTopics:head",function(err,data){
+                                data.should.equal(0)
+                                done()
+                            })
+
+                        }) 
+                    })
+                })
+            })
+        })
+        it("should get an error if the topic doesn't exists",function(done){
+            redisClient.eval(deleteTopicScript,0,"testTopic-no-exist",function(err,data){
+                should.exist(err)
+                done()
+            })
+        })
+   })
 })
