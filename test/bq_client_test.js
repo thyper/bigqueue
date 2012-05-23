@@ -464,5 +464,43 @@ describe("Big Queue Client",function(){
             })
         })
     })
+
+    describe("delete",function(){
+        it("should delete topics",function(done){
+            bqClient.createTopic("testTopic1",function(err){
+                should.not.exist(err)
+                bqClient.listTopics(function(data){
+                    data.length.should.equal(1)
+                    bqClient.deleteTopic("testTopic1",function(err){
+                        should.not.exist(err)
+                        bqClient.listTopics(function(data){
+                            data.length.should.equal(0)
+                            done()
+                        })
+                    })
+                })
+            })
+        })
+        it("should delete consumers",function(done){
+
+            bqClient.createTopic("testTopic1",function(err){
+                bqClient.createConsumerGroup("testTopic1","testConsumer",function(err){
+                    should.not.exist(err)
+                    bqClient.getConsumerGroups("testTopic1",function(err,data){
+                        should.not.exist(err)
+                        data.length.should.equal(1)
+                        bqClient.deleteConsumerGroup("testTopic1","testConsumer",function(err,data){
+                            should.not.exist(err)
+                            bqClient.getConsumerGroups("testTopic1",function(err,data){
+                                should.not.exist(err)
+                                data.length.should.equal(0)
+                                done()
+                            })
+                        })
+                    })
+                })
+            })
+        })
+    })
 })
 
