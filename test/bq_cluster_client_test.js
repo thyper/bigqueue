@@ -329,9 +329,71 @@ describe("Big Queue Cluster",function(){
     })
 
     describe("#deleteConsumer",function(done){
-        it("should remove consumer from zookeeper")
-        it("should remove consumer on all servers")
-        it("should fail if any redis fails")
+        beforeEach(function(done){
+            bqClient.createTopic("testTopic",function(err){
+                should.not.exist(err)
+                bqClient.createConsumerGroup("testTopic","testConsumer",function(err){
+                    should.not.exist(err)
+                    done()
+                })
+            })
+        })
+
+        it("should remove consumer from zookeeper",function(done){
+            zk.a_exists(clusterPath+"/topics/testTopic/consumerGroups/testConsumer",false,function(rc,error,stat){
+                if(rc!=0){
+                    done(rc+"-"+error)
+                }else{
+                    bqClient.deleteConsumerGroup("testTopic","testConsumer",function(err){
+                        should.not.exist(err)
+                        zk.a_exists(clusterPath+"/topics/testTopic/consumerGroups/testConsumer",false,function(rc,error,stat){
+                            if(rc == 0){
+                                done("Path should not exist")
+                            }else{
+                                done()
+                            }
+                        })
+                    })
+                }
+            })
+        })
+        it("should remove consumer on all servers",function(done){
+            redisClient1.sismember("topics:testTopic:consumers","testConsumer",function(err,data){
+                should.not.exist(err)
+                data.should.equal(1)
+                redisClient2.sismember("topics:testTopic:consumers","testConsumer",function(err,data){
+                    should.not.exist(err)
+                    data.should.equal(1)
+                    bqClient.deleteConsumerGroup("testTopic","testConsumer",function(err){
+                        redisClient1.sismember("topics:testTopic:consumers","testConsumer",function(err,data){
+                            should.not.exist(err)
+                            data.should.equal(0)
+                            redisClient2.sismember("topics:testTopic:consumers","testConsumer",function(err,data){
+                                should.not.exist(err)
+                                data.should.equal(0)
+                                done()
+                            })
+                        })
+                    })
+                })
+            })
+
+        })
+        it("should fail if any redis fails",function(done){
+            redisClient2.flushall(function(err,data){
+                should.not.exist(err)
+                bqClient.deleteConsumerGroup("testTopic","testConsumer",function(err){
+                    should.exist(err)
+                    done()            
+                })
+            })
+        })
+        it("should fail if consumer doesn't exist",function(done){
+            bqClient.deleteConsumerGroup("testTopic","testConsumer-no-exists",function(err){
+                should.exist(err)
+                done()            
+            })
+        })
     })
 
 

@@ -9,7 +9,7 @@ var should = require('should'),
     bj = require('../lib/bq_journal_client_redis.js')
     bqc = require('../lib/bq_cluster_client.js')
 
-describe("Clusters administratition for multicluster purposes",function(){
+describe("Clusters administration for multicluster purposes",function(){
     
     var bqPath = "/bq"
     var clustersPath = bqPath+"/clusters"
@@ -287,7 +287,7 @@ describe("Clusters administratition for multicluster purposes",function(){
             })
         })
         it("should support remove journals")
-        it("should validate before journal remove that this journal is unused")
+        it("should validate before journal remove that the journal is unused")
     })
 
     describe("Create topics and groups",function(){
@@ -352,6 +352,7 @@ describe("Clusters administratition for multicluster purposes",function(){
                         data.should.have.length(1)
                         data[0].should.equal("test")
                         done()
+                        clusterClient.shutdown()
                     })
                 })
             })
@@ -372,9 +373,9 @@ describe("Clusters administratition for multicluster purposes",function(){
                should.not.exist(err)
                admClient.createTopic("test-c2","test2",function(err){
                    should.not.exist(err)
-                   admClient.createConsumer("test-c1","test-consumer-1",function(err){
+                   admClient.createConsumerGroup("test-c1","test-consumer-1",function(err){
                        should.not.exist(err)
-                       admClient.createConsumer("test-c2","test-consumer-2",function(err){
+                       admClient.createConsumerGroup("test-c2","test-consumer-2",function(err){
                            should.not.exist(err)
                            var clusterClient1 = bqc.createClusterClient(cluster1Config)
                            clusterClient1.on("ready",function(){
@@ -391,6 +392,8 @@ describe("Clusters administratition for multicluster purposes",function(){
                                            data.should.have.length(1)
                                            data[0].should.equal("test-consumer-2")
                                            done()
+                                           clusterClient2.shutdown()
+                                           clusterClient1.shutdown()
                                        })
                                    })
                                })
@@ -401,6 +404,134 @@ describe("Clusters administratition for multicluster purposes",function(){
                })
            }) 
        })
+    })
+
+    describe("Delete topics",function(done){
+        beforeEach(function(done){
+            admClient.createBigQueueCluster({
+                    name:"test1",
+                    nodes:[
+                        {name:"node1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}},
+                        {name:"node2",config:{"host":"127.0.0.1","port":6380,"errors":0,"status":"UP"}}
+                    ]
+               },function(err){
+                   should.not.exist(err)
+                   admClient.createBigQueueCluster({
+                        name:"test2",
+                        nodes:[
+                            {name:"node1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}},
+                            {name:"node2",config:{"host":"127.0.0.1","port":6380,"errors":0,"status":"UP"}}
+                        ]
+                   },function(err){
+                       should.not.exist(err)
+                       done()
+                   })
+               })
+        })
+        beforeEach(function(done){
+            admClient.createTopic({"name":"test","group":"test"},"test2",function(err){
+                should.not.exist(err)
+                var clusterClient = bqc.createClusterClient(cluster2Config)
+                clusterClient.on("ready",function(){
+                    clusterClient.listTopics(function(data){
+                        should.exist(data)
+                        data.should.have.length(1)
+                        data[0].should.equal("test")
+                        done()
+                        clusterClient.shutdown()
+                    })
+                })
+            })
+        })
+        it("should delete topic from especific clusters",function(done){
+             admClient.deleteTopic("test",function(err){
+                should.not.exist(err)
+                var clusterClient = bqc.createClusterClient(cluster2Config)
+                clusterClient.on("ready",function(){
+                    clusterClient.listTopics(function(data){
+                        should.exist(data)
+                        data.should.have.length(0)
+                        clusterClient.shutdown()
+                        done()
+                    })
+                })
+            })
+        })
+        it("should fail if topic doesn't exist on delete",function(done){
+             admClient.deleteTopic("test-no-exist",function(err){
+                 should.exist(err)
+                 done()
+             })
+        })
+        it("should delete indexes from zookeeper on delete topics",function(done){
+            zk.a_exists("/bq/admin/indexes/topics/test",false,function(rc,error,stat){
+                rc.should.equal(0)
+                zk.a_exists("/bq/admin/indexes/groups/test",false,function(rc,error,stat){
+                    rc.should.equal(0)
+                    admClient.deleteTopic("test",function(err){
+                        zk.a_exists("/bq/admin/indexes/topics/test",false,function(rc,error,stat){
+                            rc.should.not.equal(0)
+                            zk.a_exists("/bq/admin/indexes/groups/test/test",false,function(rc,error,stat){
+                                rc.should.not.equal(0)
+                                done()
+                            })
+                        })
+                    })
+                })                     
+            })
+        })
+    })
+
+    describe("Delete consumers",function(done){
+        beforeEach(function(done){
+            admClient.createBigQueueCluster({
+                    name:"test1",
+                    nodes:[
+                        {name:"node1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}},
+                        {name:"node2",config:{"host":"127.0.0.1","port":6380,"errors":0,"status":"UP"}}
+                    ]
+               },function(err){
+                   should.not.exist(err)
+                   admClient.createBigQueueCluster({
+                        name:"test2",
+                        nodes:[
+                            {name:"node1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}},
+                            {name:"node2",config:{"host":"127.0.0.1","port":6380,"errors":0,"status":"UP"}}
+                        ]
+                   },function(err){
+                       should.not.exist(err)
+                       done()
+                   })
+               })
+        })
+        beforeEach(function(done){
+            admClient.createTopic({"name":"test","group":"test"},"test2",function(err){
+                admClient.createConsumerGroup("test","testConsumer",function(err){
+                    should.not.exist(err)
+                    done()
+                })
+            })
+        })
+        it("should delete consumer from specific cluster",function(done){
+            admClient.getTopicData("test",function(err,data){
+                should.not.exist(err)
+                data.consumers.should.have.length(1)
+                admClient.deleteConsumerGroup("test","testConsumer",function(err){
+                    should.not.exist(err)
+                    admClient.getTopicData("test",function(err,data){
+                        should.not.exist(err)
+                        data.consumers.should.have.length(0)
+                        done()
+                    })
+                })
+            })
+        })
+        it("should fail if consumer doesn't exist on delete",function(done){
+            admClient.deleteConsumerGroup("test","testConsumer-no-exist",function(err){
+                should.exist(err)
+                done()
+            })
+        })
     })
 
     describe("Retrieve information",function(){
@@ -454,7 +585,7 @@ describe("Clusters administratition for multicluster purposes",function(){
                 data.endpoints[1].host.should.equal("127.0.0.1")
                 data.endpoints[1].port.should.equal(8081)
                 data.consumers.should.have.length(0)
-                admClient.createConsumer("test-c2","test",function(err,data){
+                admClient.createConsumerGroup("test-c2","test",function(err,data){
                     should.not.exist(err)
                     admClient.getTopicData("test-c2",function(err,data){
                         should.not.exist(err)

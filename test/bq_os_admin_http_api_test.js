@@ -604,8 +604,77 @@ describe("openstack admin http api",function(){
 
         })
 
-        it("should support topic deletes")
-        it("should support consumers delete")
+        it("should support topic deletes",function(done){
+            request({
+                url:"http://127.0.0.1:8080/topics",
+                method:"POST",
+                json:{"tenantId":"1234","name":"test"}
+            },function(error,response,body){
+                response.statusCode.should.equal(201)
+                request({
+                    url:"http://127.0.0.1:8080/topics?tenantId=1234",
+                    method:"GET",
+                    json:true
+                },function(error,response,body){
+                    response.statusCode.should.equal(200)
+                    body.should.have.length(1)
+                    body.should.include("1234-test")
+                    request({
+                        url:"http://127.0.0.1:8080/topics/1234-test",
+                        method:"DELETE",
+                    },function(error,response,body){
+                        response.statusCode.should.equal(204)
+                        request({
+                            url:"http://127.0.0.1:8080/topics?tenantId=1234",
+                            method:"GET",
+                            json:true
+                        },function(error,response,body){
+                            response.statusCode.should.equal(200)
+                            body.should.have.length(0)
+                            done()
+                        }) 
+                    })
+                })
+            })
+        })
+
+        it("should support consumers delete",function(done){
+            request({
+                url:"http://127.0.0.1:8080/topics",
+                method:"POST",
+                json:{"tenantId":"1234","name":"test"}
+            },function(error,response,body){
+                response.statusCode.should.equal(201)
+                request({
+                    url:"http://127.0.0.1:8080/topics/1234-test/consumers",
+                    method:"POST",
+                    json:{"tenantId":"1234","name":"test"}
+                },function(error,response,body){
+                    response.statusCode.should.equal(201)
+                    request({
+                        url:"http://127.0.0.1:8080/topics/1234-test",
+                        method:"GET",
+                        json:true
+                    },function(error,response,body){
+                        body.consumers.length.should.equal(1)
+                        request({
+                            url:"http://127.0.0.1:8080/topics/1234-test/consumers/1234-test",
+                            method:"DELETE",
+                        },function(error,response,body){
+                            response.statusCode.should.equal(204)
+                            request({
+                                url:"http://127.0.0.1:8080/topics/1234-test",
+                                method:"GET",
+                                json:true
+                            },function(error,response,body){
+                                body.consumers.length.should.equal(0)
+                                done()
+                            }) 
+                        })
+                    }) 
+                })
+            })
+        })
     })
 
     describe("Limits",function(done){
@@ -967,6 +1036,107 @@ describe("openstack admin http api",function(){
             })
 
         })
+        it("should check topic owner before delete topic",function(done){
+           request({
+                url:"http://127.0.0.1:8080/clusters",
+                method:"POST",
+                json:{"name":"test",
+                      "nodes":[{
+                        "name":"redis1", 
+                        "config":{
+                            "host":"127.0.0.1",
+                            "port":6379,
+                            "status":"UP"
+                         }
+                    }]},
+                headers:{"X-Auth-Token":"user123"}
+            },function(error,response,body){
+                request({
+                    url:"http://127.0.0.1:8080/topics",
+                    method:"POST",
+                    json:{"tenantId":"1","name":"test"},
+                    headers:{"X-Auth-Token":"user123"}
+                },function(error,response,body){
+                    response.statusCode.should.equal(201)
+                    request({
+                        url:"http://127.0.0.1:8080/topics/1-test",
+                        method:"DELETE",
+                    },function(error,response,body){
+                        response.statusCode.should.equal(401)
+                        request({
+                            url:"http://127.0.0.1:8080/topics/1-test",
+                            method:"DELETE",
+                            headers:{"X-Auth-Token":"someone"}
+                        },function(error,response,body){
+                            response.statusCode.should.equal(401)
+                            request({
+                                url:"http://127.0.0.1:8080/topics/1-test",
+                                method:"DELETE",
+                                headers:{"X-Auth-Token":"user123"}
+                            },function(error,response,body){
+                                response.statusCode.should.equal(204)
+                                done()
+                            })
+                        })
+                    })
+                })
+            })
 
+        })
+        it("should check consumer owner before delete",function(done){
+            request({
+                url:"http://127.0.0.1:8080/clusters",
+                method:"POST",
+                json:{"name":"test",
+                      "nodes":[{
+                        "name":"redis1", 
+                        "config":{
+                            "host":"127.0.0.1",
+                            "port":6379,
+                            "status":"UP"
+                         }
+                    }]},
+                headers:{"X-Auth-Token":"user123"}
+            },function(error,response,body){
+                request({
+                    url:"http://127.0.0.1:8080/topics",
+                    method:"POST",
+                    json:{"tenantId":"1","name":"test"},
+                    headers:{"X-Auth-Token":"user123"}
+                },function(error,response,body){
+                    response.statusCode.should.equal(201)
+                    request({
+                        url:"http://127.0.0.1:8080/topics/1-test/consumers",
+                        method:"POST",
+                        json:{"tenantId":"1","name":"test"},
+                        headers:{"X-Auth-Token":"user123"}
+                    },function(error,response,body){
+                        response.statusCode.should.equal(201)
+                        request({
+                            url:"http://127.0.0.1:8080/topics/1-test/consumers/1-test",
+                            method:"DELETE",
+                        },function(error,response,body){
+                            response.statusCode.should.equal(401)
+                            request({
+                                url:"http://127.0.0.1:8080/topics/1-test/consumers/1-test",
+                                method:"DELETE",
+                                headers:{"X-Auth-Token":"someone"}
+                            },function(error,response,body){
+                                response.statusCode.should.equal(401)
+                                request({
+                                    url:"http://127.0.0.1:8080/topics/1-test/consumers/1-test",
+                                    method:"DELETE",
+                                    headers:{"X-Auth-Token":"user123"}
+                                },function(error,response,body){
+                                    response.statusCode.should.equal(204)
+                                    done()
+                                })
+                            })
+                        })
+                    })
+                })
+            })
+
+        })
     })
 })

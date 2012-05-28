@@ -163,6 +163,26 @@ var loadApp = function(app){
 
         })
     })
+   
+    app.delete(app.settings.basePath+"/topics/:topicId",function(req,res){
+        app.settings.bqAdm.getTopicGroup(req.params.topicId,function(err,group){
+            if(err){
+                return res.json({err:"Error getting data from topic ["+err+"]"},500)
+            }
+        
+            if(req.keystone && req.keystone.authorized && !authorizeTenant(req.keystone.userData, group) && !isAdmin(req.keystone.userData)){
+                return res.json({"err":"Invalid token for tenant ["+group+"]"},401)
+            }
+
+            app.settings.bqAdm.deleteTopic(req.params.topicId,function(err,data){
+               if(err){
+                  return res.json({"err":err},500)
+                }
+                return res.json(undefined,204)
+
+            })
+        })
+    })
     
     app.get(app.settings.basePath+"/topics/:topicId",function(req,res){
         app.settings.bqAdm.getTopicData(req.params.topicId,function(err,data){
@@ -207,7 +227,7 @@ var loadApp = function(app){
         if(!req.body.name){
             return res.json({err:"Consumer should contains a name"},400)
         }
-        app.settings.bqAdm.createConsumer(topic,consumer,function(err){
+        app.settings.bqAdm.createConsumerGroup(topic,consumer,function(err){
             if(err)
               return res.json({"err":err},500)
             app.settings.bqAdm.getConsumerData(topic,consumer,function(err,data){
@@ -219,6 +239,24 @@ var loadApp = function(app){
         })
     })
 
+    app.delete(app.settings.basePath+"/topics/:topicId/consumers/:consumerId",function(req,res){
+        app.settings.bqAdm.getTopicGroup(req.params.topicId,function(err,group){
+            if(err){
+                return res.json({err:"Error getting data from topic ["+err+"]"},500)
+            }
+        
+            if(req.keystone && req.keystone.authorized && !authorizeTenant(req.keystone.userData, group) && !isAdmin(req.keystone.userData)){
+                return res.json({"err":"Invalid token for tenant ["+group+"]"},401)
+            }
+
+            app.settings.bqAdm.deleteConsumerGroup(req.params.topicId,req.params.consumerId,function(err,data){
+                if(err){
+                  return res.json({"err":err},500)
+                }
+                return res.json(undefined,204)
+            })
+        })
+    })
     app.get(app.settings.basePath+"/topics/:topicId/consumers/:consumerId",function(req,res){
         app.settings.bqAdm.getConsumerData(req.params.topicId,req.params.consumerId,function(err,data){
             if(err){
@@ -234,7 +272,7 @@ var authFilter = function(config){
 
     return function(req,res,next){
         //All post should be authenticated
-        if(req.method === "POST" && !req.keystone.authorized){
+        if((req.method.toUpperCase() === "POST" || req.method.toUpperCase() === "DELETE") && !req.keystone.authorized){
             res.json({"err":"All post to admin api should be authenticated using X-Auth-Token header"},401)
         }else{
             next()
@@ -254,9 +292,11 @@ var bqAdmController = function(config){
             app.set("bqAdm",adm)
             var oldEnd = res.end
             res.end = function(chunk, encoding){
-                res.end = oldEnd
-                res.end(chunk,encoding)
                 adm.shutdown()
+                process.nextTick(function(){
+                    res.end = oldEnd
+                    res.end(chunk,encoding)
+                })
             }
             next()
             
