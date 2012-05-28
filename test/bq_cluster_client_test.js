@@ -201,6 +201,77 @@ describe("Big Queue Cluster",function(){
         })
     })
 
+    describe("#deleteTopic",function(done){
+        beforeEach(function(done){
+            bqClient.createTopic("testTopic",function(err){
+                should.not.exist(err)
+                zk.a_exists(clusterPath+"/topics/testTopic",false,function(rc,error,stat){
+                    zk.a_exists(clusterPath+"/topics/testTopic/consumerGroups",false,function(rc,error,stat){
+                        if(rc!=0){
+                            done(rc+"-"+error)
+                        }else{
+                            done()
+                        }
+                    })
+                })
+
+            })
+        })
+        it("should remove the topic from all redis",function(done){
+            bqClient.deleteTopic("testTopic",function(err){
+                should.not.exist(err)
+                redisClient1.sismember("topics","testTopic",function(err,data){
+                    should.not.exist(err)
+                    data.should.equal(0)
+                    redisClient2.sismember("topics","testTopic",function(err,data){
+                        should.not.exist(err)
+                        data.should.equal(0)
+                        done()
+                    })
+                })
+            })
+        })
+        it("should remove topic from zookeeper",function(done){
+            bqClient.deleteTopic("testTopic",function(err){
+                should.not.exist(err)
+                zk.a_exists(clusterPath+"/topics/testTopic",false,function(rc,error,stat){
+                    if(rc==0){
+                        done(rc+"-"+error)
+                    }else{
+                        done()
+                    }
+                })
+            })
+        })
+        it("should fail if there are any redis with problems",function(done){
+             zk.a_set("/bq/clusters/test/nodes/redis2",JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"DOWN"}),-1,function(rc, err,stat){
+                rc.should.equal(0)
+                var client = bqc.createClusterClient(bqClientConfig)
+                client.once("ready",function(){
+                    client.deleteTopic("testTopic",function(err){
+                        should.exist(err)
+                        done()            
+                    })
+                })
+            })
+        })
+        it("should fail if the topic doesn't exist",function(done){
+            bqClient.deleteTopic("testTopic-not-exist",function(err){
+                should.exist(err)
+                done()
+            })
+        })
+        it("should fail if the topic contains consumers",function(done){
+            bqClient.createConsumerGroup("testTopic","testConsumer",function(err){
+                should.not.exist(err)
+                bqClient.deleteTopic("testTopic-not-exist",function(err){
+                    should.exist(err)
+                    done()
+                })
+            })
+        })
+    })
+
     describe("#createConsumer",function(done){
         beforeEach(function(done){
             bqClient.createTopic("testTopic",function(err){
@@ -256,6 +327,13 @@ describe("Big Queue Cluster",function(){
             })
         })
     })
+
+    describe("#deleteConsumer",function(done){
+        it("should remove consumer from zookeeper")
+        it("should remove consumer on all servers")
+        it("should fail if any redis fails")
+    })
+
 
     describe("#postMessage",function(){
         beforeEach(function(done){

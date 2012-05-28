@@ -4,7 +4,6 @@ var express = require('express'),
     keystoneMiddlware = require("../../ext/openstack/keystone_middleware.js")
 
 var loadApp = function(app){
-    var admClient = app.settings.bqAdm
 
     var authorizeTenant = function(userData,tenantId){
         var authorized = false
@@ -35,7 +34,7 @@ var loadApp = function(app){
     }
 
     app.get(app.settings.basePath+"/clusters",function(req,res){
-        admClient.listClusters(function(err,clusters){
+        app.settings.bqAdm.listClusters(function(err,clusters){
             if(err)
                 return res.json({"err":err},500)
             return res.json(clusters,200)
@@ -46,7 +45,7 @@ var loadApp = function(app){
         if(!req.is("json")){    
             return res.json({err:"Error parsing json"},400)
         }
-        admClient.createBigQueueCluster(req.body,function(err){
+        app.settings.bqAdm.createBigQueueCluster(req.body,function(err){
             if(err)
                 return res.json({"err":err},500)
             return res.json({"cluster":req.body.name},201)
@@ -60,7 +59,7 @@ var loadApp = function(app){
         if(!req.body.name){
             return res.json({err:"Node should contains name"},400)
         }
-        admClient.addNodeToCluster(req.params.cluster,req.body,function(err){
+        app.settings.bqAdm.addNodeToCluster(req.params.cluster,req.body,function(err){
             if(err)
                 return res.json({"err":err},500)
             return res.json({"cluster":req.body.name},201)
@@ -74,7 +73,7 @@ var loadApp = function(app){
         if(!req.body.name){
             return res.json({err:"Node should contains name"},400)
         }
-        admClient.addJournalToCluster(req.params.cluster,req.body,function(err){
+        app.settings.bqAdm.addJournalToCluster(req.params.cluster,req.body,function(err){
             if(err)
                 return res.json({"err":err},500)
             return res.json({"cluster":req.body.name},201)
@@ -88,7 +87,7 @@ var loadApp = function(app){
         if(!req.body.name){
             return res.json({err:"Node should contains name"},400)
         }
-        admClient.addEntrypointToCluster(req.params.cluster,req.body,function(err){
+        app.settings.bqAdm.addEntrypointToCluster(req.params.cluster,req.body,function(err){
             if(err)
                 return res.json({"err":err},500)
             return res.json({"cluster":req.body.name},201)
@@ -102,7 +101,7 @@ var loadApp = function(app){
         }
         var node = req.body
         node["name"] = req.params.node 
-        admClient.updateNodeData(req.params.cluster,node,function(err){
+        app.settings.bqAdm.updateNodeData(req.params.cluster,node,function(err){
             if(err)
                 return res.json({"err":err},500)
             return res.json({"cluster":req.body.name},200)
@@ -110,7 +109,7 @@ var loadApp = function(app){
     })
 
     app.get(app.settings.basePath+"/clusters/:cluster",function(req,res){
-        admClient.getClusterData(req.params.cluster,function(err,data){
+        app.settings.bqAdm.getClusterData(req.params.cluster,function(err,data){
             if(err)
                 return res.json({"err":err},500)
             return res.json(data,200)
@@ -122,7 +121,7 @@ var loadApp = function(app){
         if(!group){
             return res.json({err:"The parameter ["+app.settings.groupEntity+"] must be set"},400)
         }
-        admClient.getGroupTopics(group,function(err,data){
+        app.settings.bqAdm.getGroupTopics(group,function(err,data){
            if(err)
                 return res.json({"err":err},500)
             return res.json(data,200)
@@ -150,11 +149,11 @@ var loadApp = function(app){
         if(ttl && ttl > app.settings.maxTtl){
             return res.json({"err":"Max ttl exceeded, max ttl possible: "+app.settings.maxTtl},406)
         }
-        admClient.createTopic({"name":topic,"group":group,"ttl":ttl},req.body.cluster,function(err){
+        app.settings.bqAdm.createTopic({"name":topic,"group":group,"ttl":ttl},req.body.cluster,function(err){
             if(err){
               return res.json({"err":err},500)
             }else{
-                admClient.getTopicData(topic,function(err,data){
+                app.settings.bqAdm.getTopicData(topic,function(err,data){
                     if(err){
                       return res.json({"err":err},500)
                     }
@@ -166,7 +165,7 @@ var loadApp = function(app){
     })
     
     app.get(app.settings.basePath+"/topics/:topicId",function(req,res){
-        admClient.getTopicData(req.params.topicId,function(err,data){
+        app.settings.bqAdm.getTopicData(req.params.topicId,function(err,data){
             if(err){
               return res.json({"err":err},500)
             }
@@ -175,7 +174,7 @@ var loadApp = function(app){
     })
 
     app.get(app.settings.basePath+"/topics/:topicId/consumers",function(req,res){
-        admClient.getTopicData(req.params.topicId,function(err,data){
+        app.settings.bqAdm.getTopicData(req.params.topicId,function(err,data){
            if(err){
               return res.json({"err":err},500)
             }
@@ -208,10 +207,10 @@ var loadApp = function(app){
         if(!req.body.name){
             return res.json({err:"Consumer should contains a name"},400)
         }
-        admClient.createConsumer(topic,consumer,function(err){
+        app.settings.bqAdm.createConsumer(topic,consumer,function(err){
             if(err)
               return res.json({"err":err},500)
-            admClient.getConsumerData(topic,consumer,function(err,data){
+            app.settings.bqAdm.getConsumerData(topic,consumer,function(err,data){
                 if(err){
                   return res.json({"err":err},500)
                 }
@@ -221,7 +220,7 @@ var loadApp = function(app){
     })
 
     app.get(app.settings.basePath+"/topics/:topicId/consumers/:consumerId",function(req,res){
-        admClient.getConsumerData(req.params.topicId,req.params.consumerId,function(err,data){
+        app.settings.bqAdm.getConsumerData(req.params.topicId,req.params.consumerId,function(err,data){
             if(err){
               return res.json({"err":err},500)
             }
@@ -243,6 +242,33 @@ var authFilter = function(config){
     }
 }
 
+var bqAdmController = function(config){
+    var app = config.app
+    var admConfig = config.admConfig
+    return function(req,res,next){
+        var adm = bqAdm.createClustersAdminClient(admConfig)
+        var ready = false;
+        adm.on("ready",function(){
+            if(ready)
+                return
+            app.set("bqAdm",adm)
+            var oldEnd = res.end
+            res.end = function(chunk, encoding){
+                res.end = oldEnd
+                res.end(chunk,encoding)
+                adm.shutdown()
+            }
+            next()
+            
+        })
+        adm.on("error",function(){
+            if(ready)
+                return
+            res.json({"err":"Error creating admin client"}, 500)
+        })
+    }
+}
+
 exports.startup = function(config){
     log.setLevel(config.logLevel || "info")
     //Default 5 days
@@ -260,10 +286,11 @@ exports.startup = function(config){
         app.use(authFilter())
         app.set("adminRoleId",config.admConfig.adminRoleId || -1)
     }
+    app.use(bqAdmController({"app":app,"admConfig":config.admConfig}))
+
     app.use(app.router); 
 
     app.set("basePath",config.basePath || "")
-    app.set("bqAdm", bqAdm.createClustersAdminClient(config.admConfig))
     app.set("maxTtl",maxTtl)
 
     var groupEntity = config.groupEntity || "tenantId"
@@ -276,6 +303,5 @@ exports.startup = function(config){
 }
 
 exports.shutdown = function(){
-    this.app.settings.bqAdm.shutdown()
     this.app.close()
 }
