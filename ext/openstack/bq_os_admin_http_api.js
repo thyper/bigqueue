@@ -280,35 +280,6 @@ var authFilter = function(config){
     }
 }
 
-var bqAdmController = function(config){
-    var app = config.app
-    var admConfig = config.admConfig
-    return function(req,res,next){
-        var adm = bqAdm.createClustersAdminClient(admConfig)
-        var ready = false;
-        adm.on("ready",function(){
-            if(ready)
-                return
-            app.set("bqAdm",adm)
-            var oldEnd = res.end
-            res.end = function(chunk, encoding){
-                adm.shutdown()
-                process.nextTick(function(){
-                    res.end = oldEnd
-                    res.end(chunk,encoding)
-                })
-            }
-            next()
-            
-        })
-        adm.on("error",function(){
-            if(ready)
-                return
-            res.json({"err":"Error creating admin client"}, 500)
-        })
-    }
-}
-
 exports.startup = function(config){
     log.setLevel(config.logLevel || "info")
     //Default 5 days
@@ -326,12 +297,12 @@ exports.startup = function(config){
         app.use(authFilter())
         app.set("adminRoleId",config.admConfig.adminRoleId || -1)
     }
-    app.use(bqAdmController({"app":app,"admConfig":config.admConfig}))
 
     app.use(app.router); 
 
     app.set("basePath",config.basePath || "")
     app.set("maxTtl",maxTtl)
+    app.set("bqAdm",bqAdm.createClustersAdminClient(config.admConfig))
 
     var groupEntity = config.groupEntity || "tenantId"
     app.set("groupEntity",groupEntity )
