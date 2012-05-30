@@ -429,7 +429,7 @@ describe("openstack admin http api",function(){
                         },function(error,response,body){
                             response.statusCode.should.equal(200)
                             body.consumers.should.have.length(1)
-                            body.consumers[0].consumer.should.equal("456-test-consumer")
+                            body.consumers[0].consumer_id.should.equal("456-test-consumer")
                             done()
                         })
                     })
@@ -507,7 +507,6 @@ describe("openstack admin http api",function(){
                     body.should.have.property("ttl")
                     body.should.have.property("cluster")
                     body.should.have.property("endpoints")
-                    body.should.have.property("consumer_stats")
                     done()
                 })
             })
@@ -561,7 +560,6 @@ describe("openstack admin http api",function(){
                         body.should.have.property("ttl")
                         body.should.have.property("cluster")
                         body.should.have.property("endpoints")
-                        body.should.have.property("consumer_stats")
                         done()
                     })
                 })
@@ -595,7 +593,7 @@ describe("openstack admin http api",function(){
                         },function(error,response,body){
                             response.statusCode.should.equal(200)
                             body.should.have.length(1)
-                            body[0].consumer.should.equal("456-test")
+                            body[0].consumer_id.should.equal("456-test")
                             done()
                         })
                     })
