@@ -94,7 +94,8 @@ var loadApp = function(app){
             var consumer = req.params.consumerName
             app.settings.bqClient.ackMessage(topic,consumer,req.params.recipientCallback,function(err){
                 if(err){
-                    res.json({err:""+err},200)
+                    var errMsg = err.msg || ""+err
+                    res.json({err:errMsg},200)
                 }else{
                     res.json({},204)
                 }

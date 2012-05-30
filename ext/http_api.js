@@ -34,7 +34,8 @@ var loadApp = function(app){
             bqClient.createTopic(topic.name,function(err){
                 if(err){
                     log.err("Error creating topic ["+err+"]")
-                    return res.json({err:""+err},409)
+                    var err = err.msg || ""+err
+                    return res.json({err:err},err.code || 409)
                 }else{
                     return res.json({name:topic.name},201)
                 }
@@ -50,7 +51,8 @@ var loadApp = function(app){
             bqClient.getConsumerGroups(req.params.topic,function(err,data){
                 if(err){
                     log.err("Error creating consumer group ["+log.pretty(req.params)+"] ["+err+"]")
-                    res.json({err:""+err},400)
+                    var err = err.msg || ""+err
+                    res.json({err:""+err},err.code || 400)
                 }else{
                     res.json(data,200)
                 }
@@ -74,8 +76,10 @@ var loadApp = function(app){
 
             try{
                 bqClient.createConsumerGroup(topic,consumer.name,function(err){
-                    if(err)
-                        return res.json({err:""+err},409)
+                    if(err){
+                        var err = err.msg || ""+err
+                        return res.json({err:""+err},err.code || 409)
+                    }
                     return res.json({name:consumer.name},201)
                 })
             }catch(e){
@@ -106,8 +110,10 @@ var loadApp = function(app){
             timer("[REST-API] Starting data save")
             bqClient.postMessage(req.params.topic,message,function(err,data){
                 timer("[REST-API]Posted message receive")
-                if(err)
-                   return res.json({err:""+err},400)
+                if(err){
+                   var err = err.msg || ""+err
+                   return res.json({"err":err},err.code || 400)
+                }
                 return res.json(data,201)
                 timer("[REST-API] Post user responsed")
             })
@@ -166,7 +172,8 @@ var loadApp = function(app){
         try{
             bqClient.getMessage(req.params.topic,req.params.consumer,req.query.visibilityWindow,function(err,data){
                 if(err){
-                    res.json({err:""+err},400)
+                    var err = err.msg || ""+err
+                    res.json({"err":err}, err.code || 400)
                 }else{
                     if(data && data.id){
                         Object.keys(data).forEach(function(val){
@@ -197,7 +204,8 @@ var loadApp = function(app){
         try{
             bqClient.ackMessage(req.params.topic,req.params.consumer,req.params.recipientCallback,function(err){
                 if(err){
-                    res.json({err:""+err},200)
+                    var err = err.msg || ""+err
+                    res.json({"err":err},200)
                 }else{
                     res.json({},204)
                 }
@@ -213,7 +221,8 @@ var loadApp = function(app){
         try{
             bqClient.getConsumerStats(req.params.topic,req.params.consumer,function(err,data){
                 if(err){
-                    res.json({err:""+err},400)
+                    var err = err.msg || ""+err
+                    res.json({"err":err},err.code || err.code || 400)
                 }else{
                     res.json(data,200)
                 }
@@ -229,7 +238,8 @@ var loadApp = function(app){
             bqClient.getConsumerGroups(req.params.topic,function(err,consumers){
                 if(err){
                     log.err("Error getting consumer groups for topic, error: "+err)
-                    res.json({err:""+err},400)
+                    var err = err.msg || ""+err
+                    res.json({"err":err},err.code || 400)
                     return
                 }
                 var total=consumers.length
@@ -242,7 +252,8 @@ var loadApp = function(app){
                 consumers.forEach(function(consumer){
                     bqClient.getConsumerStats(req.params.topic,consumer,function(err,stats){
                         if(err){
-                            res.json({err:""+err},400)
+                            var err = err.msg || ""+err
+                            res.json({"err":err},err.code || 400)
                         }else{
                             var d = {"consumer":consumer}
                             d.stats=stats

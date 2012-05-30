@@ -1,5 +1,5 @@
 var express = require('express'),
-    log = require('node-logging'),
+    log = require('node-logging')
     bqAdm = require('../../lib/bq_clusters_adm.js'),
     keystoneMiddlware = require("../../ext/openstack/keystone_middleware.js")
 
@@ -35,8 +35,10 @@ var loadApp = function(app){
 
     app.get(app.settings.basePath+"/clusters",function(req,res){
         app.settings.bqAdm.listClusters(function(err,clusters){
-            if(err)
-                return res.json({"err":err},500)
+            if(err){
+                var errMsg = err.msg || ""+err
+                return res.json({"err":errMsg},err.code || 500)
+            }
             return res.json(clusters,200)
         })
     })
@@ -46,8 +48,10 @@ var loadApp = function(app){
             return res.json({err:"Error parsing json"},400)
         }
         app.settings.bqAdm.createBigQueueCluster(req.body,function(err){
-            if(err)
-                return res.json({"err":err},500)
+            if(err){
+                var errMsg = err.msg || ""+err
+                return res.json({"err":errMsg},err.code || 500)
+            }
             return res.json({"cluster":req.body.name},201)
         })
     })
@@ -60,8 +64,10 @@ var loadApp = function(app){
             return res.json({err:"Node should contains name"},400)
         }
         app.settings.bqAdm.addNodeToCluster(req.params.cluster,req.body,function(err){
-            if(err)
-                return res.json({"err":err},500)
+            if(err){
+                var errMsg = err.msg || ""+err
+                return res.json({"err":errMsg},err.code || 500)
+            }
             return res.json({"cluster":req.body.name},201)
         })
     })
@@ -74,8 +80,10 @@ var loadApp = function(app){
             return res.json({err:"Node should contains name"},400)
         }
         app.settings.bqAdm.addJournalToCluster(req.params.cluster,req.body,function(err){
-            if(err)
-                return res.json({"err":err},500)
+            if(err){
+                var errMsg = err.msg || ""+err
+                return res.json({"err":errMsg},err.code || 500)
+            }
             return res.json({"cluster":req.body.name},201)
         })
     })
@@ -88,8 +96,10 @@ var loadApp = function(app){
             return res.json({err:"Node should contains name"},400)
         }
         app.settings.bqAdm.addEntrypointToCluster(req.params.cluster,req.body,function(err){
-            if(err)
-                return res.json({"err":err},500)
+            if(err){
+                var errMsg = err.msg || ""+err
+                return res.json({"err":errMsg},err.code || 500)
+            }
             return res.json({"cluster":req.body.name},201)
         })
     })
@@ -102,16 +112,20 @@ var loadApp = function(app){
         var node = req.body
         node["name"] = req.params.node 
         app.settings.bqAdm.updateNodeData(req.params.cluster,node,function(err){
-            if(err)
-                return res.json({"err":err},500)
+            if(err){
+                var errMsg = err.msg || ""+err
+                return res.json({"err":errMsg},err.code || 500)
+            }
             return res.json({"cluster":req.body.name},200)
         })
     })
 
     app.get(app.settings.basePath+"/clusters/:cluster",function(req,res){
         app.settings.bqAdm.getClusterData(req.params.cluster,function(err,data){
-            if(err)
-                return res.json({"err":err},500)
+            if(err){
+                var errMsg = err.msg || ""+err
+                return res.json({"err":errMsg},err.code || 500)
+            }
             return res.json(data,200)
         })
     })
@@ -122,8 +136,10 @@ var loadApp = function(app){
             return res.json({err:"The parameter ["+app.settings.groupEntity+"] must be set"},400)
         }
         app.settings.bqAdm.getGroupTopics(group,function(err,data){
-           if(err)
-                return res.json({"err":err},500)
+           if(err){
+                var errMsg = err.msg || ""+err
+                return res.json({"err":errMSg},err.code || 500)
+           }
             return res.json(data,200)
         })
     })
@@ -151,11 +167,13 @@ var loadApp = function(app){
         }
         app.settings.bqAdm.createTopic({"name":topic,"group":group,"ttl":ttl},req.body.cluster,function(err){
             if(err){
-              return res.json({"err":err},500)
+              var errMsg = err.msg || ""+err
+              return res.json({"err":errMsg},err.code || 500)
             }else{
                 app.settings.bqAdm.getTopicData(topic,function(err,data){
                     if(err){
-                      return res.json({"err":err},500)
+                      var errMsg = err.msg || ""+err
+                      return res.json({"err":errMsg},err.code || 500)
                     }
                     return res.json(data,201)
                 })
@@ -167,7 +185,8 @@ var loadApp = function(app){
     app.delete(app.settings.basePath+"/topics/:topicId",function(req,res){
         app.settings.bqAdm.getTopicGroup(req.params.topicId,function(err,group){
             if(err){
-                return res.json({err:"Error getting data from topic ["+err+"]"},500)
+               var errMsg = err.msg || ""+err
+               return res.json({"err":errMsg},err.code || 500)
             }
         
             if(req.keystone && req.keystone.authorized && !authorizeTenant(req.keystone.userData, group) && !isAdmin(req.keystone.userData)){
@@ -176,7 +195,8 @@ var loadApp = function(app){
 
             app.settings.bqAdm.deleteTopic(req.params.topicId,function(err,data){
                if(err){
-                  return res.json({"err":err},500)
+                  var errMsg = err.msg || ""+err
+                  return res.json({"err":errMsg},err.code || 500)
                 }
                 return res.json(undefined,204)
 
@@ -187,7 +207,8 @@ var loadApp = function(app){
     app.get(app.settings.basePath+"/topics/:topicId",function(req,res){
         app.settings.bqAdm.getTopicData(req.params.topicId,function(err,data){
             if(err){
-              return res.json({"err":err},500)
+              var errMsg = err.msg || ""+err
+              return res.json({"err":errMsg},err.code || 500)
             }
             return res.json(data,200)
         })
@@ -196,7 +217,8 @@ var loadApp = function(app){
     app.get(app.settings.basePath+"/topics/:topicId/consumers",function(req,res){
         app.settings.bqAdm.getTopicData(req.params.topicId,function(err,data){
            if(err){
-              return res.json({"err":err},500)
+              var errMsg = err.msg || ""+err
+              return res.json({"err":errMsg},err.code || 500)
             }
             return res.json(data.consumers,200)
         })
@@ -228,11 +250,14 @@ var loadApp = function(app){
             return res.json({err:"Consumer should contains a name"},400)
         }
         app.settings.bqAdm.createConsumerGroup(topic,consumer,function(err){
-            if(err)
-              return res.json({"err":err},500)
+            if(err){
+              var errMsg = err.msg || ""+err
+              return res.json({"err":errMsg},err.code || 500)
+            }
             app.settings.bqAdm.getConsumerData(topic,consumer,function(err,data){
                 if(err){
-                  return res.json({"err":err},500)
+                  var errMsg = err.msg || ""+err
+                  return res.json({"err":errMsg},err.code || 500)
                 }
                 return res.json(data,201)
             })
@@ -242,7 +267,8 @@ var loadApp = function(app){
     app.delete(app.settings.basePath+"/topics/:topicId/consumers/:consumerId",function(req,res){
         app.settings.bqAdm.getTopicGroup(req.params.topicId,function(err,group){
             if(err){
-                return res.json({err:"Error getting data from topic ["+err+"]"},500)
+                var errMsg = err.msg || ""+err
+                return res.json({"err":errMsg},err.code || 500)
             }
         
             if(req.keystone && req.keystone.authorized && !authorizeTenant(req.keystone.userData, group) && !isAdmin(req.keystone.userData)){
@@ -251,7 +277,8 @@ var loadApp = function(app){
 
             app.settings.bqAdm.deleteConsumerGroup(req.params.topicId,req.params.consumerId,function(err,data){
                 if(err){
-                  return res.json({"err":err},500)
+                  var errMsg = err.msg || ""+err
+                  return res.json({"err":errMsg},err.code || 500)
                 }
                 return res.json(undefined,204)
             })
@@ -260,7 +287,8 @@ var loadApp = function(app){
     app.get(app.settings.basePath+"/topics/:topicId/consumers/:consumerId",function(req,res){
         app.settings.bqAdm.getConsumerData(req.params.topicId,req.params.consumerId,function(err,data){
             if(err){
-              return res.json({"err":err},500)
+              var errMsg = err.msg || ""+err
+              return res.json({"err":errMsg},err.code || 500)
             }
             return res.json(data,200)
         })
