@@ -301,7 +301,7 @@ var authFilter = function(config){
     return function(req,res,next){
         //All post should be authenticated
         if((req.method.toUpperCase() === "POST" || req.method.toUpperCase() === "DELETE") && !req.keystone.authorized){
-            res.json({"err":"All post to admin api should be authenticated using X-Auth-Token header"},401)
+            res.json({"err":"All post to admin api should be authenticated using a valid X-Auth-Token header"},401)
         }else{
             next()
         }
@@ -342,5 +342,7 @@ exports.startup = function(config){
 }
 
 exports.shutdown = function(){
+    if(this.app.settings.bqAdm)
+        this.app.settings.bqAdm.shutdown()
     this.app.close()
 }

@@ -129,10 +129,10 @@ describe("Open stack http api",function(){
            request({
                 uri:"http://127.0.0.1:8080/messages",
                 method:"POST",
-                json:{msg:"testMessage",topics:["testTopic","testTopic-no-existent"]}
+                json:{msg:"testMessage",topics:["testTopic","testTopic-no-existent","testTopic-no-existent2"]}
             },function(error,response,body){
                 response.statusCode.should.equal(500)
-                response.body.errors.should.have.length(1)
+                response.body.errors.should.have.length(2)
                 done()
             })
         })

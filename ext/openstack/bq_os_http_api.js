@@ -37,7 +37,7 @@ var loadApp = function(app){
         for(var i in topics){
             app.settings.bqClient.postMessage(topics[i],message,function(err,data){
                if(err){
-                    errors.push(err)
+                    errors.push(err.msg)
                 }
                 if(data){
                     datas.push(data)
@@ -45,8 +45,7 @@ var loadApp = function(app){
                 executed++
                 if(executed == topics.length){
                     if(errors.length>0){
-                        return res.json({err:"An error ocurrs posting the messages","errors":errors},500)
-                    }else{
+                        return res.json({err:"An error ocurrs posting the messages","errors":errors},500) }else{
                         return res.json(datas,201)
                     }
                 }

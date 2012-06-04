@@ -87,8 +87,11 @@ describe("openstack admin http api",function(){
         })
     })
 
-    after(function(){
+    after(function(done){
         zk.close()
+        process.nextTick(function(){
+            done()
+        })
     })
 
     var api
@@ -96,9 +99,12 @@ describe("openstack admin http api",function(){
     beforeEach(function(){
         api = httpApi.startup(httpConfig)
     })
-    afterEach(function(){
+    afterEach(function(done){
         api.shutdown()
-    })
+        process.nextTick(function(){
+            done()
+        })
+   })
 
 
     describe("Cluster Admin",function(){
