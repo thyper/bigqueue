@@ -104,12 +104,18 @@ describe("Clusters administration for multicluster purposes",function(){
         })
     })
 
-    afterEach(function(){
+    afterEach(function(done){
         admClient.shutdown()
+        process.nextTick(function(){
+            done()
+        })
     })
 
-    after(function(){
+    after(function(done){
         zk.close()
+        process.nextTick(function(){
+            done()
+        })
     })
 
     describe("Create clusters",function(){
@@ -322,6 +328,7 @@ describe("Clusters administration for multicluster purposes",function(){
                         should.exist(data)
                         data.should.have.length(1)
                         data[0].should.equal("test")
+                        clusterClient.shutdown()
                         done()
                     })
                 })
@@ -336,6 +343,7 @@ describe("Clusters administration for multicluster purposes",function(){
                     clusterClient.getTopicTtl("test",function(err,data){
                         should.exist(data)
                         data.should.equal(""+100)
+                        clusterClient.shutdown()
                         done()
                     })
                 })

@@ -44,8 +44,11 @@ describe("Orchestrator",function(){
         })
     });
 
-    after(function(){
+    after(function(done){
         zk.close()
+        process.nextTick(function(){
+            done()
+        })
     })
 
     beforeEach(function(done){

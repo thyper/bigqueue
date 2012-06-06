@@ -5,16 +5,15 @@ var should = require('should'),
 
 describe("Zookeeper Monitor",function(){
     describe("Path Monitor",function(){
-       var zk
+        var zk = new ZK({
+            connect: "localhost:2181",
+            timeout: 200000,
+            debug_level: ZK.ZOO_LOG_LEVEL_WARN,
+            host_order_deterministic: false,
+            data_as_buffer:false
+        });
        before(function(done){
-            zk = new ZK({
-                connect: "localhost:2181",
-                timeout: 200000,
-                debug_level: ZK.ZOO_LOG_LEVEL_WARN,
-                host_order_deterministic: false,
-                data_as_buffer:false
-            });
-            zk.connect(function(err){
+           zk.connect(function(err){
                 done(err)
             })
 
