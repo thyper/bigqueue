@@ -128,6 +128,28 @@ describe("Orchestrator",function(){
             },200)
         })
     })
+    it("Should refresh nodes on nodeMonitor",function(done){
+        var orch = oc.createOrchestrator(ocConfig)
+        orch.on("ready",function(){
+            setTimeout(function(){
+                orch.nodeMonitor.running=false
+                zk.a_create("/bq/clusters/test/nodes/redis3",JSON.stringify({"host":"127.0.0.1","port":6381,"errors":0,"status":"UP"}),0,function(rc,error,path){
+                    orch.nodeMonitor.running=true
+                    setTimeout(function(){
+                        zk.a_get("/bq/clusters/test/nodes/redis3",false,function(rc,error,stat,data){
+                           should.exist(rc)
+                           rc.should.equal(0)
+                           should.exist(data)
+                           var d = JSON.parse(data)
+                           d.status.should.equal("DOWN")
+                           done()
+                           orch.shutdown()
+                        })
+                    },1000)
+                })
+            },200)
+        })
+    })
     it("Should check nodes periodically looking for inconsistencies and sync if one is found",function(done){
         zk.a_create("/bq/clusters/test/topics/test2","",0,function(rc,error,path){
             zk.a_create("/bq/clusters/test/topics/test2/consumerGroups","",0,function(rc,error,path){

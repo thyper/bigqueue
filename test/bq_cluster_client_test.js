@@ -21,6 +21,7 @@ describe("Big Queue Cluster",function(){
         }   
 
     var zk = new ZK(zkConfig)
+    zk.setMaxListeners(200)
     var bqClientConfig = {
         "zk":zk,
         "refreshTime":500,
@@ -1028,8 +1029,9 @@ describe("Big Queue Cluster",function(){
        it("should re-sink nodes from zookeeper periodically",function(done){
            var client = bqClient.getNodeById("redis1")
            client.data.status.should.equal("UP")
-           bqClient.nodeMonitor.shutdown()
+           bqClient.nodeMonitor.running=false
            zk.a_set("/bq/clusters/test/nodes/redis1",JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"DOWN"}),-1,function(rc, err,stat){
+                bqClient.nodeMonitor.running=true
                 rc.should.equal(0)
                 client.data.status.should.equal("UP")
                 setTimeout(function(){

@@ -101,10 +101,12 @@ describe("Zookeeper Monitor",function(){
         })
         it("should notify on each child remove",function(done){
             var callable = {}
+            var monitor
             callable.nodeRemoved = function(obj){
                 should.exist(obj)
                 obj.path.should.equal("/test")
                 obj.node.should.equal("1")
+                monitor.shutdown()
                 done()
             }
             callable.nodeDataChange = function(obj){}
@@ -112,10 +114,60 @@ describe("Zookeeper Monitor",function(){
                 zk.a_delete_("/test/1",-1,function(rc, error){})
             }
             zk.a_create("/test/1","data", 0,function (rc,error,path){
-               var monitor = new ZKMonitor(zk,callable) 
+               monitor = new ZKMonitor(zk,callable) 
                monitor.pathMonitor("/test")
             })
+       })
+       it("should support refresh all data",function(done){
+            var callable = {}
+            callable.nodeRemoved = function(obj){
+                done("should not be called")
+            }
+            callable.nodeDataChange = function(obj){
+                should.exist(obj)
+                obj.path.should.equal("/test")
+                obj.node.should.equal("1")
+                monitor.shutdown()
+                done()
+            }
+            callable.nodeAdded = function(initialNodes){
+                done("should not be called")
+            }
+            var monitor = new ZKMonitor(zk,callable) 
+            monitor.pathMonitor("/test")
+            setTimeout(function(){
+                monitor.actualPath["/test"].push("1")
+                zk.a_create("/test/1","data", 0,function (rc,error,path){
+                    monitor.refresh()
+                })
+            },100)
 
-        })
+       })
+       it("should support detect adds on refresh data",function(done){
+            var callable = {}
+            callable.nodeRemoved = function(obj){
+                done("should not be called")
+            }
+            callable.nodeAdded = function(obj){
+                should.exist(obj)
+                obj.path.should.equal("/test")
+                obj.node.should.equal("1")
+                monitor.shutdown()
+                done()
+            }
+            callable.nodeDataChange = function(initialNodes){
+                done("should not be called")
+            }
+            var monitor = new ZKMonitor(zk,callable) 
+            monitor.pathMonitor("/test")
+            setTimeout(function(){
+                monitor.running=false
+                zk.a_create("/test/1","data", 0,function (rc,error,path){
+                    monitor.running=true
+                    monitor.refresh()
+                })
+            },100)
+
+       })
     })
 })
