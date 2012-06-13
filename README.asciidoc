@@ -6,6 +6,49 @@ BQ is based on top of redis http://redis.io/[] as their main storage (in memory)
 
 One of the very atractive things of BQ is the idea of be asynchronous this enable us to create an http api (could be any other faster protocol if we want) that implements a similar http://aws.amazon.com/es/sqs/[Amazon SQS] comunication pattern being very easy integrate and platform/languaje agnostic
 
+=== Running it in your computer
+
+==== Preparing the environment
+----
+    sudo make prepare_development
+----
+_It could take many time_
+
+==== Starting bigqueue
+
+----
+   make run_development 
+----
+
+==== Creating a topic
+
+----
+   curl -d'{"name":"test_topic"}' 127.0.0.1:8081/topics -H"Content-Type: application/json"
+----
+
+==== Creating a consumer
+----
+   curl -d'{"name":"test_consumer"}' 127.0.0.1:8081/topics/test_topic/consumers -H"Content-Type: application/json"
+----
+
+==== Posting message
+----
+   curl -d'{"msg":{"test":"message"},"topics":["test_topic"]}' 127.0.0.1:8081/messages -H"Content-Type: application/json"
+----
+
+==== Reading message
+----
+   curl 127.0.0.1:8081/topics/test_topic/consumers/test_consumer/messages
+----
+
+==== Acking the message
+
+WARNING: the id used to delete the message is the *recipientCallback*
+
+----
+   curl 127.0.0.1:8081/topics/test_topic/consumers/test_consumer/messages/1 -XDELETE
+----
+
 === Design
 
 TODO
