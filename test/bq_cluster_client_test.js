@@ -1040,5 +1040,38 @@ describe("Big Queue Cluster",function(){
                 },500)
            })
        })
-   }) 
+       it("should get an error if all execution where timeout",function(done){
+        bqClient.withSomeClient(
+                function(clusterNode,monitor){
+                    setTimeout(function(){
+                        monitor.emit(undefined,{"id":1})
+                    },90)
+                },
+                function(err,key){
+                    should.exist(err)
+                    should.not.exist(key)
+                    done()
+                }
+           )
+        })
+
+     it("should ignore timed out execs",function(done){
+      var cont = 1
+          bqClient.withSomeClient(
+            function(clusterNode,monitor){
+                if(cont == 2)
+                    return monitor.emit(undefined,{"id":cont})
+                setTimeout(function(){
+                    monitor.emit(undefined,{"id":cont})
+                },80)
+                cont++
+            },
+            function(err,key){
+                should.not.exist(err)
+                should.exist(key)
+                key.id.should.equal(2)
+                done()
+        })
+     })
+    })
 })
