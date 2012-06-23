@@ -1045,7 +1045,7 @@ describe("Big Queue Cluster",function(){
                 function(clusterNode,monitor){
                     setTimeout(function(){
                         monitor.emit(undefined,{"id":1})
-                    },90)
+                    },130)
                 },
                 function(err,key){
                     should.exist(err)
@@ -1063,7 +1063,7 @@ describe("Big Queue Cluster",function(){
                     return monitor.emit(undefined,{"id":cont})
                 setTimeout(function(){
                     monitor.emit(undefined,{"id":cont})
-                },80)
+                },130)
                 cont++
             },
             function(err,key){
