@@ -286,8 +286,6 @@ describe("Orchestrator",function(){
             })
         })
     })
-
-    it("should not modify the readonly status")
     it("Should not sync nodes in FORCEDOWN status",function(done){
         var orch = oc.createOrchestrator(ocConfig)
         orch.on("ready",function(){

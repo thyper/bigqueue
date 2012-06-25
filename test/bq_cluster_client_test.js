@@ -571,8 +571,8 @@ describe("Big Queue Cluster",function(){
                 },200)
             })
        })
-       it("should ignore readonly status",function(done){
-            zk.a_set("/bq/clusters/test/nodes/redis2",JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"READONLY"}),-1,function(rc, err,stat){
+       it("should ignore read_only status",function(done){
+            zk.a_set("/bq/clusters/test/nodes/redis2",JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"UP","read_only":true}),-1,function(rc, err,stat){
                 setTimeout(function(){
                     bqClient.postMessage("testTopic",{msg:"test1"},function(err,key){
                         bqClient.postMessage("testTopic",{msg:"test2"},function(err,key){
@@ -645,10 +645,10 @@ describe("Big Queue Cluster",function(){
 
         })
 
-        it("should read messages from readonly nodes",function(done){
+        it("should read messages from read_only nodes",function(done){
             bqClient.postMessage("testTopic",{msg:"testMessage"},function(err,data){
                 bqClient.postMessage("testTopic",{msg:"testMessage"},function(err,data){
-                   zk.a_set("/bq/clusters/test/nodes/redis2",JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"READONLY"}),-1,function(rc, err,stat){
+                   zk.a_set("/bq/clusters/test/nodes/redis2",JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"UP","read_only":"true"}),-1,function(rc, err,stat){
                       process.nextTick(function(){
                         bqClient.getMessage("testTopic","testGroup",undefined,function(err,data){
                                 should.not.exist(err)
