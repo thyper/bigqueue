@@ -58,7 +58,9 @@ var loadApp = function(app){
         try{
             var topic = req.params.topic
             var consumer = req.params.consumer
+            timer("Starting message get")
             app.settings.bqClient.getMessage(topic,consumer,req.query.visibilityWindow,function(err,data){
+                timer("Message getted")
                 if(err){
                     res.json({err:""+err},400)
                 }else{
