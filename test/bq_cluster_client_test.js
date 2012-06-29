@@ -5,7 +5,8 @@ var should = require('should'),
     bq = require('../lib/bq_client.js'),
     bj = require("../lib/bq_journal_client_redis.js"),
     bqc = require('../lib/bq_cluster_client.js'),
-    log = require('node-logging')
+    log = require('node-logging'),
+    fs = require('fs')
 
 var j = 0
 describe("Big Queue Cluster",function(){
@@ -27,7 +28,8 @@ describe("Big Queue Cluster",function(){
         "refreshTime":500,
         "zkClusterPath":clusterPath,
         "createJournalClientFunction":bj.createJournalClient,
-        "createNodeClientFunction":bq.createClient
+        "createNodeClientFunction":bq.createClient,
+
     }
 
  
@@ -120,6 +122,9 @@ describe("Big Queue Cluster",function(){
 
     })
     //End of prepare stage 
+    describe("#internals",function(){
+        it("should register router on startup")
+    })
 
     describe("#createTopic",function(){
         it("should register the topic after creation and create the consumer node",function(done){
@@ -1026,6 +1031,40 @@ describe("Big Queue Cluster",function(){
         })
     })
    describe("background",function(){
+       it("should collect stats in file",function(done){
+           bqClient.shutdown() 
+           var bqClientConfig = {
+               "zk":zk,
+               "refreshTime":500,
+               "zkClusterPath":clusterPath,
+               "createJournalClientFunction":bj.createJournalClient,
+               "createNodeClientFunction":bq.createClient,
+               "statsInterval":50,
+               "statsFile":"/tmp/bigqueueStats.log"
+            }
+
+            var dirs = fs.readdirSync("/tmp")
+            if(dirs.lastIndexOf("bigqueueStats.log") != -1){
+                fs.unlinkSync("/tmp/bigqueueStats.log")
+            }
+            bqc.statsInit = false
+            bqClient = bqc.createClusterClient(bqClientConfig)
+            bqClient.on("ready",function(){
+               bqClient.postMessage("testTopic",{msg:"test1"},function(err,key){
+                    bqClient.postMessage("testTopic",{msg:"test2"},function(err,key){
+                        bqClient.postMessage("testTopic",{msg:"test3"},function(err,key){
+                            bqClient.postMessage("testTopic",{msg:"test4"},function(err,key){
+                                setTimeout(function(){
+                                    var dirs = fs.readdirSync("/tmp")
+                                    dirs.lastIndexOf("bigqueueStats.log").should.not.equal(-1)
+                                    done()
+                                },210)
+                            })
+                        })
+                    })
+               })
+            })
+       })
        it("should re-sink nodes from zookeeper periodically",function(done){
            var client = bqClient.getNodeById("redis1")
            client.data.status.should.equal("UP")
