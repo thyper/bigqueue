@@ -317,6 +317,8 @@ exports.startup = function(config){
         log.inf("Using express logger")
         app.use(express.logger(config.loggerConf));
     }
+
+    app.enable("jsonp callback")
         
     app.use(express.bodyParser());
 
