@@ -153,6 +153,9 @@ var loadApp = function(app){
         if(!group){
             return res.json({"err":"The property ["+app.settings.groupEntity+"] must be set"},400)
         }
+        if(!req.body.name){
+            return res.json({"err":"The property [name] must be set"},400)
+        }
 
         if(req.keystone && req.keystone.authorized && !authorizeTenant(req.keystone.userData, group) && !isAdmin(req.keystone.userData)){
             return res.json({"err":"Invalid token for tenant ["+group+"]"},401)
