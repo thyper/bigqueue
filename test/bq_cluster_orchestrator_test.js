@@ -433,7 +433,7 @@ describe("Orchestrator",function(){
                                                                         done()
                                                                         orch.shutdown()
                                                                     })
-                                                                },300)
+                                                                },600)
                                                             })
                                                         })
                                                      },300)

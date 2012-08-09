@@ -3,8 +3,9 @@ local idFrom = tonumber(ARGV[3])
 
 local journalHead = journalName..":head"
 -- Get the journal head
+local headExists = redis.call("exists",journalHead)
 local head = tonumber(redis.call("get",journalHead))
-if not head then
+if headExists == 0 or not head then
     if idFrom <= 0 then
         return {}
     else
