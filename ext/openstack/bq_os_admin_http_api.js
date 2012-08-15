@@ -138,7 +138,7 @@ var loadApp = function(app){
         app.settings.bqAdm.getGroupTopics(group,function(err,data){
            if(err){
                 var errMsg = err.msg || ""+err
-                return res.json({"err":errMSg},err.code || 500)
+                return res.json({"err":errMsg},err.code || 500)
            }
             return res.json(data,200)
         })
