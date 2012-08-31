@@ -13,6 +13,9 @@ endef
 export REDIS1_CONF
 export REDIS2_CONF
 export ZOOCFG := test/resources/zoo.cfg
+NODE_VERSION="v0.6.19"
+NODE_VERSION_LOCAL=$(shell /usr/local/node/bin/node --version)
+
 test:
 	echo "$$REDIS1_CONF" | redis-server -
 	echo "$$REDIS2_CONF" | redis-server -
@@ -32,7 +35,9 @@ prepare_development:
 	npm install;
 
 run_development:
+	if test "$(shell redis-cli ping)" = "PONG"; then (redis-cli shutdown); fi;
 	redis-server &
 	./bin/http_launcher.js
+	
 
 .PHONY: test
