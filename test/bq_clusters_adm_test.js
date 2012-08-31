@@ -451,7 +451,7 @@ describe("Clusters administration for multicluster purposes",function(){
                 })
             })
         })
-        it("should delete topic from especific clusters",function(done){
+        it("should delete topic from specific clusters",function(done){
              admClient.deleteTopic("test",function(err){
                 should.not.exist(err)
                 var clusterClient = bqc.createClusterClient(cluster2Config)
@@ -534,6 +534,7 @@ describe("Clusters administration for multicluster purposes",function(){
                 })
             })
         })
+
         it("should fail if consumer doesn't exist on delete",function(done){
             admClient.deleteConsumerGroup("test","testConsumer-no-exist",function(err){
                 should.exist(err)

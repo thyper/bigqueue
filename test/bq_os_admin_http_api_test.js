@@ -679,6 +679,36 @@ describe("openstack admin http api",function(){
                 })
             })
         })
+        it("should support consumers reset",function(done){
+            request({
+                url:"http://127.0.0.1:8081/topics",
+                method:"POST",
+                json:{"tenantId":"1234","name":"test"}
+            },function(error,response,body){
+                response.statusCode.should.equal(201)
+                request({
+                    url:"http://127.0.0.1:8081/topics/1234-test/consumers",
+                    method:"POST",
+                    json:{"tenantId":"1234","name":"test"}
+                },function(error,response,body){
+                    response.statusCode.should.equal(201)
+                    request({
+                        url:"http://127.0.0.1:8081/topics/1234-test",
+                        method:"GET",
+                        json:true
+                    },function(error,response,body){
+                        body.consumers.length.should.equal(1)
+                        request({
+                            url:"http://127.0.0.1:8081/topics/1234-test/consumers/1234-test",
+                            method:"PUT",
+                        },function(error,response,body){
+                            response.statusCode.should.equal(200)
+                            done()
+                        })
+                    }) 
+                })
+            })
+        })
     })
 
     describe("Limits",function(done){

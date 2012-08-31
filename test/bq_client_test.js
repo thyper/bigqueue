@@ -465,6 +465,41 @@ describe("Big Queue Client",function(){
         })
     })
 
+    describe("Reset",function(){
+        beforeEach(function(done){
+            bqClient.createTopic("testTopic",function(err){
+                bqClient.createConsumerGroup("testTopic","testConsumer",function(err){
+                    should.not.exist(err)
+                    done()
+                })
+            })
+        })
+
+        it("should reset consumers",function(done){
+            redisClient.set("topics:testTopic:head",10,function(err,data){
+                should.not.exist(err)
+                redisClient.get("topics:testTopic:consumers:testConsumer:last",function(err,data){
+                    should.not.exist(err)
+                    data.should.equal("1")
+                    bqClient.resetConsumerGroup("testTopic","testConsumer",function(err,data){
+                        should.not.exist(err)
+                        redisClient.get("topics:testTopic:consumers:testConsumer:last",function(err,data){
+                            should.not.exist(err)
+                            data.should.equal("10")
+                            done()
+                        })
+                    })
+                })
+            })
+        })
+        it("should fail if consumer doesn't exist",function(done){
+            bqClient.resetConsumerGroup("testTopic","testConsumer-unexistent",function(err,data){
+                should.exist(err)
+                done()
+            })
+        })
+    })
+
     describe("delete",function(){
         it("should delete topics",function(done){
             bqClient.createTopic("testTopic1",function(err){

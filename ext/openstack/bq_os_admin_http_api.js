@@ -287,6 +287,28 @@ var loadApp = function(app){
             })
         })
     })
+
+    //Reset on put
+    app.put(app.settings.basePath+"/topics/:topicId/consumers/:consumerId",function(req,res){
+        app.settings.bqAdm.getTopicGroup(req.params.topicId,function(err,group){
+            if(err){
+                var errMsg = err.msg || ""+err
+                return res.json({"err":errMsg},err.code || 500)
+            }
+        
+            if(req.keystone && req.keystone.authorized && !authorizeTenant(req.keystone.userData, group) && !isAdmin(req.keystone.userData)){
+                return res.json({"err":"Invalid token for tenant ["+group+"]"},401)
+            }
+
+            app.settings.bqAdm.resetConsumerGroup(req.params.topicId,req.params.consumerId,function(err,data){
+                if(err){
+                  var errMsg = err.msg || ""+err
+                  return res.json({"err":errMsg},err.code || 500)
+                }
+                return res.json({"msg":"Consumer ["+req.params.consumerId+"] of topic ["+req.params.topicId+"] have been reset"},200)
+            })
+        })
+    })
     app.get(app.settings.basePath+"/topics/:topicId/consumers/:consumerId",function(req,res){
         app.settings.bqAdm.getConsumerData(req.params.topicId,req.params.consumerId,function(err,data){
             if(err){

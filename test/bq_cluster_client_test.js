@@ -281,6 +281,7 @@ describe("Big Queue Cluster",function(){
         })
     })
 
+
     describe("#createConsumer",function(done){
         beforeEach(function(done){
             bqClient.createTopic("testTopic",function(err){
@@ -400,6 +401,54 @@ describe("Big Queue Cluster",function(){
         })
         it("should fail if consumer doesn't exist",function(done){
             bqClient.deleteConsumerGroup("testTopic","testConsumer-no-exists",function(err){
+                should.exist(err)
+                done()            
+            })
+        })
+    })
+
+    describe("#resetConsumer",function(done){
+        beforeEach(function(done){
+            bqClient.createTopic("testTopic",function(err){
+                should.not.exist(err)
+                bqClient.createConsumerGroup("testTopic","testConsumer",function(err){
+                    should.not.exist(err)
+                    done()
+                })
+            })
+        })
+
+        it("should reset consumer on all servers",function(done){
+            redisClient1.set("topics:testTopic:head","10",function(err,data){
+                should.not.exist(err)
+                redisClient2.set("topics:testTopic:head","10",function(err,data){
+                    should.not.exist(err)
+                    bqClient.resetConsumerGroup("testTopic","testConsumer",function(err){
+                        redisClient1.get("topics:testTopic:consumers:testConsumer:last",function(err,data){
+                            should.not.exist(err)
+                            data.should.equal("10")
+                            redisClient2.get("topics:testTopic:consumers:testConsumer:last",function(err,data){
+                                should.not.exist(err)
+                                data.should.equal("10")
+                                done()
+                            })
+                        })
+                    })
+                })
+            })
+
+        })
+        it("should fail if any redis fails",function(done){
+            redisClient2.flushall(function(err,data){
+                should.not.exist(err)
+                bqClient.resetConsumerGroup("testTopic","testConsumer",function(err){
+                    should.exist(err)
+                    done()            
+                })
+            })
+        })
+        it("should fail if consumer doesn't exist",function(done){
+            bqClient.resetConsumerGroup("testTopic","testConsumer-no-exists",function(err){
                 should.exist(err)
                 done()            
             })
