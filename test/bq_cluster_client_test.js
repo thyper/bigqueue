@@ -426,10 +426,10 @@ describe("Big Queue Cluster",function(){
                     bqClient.resetConsumerGroup("testTopic","testConsumer",function(err){
                         redisClient1.get("topics:testTopic:consumers:testConsumer:last",function(err,data){
                             should.not.exist(err)
-                            data.should.equal("10")
+                            data.should.equal("11")
                             redisClient2.get("topics:testTopic:consumers:testConsumer:last",function(err,data){
                                 should.not.exist(err)
-                                data.should.equal("10")
+                                data.should.equal("11")
                                 done()
                             })
                         })

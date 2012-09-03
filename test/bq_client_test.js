@@ -485,7 +485,7 @@ describe("Big Queue Client",function(){
                         should.not.exist(err)
                         redisClient.get("topics:testTopic:consumers:testConsumer:last",function(err,data){
                             should.not.exist(err)
-                            data.should.equal("10")
+                            data.should.equal("11")
                             done()
                         })
                     })

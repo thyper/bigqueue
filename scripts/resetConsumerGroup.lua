@@ -23,6 +23,8 @@ end
 local head = redis.call("get",topicHead)
 if not head then
     head = 1
+else
+    head = tonumber(head) + 1
 end
 
 redis.call("set",lastPointer,head)
