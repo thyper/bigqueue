@@ -17,8 +17,8 @@ NODE_VERSION="v0.6.19"
 NODE_VERSION_LOCAL=$(shell /usr/local/node/bin/node --version)
 
 test:
-	echo "$$REDIS1_CONF" | redis-server -
-	echo "$$REDIS2_CONF" | redis-server -
+	echo "$$REDIS1_CONF" | /usr/local/bin/redis-server -
+	echo "$$REDIS2_CONF" | /usr/local/bin/redis-server -
 
 	node_modules/zookeeper/build/zookeeper-3.4.3/bin/zkServer.sh start ${ZOOCFG}
 #	sleep 10 
