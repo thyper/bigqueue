@@ -84,7 +84,7 @@ var loadApp = function(app){
                 }
             })
         }catch(e){
-            log.err("Error getting message ["+e+"]",true)
+            log.err("Error getting message ["+e+"]")
             res.json({err:"Error processing request ["+e+"]"},500)
         }
     })
@@ -102,7 +102,7 @@ var loadApp = function(app){
                 }
             })
         }catch(e){
-            log.err("Error deleting message ["+e+"]",true)
+            log.err("Error deleting message ["+e+"]")
             res.json({err:"Error processing request ["+e+"]"},500)
         }
 

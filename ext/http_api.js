@@ -16,7 +16,7 @@ var loadApp = function(app){
                 res.json(data,200)
             })
         }catch(e){
-            log.err("Error getting topics ["+e+"]",true)
+            log.err("Error getting topics ["+e+"]")
             res.json({err:"Error processing request ["+e+"]"},500)
         }
 
@@ -41,7 +41,7 @@ var loadApp = function(app){
                 }
             })
         }catch(e){
-            log.err("Error creating topic ["+e+"]",true)
+            log.err("Error creating topic ["+e+"]")
             return res.json({err:"Error processing request ["+e+"]"},500)
         }
     })
@@ -58,7 +58,7 @@ var loadApp = function(app){
                 }
             })
         }catch(e){
-            log.err("Error creating consumer group ["+e+"]",true)
+            log.err("Error creating consumer group ["+e+"]")
             res.json({err:"Error processing request ["+e+"]"},500)
         }
 
@@ -118,7 +118,7 @@ var loadApp = function(app){
                 timer("[REST-API] Post user responsed")
             })
         }catch(e){
-            log.err("Error posting message ["+e+"]",true)
+            log.err("Error posting message ["+e+"]")
             return res.json({err:"Error processing request ["+e+"]"},500)
         }
     })
@@ -195,7 +195,7 @@ var loadApp = function(app){
                 }
             })
         }catch(e){
-            log.err("Error getting message ["+e+"]",true)
+            log.err("Error getting message ["+e+"]")
             res.json({err:"Error processing request ["+e+"]"},500)
         }
     })
@@ -211,7 +211,7 @@ var loadApp = function(app){
                 }
             })
         }catch(e){
-            log.err("Error deleting message ["+e+"]",true)
+            log.err("Error deleting message ["+e+"]")
             res.json({err:"Error processing request ["+e+"]"},500)
         }
 
