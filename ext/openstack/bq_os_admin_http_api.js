@@ -332,6 +332,22 @@ var authFilter = function(config){
         }
     }
 }
+var writeFilter = function(){
+    return function(req,res,next){
+        res.writePretty = function(obj,statusCode){
+
+            if(req.accepts("json")){
+                res.json(obj,statusCode)
+            }else if(req.accepts("text/plain")){
+                res.send(YAML.stringify(obj),statusCode)
+            }else{
+                //Default
+                res.json(obj,statusCode)
+            }
+        }
+        next()
+    }
+}
 
 exports.startup = function(config){
     log.setLevel(config.logLevel || "info")
@@ -361,7 +377,7 @@ exports.startup = function(config){
 
     var groupEntity = config.groupEntity || "tenantId"
     app.set("groupEntity",groupEntity )
-
+    app.use(writeFilter())
     loadApp(app) 
     app.listen(config.port)
     this.app = app
