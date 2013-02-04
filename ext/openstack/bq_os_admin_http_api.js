@@ -1,7 +1,8 @@
 var express = require('express'),
-    log = require('node-logging')
+    log = require('node-logging'),
     bqAdm = require('../../lib/bq_clusters_adm.js'),
-    keystoneMiddlware = require("../../ext/openstack/keystone_middleware.js")
+    keystoneMiddlware = require("../../ext/openstack/keystone_middleware.js"),
+    YAML = require('json2yaml');
 
 var loadApp = function(app){
 
