@@ -324,12 +324,14 @@ describe("Clusters administration for multicluster purposes",function(){
                 should.not.exist(err)
                 var clusterClient = bqc.createClusterClient(cluster1Config)
                 clusterClient.on("ready",function(){
-                    clusterClient.listTopics(function(data){
+                    process.nextTick(function(){
+                        clusterClient.listTopics(function(data){
                         should.exist(data)
                         data.should.have.length(1)
                         data[0].should.equal("test")
                         clusterClient.shutdown()
                         done()
+                        })
                     })
                 })
             })
@@ -551,6 +553,9 @@ describe("Clusters administration for multicluster purposes",function(){
                     {name:"node1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}},
                     {name:"node2",config:{"host":"127.0.0.1","port":6380,"errors":0,"status":"UP"}}
                 ],
+                journals:[
+                    {name:"j1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}},
+                ],
                 endpoints:[
                     {name:"e1",config:{"host":"127.0.0.1","port":8080}},
                     {name:"e2",config:{"host":"127.0.0.1","port":8081}}
@@ -579,6 +584,39 @@ describe("Clusters administration for multicluster purposes",function(){
                    })
                })
            })
+        })
+
+        it("should return information for an existent node",function(done){
+            admClient.getNodeData("test1","node1",function(err,data){
+                data.host.should.equal("127.0.0.1")
+                data.port.should.equal(6379)
+                data.errors.should.equal(0)
+                data.status.should.equal("UP")
+                should.not.exist(err)
+                done()
+            })
+        })
+        it("should return error for an inexistent node",function(done){
+            admClient.getNodeData("test1","node5",function(err,data){
+                should.exist(err)
+                done()
+            })
+        })
+        it("should return information for an existent journal",function(done){
+            admClient.getJournalData("test1","j1",function(err,data){
+                data.host.should.equal("127.0.0.1")
+                data.port.should.equal(6379)
+                data.errors.should.equal(0)
+                data.status.should.equal("UP")
+                should.not.exist(err)
+                done()
+            })
+        })
+        it("should return error for an inexistent Journal",function(done){
+            admClient.getJournalData("test1","j5",function(err,data){
+                should.exist(err)
+                done()
+            })
         })
 
 

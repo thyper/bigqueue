@@ -280,6 +280,49 @@ describe("openstack admin http api",function(){
                 })
             })
         })
+        it("Should enable get info for nodes and journals",function(done){
+            request({
+                    url:"http://127.0.0.1:8081/clusters",
+                    method:"POST",
+                    json:{"name":"test"}
+                },function(error,response,body){
+                    response.statusCode.should.equal(201)
+                    request({
+                        url:"http://127.0.0.1:8081/clusters/test/nodes",
+                        method:"POST",
+                        json:{"id":"test1","name":"test1",config:{"host":"127.0.0.1","port":6379}}
+                    },function(err,response,body){
+                        response.statusCode.should.equal(201)
+                        request({
+                            url:"http://127.0.0.1:8081/clusters/test/journals",
+                            method:"POST",
+                            json:{"id":"j1","name":"j1",config:{"host":"127.0.0.1","port":6379}}
+                        },function(err,response,body){
+                            response.statusCode.should.equal(201)
+                            request({
+                                url:"http://127.0.0.1:8081/clusters/test/nodes/test1",
+                                method:"GET",
+                                json:true
+                            },function(error,response,body){
+                                response.statusCode.should.equal(200)
+                                body.host.should.equal("127.0.0.1")
+                                body.port.should.equal(6379)
+                                 request({
+                                    url:"http://127.0.0.1:8081/clusters/test/journals/j1",
+                                    method:"GET",
+                                    json:true
+                                },function(error,response,body){
+                                    response.statusCode.should.equal(200)
+                                    body.host.should.equal("127.0.0.1")
+                                    body.port.should.equal(6379)
+                                    done()
+                                })
+                            })
+                        })
+                    })
+                })
+        })
+
         it("should support delete endpoints")
         it("should support delete journals")
         it("should support add journals",function(done){
