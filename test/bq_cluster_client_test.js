@@ -124,6 +124,18 @@ describe("Big Queue Cluster",function(){
     //End of prepare stage 
     describe("#internals",function(){
         it("should register router on startup")
+        it("should get host and port from id if isn't present on json data",function(done){
+            zk.a_create("/bq/clusters/test/nodes/redis2-2020",JSON.stringify({"errors":0,"status":"DOWN"}),0,function(rc, err,stat){
+                rc.should.equal(0)
+                setTimeout(function(){
+                    var node = bqClient.getClientById(bqClient.nodes,"redis2-2020")
+                    node.host.should.equal("redis2")
+                    node.port.should.equal("2020")
+                    done()
+                },200)
+            })
+
+        })
     })
 
     describe("#createTopic",function(){
@@ -511,7 +523,9 @@ describe("Big Queue Cluster",function(){
                 })
             })
         })
-        it("should notify an error to zookeeper on node error",function(done){
+      /*  
+       *  Functional removed from 0.2.0
+       *  it("should notify an error to zookeeper on node error",function(done){
             zk.a_create("/bq/clusters/test/nodes/redis3",JSON.stringify({"host":"127.0.0.1","port":6381,"errors":0,"status":"UP"}),0,function(rc,error,path){
                 var oldData
                 zk.aw_get("/bq/clusters/test/nodes/redis3",function(type,state,path){
@@ -536,7 +550,7 @@ describe("Big Queue Cluster",function(){
                     })
                 })
             })
-        })
+        })*/
         it("should write to all journals declared for the node",function(done){
             bqClient.postMessage("testTopic",{msg:"test1"},function(err,key1){
                 bqClient.postMessage("testTopic",{msg:"test2"},function(err,key2){
@@ -578,6 +592,8 @@ describe("Big Queue Cluster",function(){
                 })
             })
         })
+       /*
+        * Function removed in 0.2.0
         it("should increase the amount of errors of the failed journal",function(done){
            zk.a_create("/bq/clusters/test/journals/j3",JSON.stringify({"host":"127.0.0.1","port":6381,"errors":0,"status":"UP"}),0,function(rc, err,stat){
                 zk.a_set("/bq/clusters/test/nodes/redis1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"UP", "journals":["j1","j2","j3"]}),-1,function(rc, err,stat){
@@ -604,7 +620,7 @@ describe("Big Queue Cluster",function(){
                 })
            })
        })
-
+        */
        it("should ignore force down status",function(done){
             zk.a_set("/bq/clusters/test/nodes/redis2",JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"FORCEDOWN"}),-1,function(rc, err,stat){
                 setTimeout(function(){

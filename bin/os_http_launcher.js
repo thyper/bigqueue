@@ -12,7 +12,7 @@ var bq = require('../lib/bq_client.js'),
 
 var cluster = require('cluster');
 var http = require('http');
-var numCPUs = require('os').cpus().length;
+var numCPUs = require('os').cpus().length - 1;
 var externalConfig = process.argv[2]
 
 
