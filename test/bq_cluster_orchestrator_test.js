@@ -8,7 +8,6 @@ var should = require("should"),
     utils = require("../lib/bq_client_utils.js")
 
 describe("Orchestrator",function(){
-    var clusterPath = "/bq/clusters/test"
     
     var redisClient1
 
@@ -22,7 +21,7 @@ describe("Orchestrator",function(){
         }   
 
     var ocConfig = {
-        "zkClustersPath":"/bq/clusters",
+        "zkClustersPath":"/bq/clusters/test",
         "zkConfig":zkConfig,
         "createNodeClientFunction":bq.createClient,
         "createJournalClientFunction":bj.createJournalClient,
@@ -244,48 +243,6 @@ describe("Orchestrator",function(){
         })
 
     })
-    it("Should sync new nodes in new clusters",function(done){
-        utils.deleteZkRecursive(zk,"/bq/clusters",function(){
-            zk.a_create("/bq/clusters","",0,function(rc,error,path){
-                var orch = oc.createOrchestrator(ocConfig)
-                orch.on("ready",function(){
-                    redisClient1.sismember("topics","test2",function(err,data){
-                        data.should.equal(0)
-                        redisClient1.exists("topics:test2:consumers:testConsumer:last",function(err,data){
-                            data.should.equal(0)
-                            redisClient1.sismember("topics","test2",function(err,data){
-                                data.should.equal(0)
-                                zk.a_create("/bq/clusters/test2","",0,function(rc,error,path){
-                                    zk.a_create("/bq/clusters/test2/nodes","",0,function(rc,error,path){
-                                       zk.a_create("/bq/clusters/test2/nodes/redis-test",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"DOWN"}),0,function(rc,error,path){
-                                            zk.a_create("/bq/clusters/test2/topics","",0,function(rc,error,path){
-                                                zk.a_create("/bq/clusters/test2/topics/test2","",0,function(rc,error,path){
-                                                    zk.a_create("/bq/clusters/test2/topics/test2/consumerGroups","",0,function(rc,error,path){
-                                                        zk.a_create("/bq/clusters/test2/topics/test2/consumerGroups/testConsumer","",0,function(rc,error,path){
-                                                            setTimeout(function(){
-                                                                redisClient1.sismember("topics","test2",function(err,data){
-                                                                    data.should.equal(1)
-                                                                    redisClient1.exists("topics:test2:consumers:testConsumer:last",function(err,data){
-                                                                        data.should.equal(1)
-                                                                        done()
-                                                                        orch.shutdown()
-                                                                    })
-                                                                })
-                                                            },1200)
-                                                        })
-                                                    })
-                                                })
-                                            })
-                                        })
-                                    })
-                                })
-                            })
-                        })
-                    })
-                })
-            })
-        })
-    })
     it("Should not sync nodes in FORCEDOWN status",function(done){
         var orch = oc.createOrchestrator(ocConfig)
         orch.on("ready",function(){
@@ -436,7 +393,7 @@ describe("Orchestrator",function(){
                                                                 },600)
                                                             })
                                                         })
-                                                     },300)
+                                                     },1000)
                                                  })
                                             })
                                         })
