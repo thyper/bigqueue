@@ -153,6 +153,19 @@ describe("Big Queue Cluster",function(){
                 })
             })
         })
+        it("should register the ttl as topic property",function(done){
+            bqClient.createTopic("testTopic",10,function(err){
+                should.not.exist(err)
+                zk.a_exists(clusterPath+"/topics/testTopic",false,function(rc,error,stat){
+                    zk.a_get(clusterPath+"/topics/testTopic",false,function(rc,error,stat,data){
+                        var d = JSON.parse(data)
+                        d.ttl.should.equal(10)
+                        done()
+                    })
+                })
+            })
+
+        })
         it("should propagate the create throught all redis",function(done){
             bqClient.createTopic("testTopic",function(err){
                 should.not.exist(err)
