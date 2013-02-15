@@ -6,16 +6,17 @@ local journalHead = journalName..":head"
 local headExists = redis.call("exists",journalHead)
 local head = tonumber(redis.call("get",journalHead))
 if headExists == 0 or not head then
-    if idFrom <= 0 then
         return {}
-    else
-        return {err="Journal head not found for ["..journalName.."]"}
-    end
 end
 
 -- If the required from is grather than the head this journal has not the id's
-if head < idFrom then
+if head <= idFrom then
     return {}
+end
+
+local diff = head - idFrom
+if diff > 10000 then
+    return {err="Can not return because the diff from head is more than 10000 messages"}
 end
 
 local msgs = {}
