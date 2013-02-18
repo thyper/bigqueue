@@ -5,7 +5,8 @@ var should = require("should"),
     bj = require("../lib/bq_journal_client_redis.js"),
     redis = require("redis"),
     log = require("node-logging"),
-    utils = require("../lib/bq_client_utils.js")
+    utils = require("../lib/bq_client_utils.js"),
+    os = require("os");
 
 describe("Orchestrator",function(){
     
@@ -26,7 +27,9 @@ describe("Orchestrator",function(){
         "createNodeClientFunction":bq.createClient,
         "createJournalClientFunction":bj.createJournalClient,
         "checkInterval":50,
-        "logLevel":"critical"
+        "logLevel":"critical",
+        "amountOfOrchestratorToSetDownANode":1
+
     }
     var zk = new ZK(zkConfig)
 
@@ -523,5 +526,83 @@ describe("Orchestrator",function(){
                 })
             })
         })
+    })
+    it("Should set DOWN node only if the amount of orchestrator seeing the error is more than or equals the configured",function(done){
+        var ocConfig = {
+            "zkClustersPath":"/bq/clusters/test",
+            "zkConfig":zkConfig,
+            "createNodeClientFunction":bq.createClient,
+            "createJournalClientFunction":bj.createJournalClient,
+            "checkInterval":50,
+            "logLevel":"critical",
+            "amountOfOrchestratorToSetDownANode":3
+        }
+
+        var orch = oc.createOrchestrator(ocConfig)
+        orch.on("ready",function(){
+            zk.a_create("/bq/clusters/test/nodes/redis3",JSON.stringify({"host":"127.0.0.1","port":6381,"errors":0,"status":"UP"}),0,function(rc,error,path){
+                setTimeout(function(){
+                    zk.a_get("/bq/clusters/test/nodes/redis3",false,function(rc,error,stat,data){
+                       should.exist(rc)
+                       rc.should.equal(0)
+                       should.exist(data)
+                       var d = JSON.parse(data)
+                       d.status.should.equal("UP")
+                       d.orchestrator_errors.length.should.equal(1)
+                       d.orchestrator_errors.push("orch1")
+                       d.orchestrator_errors.push("orch2")
+                       zk.a_set("/bq/clusters/test/nodes/redis3",JSON.stringify(d),-1,function(rc,error,path){
+                            rc.should.equal(0)
+                        setTimeout(function(){
+                              zk.a_get("/bq/clusters/test/nodes/redis3",false,function(rc,error,stat,data){
+                                   should.exist(rc)
+                                   rc.should.equal(0)
+                                   should.exist(data)
+                                   var d = JSON.parse(data)
+                                   d.status.should.equal("DOWN")
+                                   d.orchestrator_errors.length.should.equal(3)
+                                   orch.shutdown() 
+                                   done()
+                               })
+                           },150)
+                        })
+                    },150)
+                },150)
+            })
+        })
+    })
+    it("Should set a node UP only if the amount of orchestrator seeing the error is less than the configured",function(done){
+        var ocConfig = {
+            "zkClustersPath":"/bq/clusters/test",
+            "zkConfig":zkConfig,
+            "createNodeClientFunction":bq.createClient,
+            "createJournalClientFunction":bj.createJournalClient,
+            "checkInterval":50,
+            "logLevel":"critical",
+            "amountOfOrchestratorToSetDownANode":3
+        }
+        var nodeData = {"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}
+        zk.a_set("/bq/clusters/test/nodes/redis1",JSON.stringify(nodeData),-1,function(){
+             var orch = oc.createOrchestrator(ocConfig)
+             orch.on("ready",function(){
+                nodeData.status = "DOWN"
+                nodeData.orchestrator_errors=["orch1","orch2",os.hostname()]
+                zk.a_set("/bq/clusters/test/nodes/redis1",JSON.stringify(nodeData),-1,function(){
+                    setTimeout(function(){
+                          zk.a_get("/bq/clusters/test/nodes/redis1",false,function(rc,error,stat,data){
+                               should.exist(rc)
+                               rc.should.equal(0)
+                               should.exist(data)
+                               var d = JSON.parse(data)
+                               d.status.should.equal("UP")
+                               d.orchestrator_errors.length.should.equal(2)
+                               orch.shutdown() 
+                               done()
+                          })
+                    },150)
+                })
+             })
+        })
+
     })
 })
