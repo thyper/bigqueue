@@ -25,7 +25,7 @@ describe("Orchestrator",function(){
         "zkConfig":zkConfig,
         "createNodeClientFunction":bq.createClient,
         "createJournalClientFunction":bj.createJournalClient,
-        "checkInterval":500,
+        "checkInterval":50,
         "logLevel":"critical"
     }
     var zk = new ZK(zkConfig)
@@ -86,7 +86,10 @@ describe("Orchestrator",function(){
         })
     })
 
-    it("Should check nodes status when any event is produced",function(done){
+    /*
+     * From version 0.2.0 orchestrator only check nodes periodically
+     */
+    /*it("Should check nodes status when any event is produced",function(done){
         var orch = oc.createOrchestrator(ocConfig)
         orch.on("ready",function(){
         setTimeout(function(){
@@ -106,8 +109,11 @@ describe("Orchestrator",function(){
             })
         },200)
         })
-    })
-    it("Should check nodes periodically looking for connection problems",function(done){
+    })*/
+    /*
+     * From version 0.2.0 orchestrator only check nodes periodically
+     */
+   /* it("Should check nodes periodically looking for connection problems",function(done){
         var orch = oc.createOrchestrator(ocConfig)
         orch.on("ready",function(){
             setTimeout(function(){
@@ -126,14 +132,12 @@ describe("Orchestrator",function(){
                 })
             },200)
         })
-    })
+    })*/
     it("Should refresh nodes on nodeMonitor",function(done){
         var orch = oc.createOrchestrator(ocConfig)
         orch.on("ready",function(){
             setTimeout(function(){
-                orch.nodeMonitor.running=false
                 zk.a_create("/bq/clusters/test/nodes/redis3",JSON.stringify({"host":"127.0.0.1","port":6381,"errors":0,"status":"UP"}),0,function(rc,error,path){
-                    orch.nodeMonitor.running=true
                     setTimeout(function(){
                         zk.a_get("/bq/clusters/test/nodes/redis3",false,function(rc,error,stat,data){
                            should.exist(rc)
@@ -144,9 +148,9 @@ describe("Orchestrator",function(){
                            done()
                            orch.shutdown()
                         })
-                    },1000)
+                    },150)
                 })
-            },200)
+            },150)
         })
     })
     it("Should check nodes periodically looking for inconsistencies and sync if one is found",function(done){
@@ -189,7 +193,7 @@ describe("Orchestrator",function(){
                                                             })
                                                         })
                                                     })
-                                                },1200)
+                                                },500)
                                             })
                                         })
                                     })
@@ -231,7 +235,7 @@ describe("Orchestrator",function(){
                                                          })
                                                     })
                                                 })
-                                            },1200);
+                                            },500);
                                         }) 
                                     })
                                 })
@@ -277,7 +281,7 @@ describe("Orchestrator",function(){
                         done()
                         orch.shutdown()
                     })
-                },500)
+                },150)
             })
        })
     })
@@ -294,7 +298,7 @@ describe("Orchestrator",function(){
                         done()
                         orch.shutdown()
                     })
-                },500)
+                },150)
             }) 
         })
     })
@@ -312,7 +316,7 @@ describe("Orchestrator",function(){
                         done()
                         orch.shutdown()
                     })
-                },500)
+                },150)
            })
         })
     })
@@ -331,12 +335,16 @@ describe("Orchestrator",function(){
                             done()
                             orch.shutdown()
                         })
-                    },500)
+                    },150)
                 })
             })
         })
     })
-    it("should put a node down if same dependent journal is down",function(done){
+    
+    /*
+     * From 0.2.0 Nodes detect if their journals are down removing the double check
+     */
+    /*it("should put a node down if same dependent journal is down",function(done){
         var orch = oc.createOrchestrator(ocConfig)
         orch.on("ready",function(){
             zk.a_create("/bq/clusters/test/journals/j3",JSON.stringify({"host":"127.0.0.1","port":6381,"errors":0,"status":"UP","start_date":new Date()}),0,function(rc,error,path){
@@ -356,7 +364,7 @@ describe("Orchestrator",function(){
             })
 
         })
-    })
+    })*/
 
     it("should re-sink a down datanode that goes up",function(done){
          zk.a_set("/bq/clusters/test/nodes/redis1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"UP","journals":["j2"]}),-1,function(){
@@ -390,16 +398,16 @@ describe("Orchestrator",function(){
                                                                         orch.shutdown()
                                                                         done()
                                                                     })
-                                                                },600)
+                                                                },150)
                                                             })
                                                         })
-                                                     },1000)
+                                                     },150)
                                                  })
                                             })
                                         })
                                     })
                                 })
-                            },300)
+                            },150)
                         })
                     })
                 })
@@ -428,7 +436,7 @@ describe("Orchestrator",function(){
                                         },300)
                                     })
                                 })
-                            },1000)
+                            },300)
                         })
                     })
                 })
@@ -449,7 +457,7 @@ describe("Orchestrator",function(){
                         done()
                         orch.shutdown()
                     })
-                },500)
+                },150)
             })
         })
     })
@@ -470,13 +478,13 @@ describe("Orchestrator",function(){
                                             orch.shutdown()
                                             done()
                                         })
-                                    },500)
+                                    },150)
                                 })
                             })
 
                         })
 
-                    },500)
+                    },150)
                })
             })
         })
@@ -490,6 +498,7 @@ describe("Orchestrator",function(){
                         orch.on("ready",function(){
                             setTimeout(function(){
                                 redisClient1.sismember("topics:test2:consumers","test",function(err,data){
+                                    data.should.equal(1)
                                     redisClient1.sismember("topics:test2:consumers","test1",function(err,data){
                                         data.should.equal(1)
                                         utils.deleteZkRecursive(zk,"/bq/clusters/test/topics/test2/consumerGroups/test",function(rc,err){
@@ -503,12 +512,12 @@ describe("Orchestrator",function(){
                                                             done()
                                                         })
                                                     })
-                                                },500)
+                                                },150)
                                             })
                                         })
                                     })
                                 })
-                            },500)
+                            },150)
                         })
                     })
                 })

@@ -10,7 +10,7 @@ if headExists == 0 or not head then
 end
 
 -- If the required from is grather than the head this journal has not the id's
-if head <= idFrom then
+if head < idFrom then
     return {}
 end
 
