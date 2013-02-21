@@ -62,7 +62,10 @@ var loadApp = function(app){
             app.settings.bqClient.getMessage(topic,consumer,req.query.visibilityWindow,function(err,data){
                 timer("Message getted")
                 if(err){
-                    res.json({err:""+err},400)
+                    if(typeof(err) == "string")
+                        res.json({"err":""+err},400)
+                    else
+                        res.json(err,400)
                 }else{
                     if(data && data.id){
                         Object.keys(data).forEach(function(val){
