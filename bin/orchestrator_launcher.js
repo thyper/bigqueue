@@ -19,7 +19,8 @@ var ocConfig = {
     "zkConfig":zkConfig,
     "createNodeClientFunction":bq.createClient,
     "createJournalClientFunction":bj.createJournalClient,
-    "checkInterval":2000
+    "checkInterval":2000,
+    "restartOnSlowRunning":3
 }
 
 var config 
@@ -28,9 +29,27 @@ if(externalConfig){
 }else{
     config = ocConfig 
 }
+var runningSlow = 0
+var orch
+var startOrchestrator = function(){
+    orch = oc.createOrchestrator(config)
+    orch.on("ready",function(){
+        console.log("Orchestrator running")
+    })
+    if(config.restartOnSlowRunning != undefined && config.restartOnSlowRunning>0){ 
+        orch.on("running-slow",function(){
+            runningSlow++
+            if(runningSlow >= config.restartOnSlowRunning){
+                console.log("Restarting orchestrator because is too slow")
+                orch.shutdown()
+                runningSlow=0
+                startOrchestrator()
+            }
+        })
+    }
+    orch.on("running-start",function(){
+        runningSlow = 0 
+    })
+}
 
-var orch = oc.createOrchestrator(config)
-orch.on("ready",function(){
-    console.log("Orchestrator running")
-})
-
+startOrchestrator()
