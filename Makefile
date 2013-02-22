@@ -20,11 +20,11 @@ test:
 	echo "$$REDIS1_CONF" | /usr/local/bin/redis-server -
 	echo "$$REDIS2_CONF" | /usr/local/bin/redis-server -
 
-	node_modules/zookeeper/build/zookeeper-3.4.3/bin/zkServer.sh start ${ZOOCFG}
+	test/resources/zookeeper-3.4.3/bin/zkServer.sh start ${ZOOCFG}
 #	sleep 10 
 	./node_modules/.bin/_mocha --globals myThis,myHolder,myCallee,State_myThis --reporter spec -t 5000 -s 3000 ${REGEX} ${TESTFILE}
 
-	node_modules/zookeeper/build/zookeeper-3.4.3/bin/zkServer.sh stop ${ZOOCFG}
+	test/resources/zookeeper-3.4.3/bin/zkServer.sh stop ${ZOOCFG}
 
 	kill `cat /tmp/redis1.pid`
 	kill `cat /tmp/redis1.pid`
