@@ -20,7 +20,7 @@
         "redis" : "https://github.com/downloads/mercadolibre/node_redis/redis-0.7.4.tgz",
        	"should" : "0.6.x",
         "request" : "2.9.x",
-        "zookeeper":"3.4.x",
+        "zookeeper":"3.4.5",
         "hiredis":"0.1.x",
         "node-logging":"0.1.x",
         "json2yaml":"1.0.x"
