@@ -61,8 +61,8 @@ describe("Orchestrator",function(){
                        zk.a_create("/bq/clusters/test/topics","",0,function(rc,error,path){
                            zk.a_create("/bq/clusters/test/journals","",0,function(rc,error,path){
                                 zk.a_create("/bq/clusters/test/nodes","",0,function(rc,error,path){
-                                    zk.a_create("/bq/clusters/test/nodes/redis1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}),0,function(rc,error,path){
-                                        zk.a_create("/bq/clusters/test/nodes/redis2",JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"UP"}),0,function(rc,error,path){
+                                    zk.a_create("/bq/clusters/test/nodes/redis1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"UP","journals":[]}),0,function(rc,error,path){
+                                        zk.a_create("/bq/clusters/test/nodes/redis2",JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"UP","journals":[]}),0,function(rc,error,path){
                                             zk.a_create("/bq/clusters/test/journals/j1",
                                                     JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"UP","start_date":new Date()}),0,function(rc,error,path){
                                                 zk.a_create("/bq/clusters/test/journals/j2",
@@ -140,7 +140,7 @@ describe("Orchestrator",function(){
         var orch = oc.createOrchestrator(ocConfig)
         orch.on("ready",function(){
             setTimeout(function(){
-                zk.a_create("/bq/clusters/test/nodes/redis3",JSON.stringify({"host":"127.0.0.1","port":6381,"errors":0,"status":"UP"}),0,function(rc,error,path){
+                zk.a_create("/bq/clusters/test/nodes/redis3",JSON.stringify({"journals":[],"host":"127.0.0.1","port":6381,"errors":0,"status":"UP"}),0,function(rc,error,path){
                     setTimeout(function(){
                         zk.a_get("/bq/clusters/test/nodes/redis3",false,function(rc,error,stat,data){
                            should.exist(rc)
@@ -221,7 +221,7 @@ describe("Orchestrator",function(){
                                     data.should.equal(0)
                                     redisClient1.sismember("topics","test2",function(err,data){
                                         data.should.equal(0)
-                                        zk.a_create("/bq/clusters/test/nodes/redis1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"DOWN"}),0,function(rc,error,path){
+                                        zk.a_create("/bq/clusters/test/nodes/redis1",JSON.stringify({"journals":[],"host":"127.0.0.1","port":6379,"errors":0,"status":"DOWN"}),0,function(rc,error,path){
                                             setTimeout(function(){
                                                 redisClient1.sismember("topics","test2",function(err,data){
                                                     data.should.equal(1)
@@ -254,7 +254,7 @@ describe("Orchestrator",function(){
         var orch = oc.createOrchestrator(ocConfig)
         orch.on("ready",function(){
             setTimeout(function(){
-                zk.a_set("/bq/clusters/test/nodes/redis1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":1,"status":"FORCEDOWN"}),-1,function(){
+                zk.a_set("/bq/clusters/test/nodes/redis1",JSON.stringify({"journals":[],"host":"127.0.0.1","port":6379,"errors":1,"status":"FORCEDOWN"}),-1,function(){
                     setTimeout(function(){
                         zk.a_get("/bq/clusters/test/nodes/redis1",false,function(rc,error,stat,data){
                            should.exist(rc)
@@ -327,7 +327,7 @@ describe("Orchestrator",function(){
     it("should put down all nodes related when a journal goes down",function(done){
         var orch = oc.createOrchestrator(ocConfig)
         orch.on("ready",function(){
-            zk.a_set("/bq/clusters/test/nodes/redis1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"UP","journals":["j3"]}),-1,function(){
+            zk.a_set("/bq/clusters/test/nodes/redis1",JSON.stringify({"journals":[],"host":"127.0.0.1","port":6379,"errors":0,"status":"UP","journals":["j3"]}),-1,function(){
                 zk.a_create("/bq/clusters/test/journals/j3",JSON.stringify({"host":"127.0.0.1","port":6381,"errors":0,"status":"UP","start_date":new Date()}),0,function(rc,error,path){
                     setTimeout(function(){
                          zk.a_get("/bq/clusters/test/nodes/redis1",false,function(rc,error,stat,data){
@@ -370,7 +370,7 @@ describe("Orchestrator",function(){
     })*/
 
     it("should re-sink a down datanode that goes up",function(done){
-         zk.a_set("/bq/clusters/test/nodes/redis1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"UP","journals":["j2"]}),-1,function(){
+         zk.a_set("/bq/clusters/test/nodes/redis1",JSON.stringify({"journals":[],"host":"127.0.0.1","port":6379,"errors":0,"status":"UP","journals":["j2"]}),-1,function(){
              var orch = oc.createOrchestrator(ocConfig)
              orch.on("ready",function(){
                  zk.a_create("/bq/clusters/test/topics/test2","",0,function(rc,error,path){
@@ -540,7 +540,7 @@ describe("Orchestrator",function(){
 
         var orch = oc.createOrchestrator(ocConfig)
         orch.on("ready",function(){
-            zk.a_create("/bq/clusters/test/nodes/redis3",JSON.stringify({"host":"127.0.0.1","port":6381,"errors":0,"status":"UP"}),0,function(rc,error,path){
+            zk.a_create("/bq/clusters/test/nodes/redis3",JSON.stringify({"journals":[],"host":"127.0.0.1","port":6381,"errors":0,"status":"UP"}),0,function(rc,error,path){
                 setTimeout(function(){
                     zk.a_get("/bq/clusters/test/nodes/redis3",false,function(rc,error,stat,data){
                        should.exist(rc)
@@ -581,7 +581,7 @@ describe("Orchestrator",function(){
             "logLevel":"critical",
             "amountOfOrchestratorToSetDownANode":3
         }
-        var nodeData = {"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}
+        var nodeData = {"journals":[],"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}
         zk.a_set("/bq/clusters/test/nodes/redis1",JSON.stringify(nodeData),-1,function(){
              var orch = oc.createOrchestrator(ocConfig)
              orch.on("ready",function(){
@@ -603,6 +603,129 @@ describe("Orchestrator",function(){
                 })
              })
         })
-
     })
+    it("Should shutdown on an update of empty data on journals",function(done){
+          var orch = oc.createOrchestrator(ocConfig)
+          orch.on("ready",function(){
+            zk.a_create("/bq/clusters/test/journals/j3",JSON.stringify({}),0,function(rc,error,path){
+            })
+          })
+          orch.on("error",function(err){
+            console.log(err)
+            should.exist(err)
+            process.nextTick(function(){
+                orch.running.should.not.ok
+                done()
+            })
+        })
+    })
+    it("Should shutdown on an update of partial data on journals (no host)",function(done){
+          var orch = oc.createOrchestrator(ocConfig)
+          orch.on("ready",function(){
+            zk.a_create("/bq/clusters/test/journals/j3",JSON.stringify({"port":3030,"status":"UP"}),0,function(rc,error,path){
+            })
+          })
+          orch.on("error",function(err){
+            console.log(err)
+            should.exist(err)
+            process.nextTick(function(){
+                orch.running.should.not.ok
+                done()
+            })
+        })
+    })
+    it("Should shutdown on an update of partial data on journals (no port)",function(done){
+          var orch = oc.createOrchestrator(ocConfig)
+          orch.on("ready",function(){
+            zk.a_create("/bq/clusters/test/journals/j3",JSON.stringify({"host":"test","status":"UP"}),0,function(rc,error,path){
+            })
+          })
+          orch.on("error",function(err){
+            console.log(err)
+            should.exist(err)
+            process.nextTick(function(){
+                orch.running.should.not.ok
+                done()
+            })
+        })
+    })
+    it("Should shutdown on an update of empty data on nodes",function(done){
+          var orch = oc.createOrchestrator(ocConfig)
+          orch.on("ready",function(){
+            zk.a_create("/bq/clusters/test/nodes/j3",JSON.stringify({}),0,function(rc,error,path){
+            })
+          })
+          orch.on("error",function(err){
+            console.log(err)
+            should.exist(err)
+            process.nextTick(function(){
+                orch.running.should.not.ok
+                done()
+            })
+        })
+    })
+    it("Should shutdown on an update of partial data on nodes (no journal property)",function(done){
+          var orch = oc.createOrchestrator(ocConfig)
+          orch.on("ready",function(){
+            zk.a_create("/bq/clusters/test/nodes/j3",JSON.stringify({"host":":127.0.0.1","port":6379,"status":"UP"}),0,function(rc,error,path){
+            })
+          })
+          orch.on("error",function(err){
+            console.log(err)
+            should.exist(err)
+            process.nextTick(function(){
+                orch.running.should.not.ok
+                done()
+            })
+        })
+    })
+    it("Should shutdown on an update of partial data on nodes (no status property)",function(done){
+          var orch = oc.createOrchestrator(ocConfig)
+          orch.on("ready",function(){
+            zk.a_create("/bq/clusters/test/nodes/j3",JSON.stringify({"host":":127.0.0.1","port":6379,"journals":[]}),0,function(rc,error,path){
+            })
+          })
+          orch.on("error",function(err){
+            console.log(err)
+            should.exist(err)
+            process.nextTick(function(){
+                orch.running.should.not.ok
+                done()
+            })
+        })
+    })
+
+
+    it("Should shutdown on an update of partial data on nodes (no host property)",function(done){
+          var orch = oc.createOrchestrator(ocConfig)
+          orch.on("ready",function(){
+            zk.a_create("/bq/clusters/test/nodes/j3",JSON.stringify({"port":6379,"journals":[],"status":"UP"}),0,function(rc,error,path){
+            })
+          })
+          orch.on("error",function(err){
+            console.log(err)
+            should.exist(err)
+            process.nextTick(function(){
+                orch.running.should.not.ok
+                done()
+            })
+        })
+    })
+    it("Should shutdown on an update of partial data on nodes (no port property)",function(done){
+          var orch = oc.createOrchestrator(ocConfig)
+          orch.on("ready",function(){
+            zk.a_create("/bq/clusters/test/nodes/j3",JSON.stringify({"host":"127.0.0.1","journals":[],"status":"UP"}),0,function(rc,error,path){
+            })
+          })
+          orch.on("error",function(err){
+            console.log(err)
+            should.exist(err)
+            process.nextTick(function(){
+                orch.running.should.not.ok
+                done()
+            })
+        })
+    })
+
+
 })
