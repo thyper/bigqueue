@@ -172,7 +172,7 @@ describe("openstack admin http api",function(){
                     request({
                         url:"http://127.0.0.1:8081/clusters/test/nodes",
                         method:"POST",
-                        json:{"name":"test1",config:{"host":"127.0.0.1","port":6379}}
+                        json:{"name":"test1",config:{"host":"127.0.0.1","port":6379,"status":"DOWN","journals":[]}}
                     },function(err,response,body){
                         response.statusCode.should.equal(201)
                         request({
@@ -209,7 +209,7 @@ describe("openstack admin http api",function(){
                     request({
                         url:"http://127.0.0.1:8081/clusters/test/nodes",
                         method:"POST",
-                        json:{"name":"test1",config:{"host":"127.0.0.1","port":6379}}
+                        json:{"name":"test1",config:{"host":"127.0.0.1","port":6379,"journals":[],"status":"DOWN"}}
                     },function(err,response,body){
                         response.statusCode.should.equal(201)
                         request({
@@ -290,13 +290,13 @@ describe("openstack admin http api",function(){
                     request({
                         url:"http://127.0.0.1:8081/clusters/test/nodes",
                         method:"POST",
-                        json:{"id":"test1","name":"test1",config:{"host":"127.0.0.1","port":6379}}
+                        json:{"id":"test1","name":"test1",config:{"host":"127.0.0.1","port":6379,"journals":[],"status":"DOWN"}}
                     },function(err,response,body){
                         response.statusCode.should.equal(201)
                         request({
                             url:"http://127.0.0.1:8081/clusters/test/journals",
                             method:"POST",
-                            json:{"id":"j1","name":"j1",config:{"host":"127.0.0.1","port":6379}}
+                            json:{"id":"j1","name":"j1",config:{"host":"127.0.0.1","port":6379,"journals":[],"status":"DOWN"}}
                         },function(err,response,body){
                             response.statusCode.should.equal(201)
                             request({
@@ -376,7 +376,8 @@ describe("openstack admin http api",function(){
                         "config":{
                             "host":"127.0.0.1",
                             "port":6379,
-                            "status":"UP"
+                            "status":"UP",
+                            "journals":[]
                          }
                       }]}
             },function(error,response,body){
@@ -390,7 +391,8 @@ describe("openstack admin http api",function(){
                             "config":{ 
                                 "host":"127.0.0.1",
                                 "port":6379,
-                                "status":"UP"
+                                "status":"UP",
+                                "journals":[]
                             }
                          }]}
                 },function(error,response,body){
@@ -765,7 +767,8 @@ describe("openstack admin http api",function(){
                         "config":{
                             "host":"127.0.0.1",
                             "port":6379,
-                            "status":"UP"
+                            "status":"UP",
+                            "journals":[]
                          }
                     }]}
             },function(error,response,body){
@@ -909,7 +912,8 @@ describe("openstack admin http api",function(){
                         "config":{
                             "host":"127.0.0.1",
                             "port":6379,
-                            "status":"UP"
+                            "status":"UP",
+                            "journals":[]
                          }
                     }]},
                 headers:{"X-Auth-Token":"user123"}
@@ -951,7 +955,8 @@ describe("openstack admin http api",function(){
                         "config":{
                             "host":"127.0.0.1",
                             "port":6379,
-                            "status":"UP"
+                            "status":"UP",
+                            "journals":[]
                             }
                         }]
                     },
@@ -1003,8 +1008,9 @@ describe("openstack admin http api",function(){
                         "config":{
                             "host":"127.0.0.1",
                             "port":6379,
-                            "status":"UP"
-                         }
+                            "status":"UP",
+                            "journals":[]
+                        }
                     }]},
                 headers:{"X-Auth-Token":"user123"}
             },function(error,response,body){
@@ -1045,7 +1051,8 @@ describe("openstack admin http api",function(){
                         "config":{
                             "host":"127.0.0.1",
                             "port":6379,
-                            "status":"UP"
+                            "status":"UP",
+                            "journals":[]
                          }
                     }]},
                 headers:{"X-Auth-Token":"user123"}
@@ -1081,7 +1088,8 @@ describe("openstack admin http api",function(){
                         "config":{
                             "host":"127.0.0.1",
                             "port":6379,
-                            "status":"UP"
+                            "status":"UP",
+                            "journals":[]
                          }
                     }]},
                 headers:{"X-Auth-Token":"user123"}
@@ -1123,7 +1131,8 @@ describe("openstack admin http api",function(){
                         "config":{
                             "host":"127.0.0.1",
                             "port":6379,
-                            "status":"UP"
+                            "status":"UP",
+                            "journals":[]
                          }
                     }]},
                 headers:{"X-Auth-Token":"user123"}
@@ -1170,7 +1179,8 @@ describe("openstack admin http api",function(){
                         "config":{
                             "host":"127.0.0.1",
                             "port":6379,
-                            "status":"UP"
+                            "status":"UP",
+                            "journals":[]
                          }
                     }]},
                 headers:{"X-Auth-Token":"user123"}

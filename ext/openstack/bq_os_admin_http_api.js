@@ -356,7 +356,6 @@ var authFilter = function(config){
 var writeFilter = function(){
     return function(req,res,next){
         res.writePretty = function(obj,statusCode){
-
             if(req.accepts("json")){
                 res.json(obj,statusCode)
             }else if(req.accepts("text/plain")){

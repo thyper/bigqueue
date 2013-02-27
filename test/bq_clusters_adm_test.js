@@ -160,8 +160,8 @@ describe("Clusters administration for multicluster purposes",function(){
             var clusterData={
                     name:"test1",
                     journals:[
-                        {name:"journal1",config:{host:"journal1"}},
-                        {name:"journal2",config:{host:"journal2"}}
+                        {name:"journal1",config:{host:"journal1","port":123,"status":"DOWN"}},
+                        {name:"journal2",config:{host:"journal2","port":123,"status":"DOWN"}}
                     ]
                }
             admClient.createBigQueueCluster(clusterData,function(err){
@@ -181,8 +181,8 @@ describe("Clusters administration for multicluster purposes",function(){
             var clusterData={
                     name:"test1",
                     nodes:[
-                        {name:"node1",config:{host:"node1"}},
-                        {name:"node2",config:{host:"node2"}}
+                        {name:"node1",config:{host:"node1","port":123,"status":"DOWN","journals":[]}},
+                        {name:"node2",config:{host:"node2","port":123,"status":"DOWN","journals":[]}}
                     ]
                }
             admClient.createBigQueueCluster(clusterData,function(err){
@@ -220,8 +220,8 @@ describe("Clusters administration for multicluster purposes",function(){
             admClient.createBigQueueCluster({
                 name:"test1",
                 nodes:[
-                    {name:"node1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}},
-                    {name:"node2",config:{"host":"127.0.0.1","port":6380,"errors":0,"status":"UP"}}
+                    {name:"node1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP","journals":[]}},
+                    {name:"node2",config:{"host":"127.0.0.1","port":6380,"errors":0,"status":"UP","journals":[]}}
                 ],
                 journals:[
                     {name:"j1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}}
@@ -236,7 +236,7 @@ describe("Clusters administration for multicluster purposes",function(){
                 should.exist(err)
                 admClient.addNodeToCluster("test1",{name:"node3"},function(err){
                     should.exist(err)
-                    admClient.addNodeToCluster("test1",{name:"node3",config:{"host":"127.0.0.1","port":6381,"errors":0}},function(err){
+                    admClient.addNodeToCluster("test1",{name:"node3",config:{"host":"127.0.0.1","port":6381,"errors":0,"status":"DOWN","journals":[]}},function(err){
                         should.not.exist(err)
                         zk.a_get(clustersPath+"/test1/nodes/node3",false,function(rc,error,stat,data){
                             rc.should.equal(0)
@@ -253,14 +253,16 @@ describe("Clusters administration for multicluster purposes",function(){
         it("should support servers modify",function(done){
             admClient.updateNodeData("test1",{name:"node3",config:{"port":6382}},function(err){
                 should.exist(err)
-                admClient.updateNodeData("test1",{name:"node2",config:{"port":6382}},function(err){
+                admClient.updateNodeData("test1",{name:"node2",config:{"port":6382,"host":"127.0.0.1","status":"DOWN","journals":[]}},function(err){
+                    should.not.exist(err)
                     zk.a_get(clustersPath+"/test1/nodes/node2",false,function(rc,error,stat,data){
                         rc.should.equal(0)
                         var d = JSON.parse(data)
                         d.host.should.equal("127.0.0.1")
                         d.port.should.equal(6382)
-                        admClient.updateNodeData("test1",{name:"node1",config:{"port":6383,"host":"1234","description":"test"}},function(err){
-                            zk.a_get(clustersPath+"/test1/nodes/node1",false,function(rc,error,stat,data){
+                        admClient.updateNodeData("test1",{name:"node2",config:{"port":6383,"host":"1234","description":"test"}},function(err){
+                            should.not.exist(err)
+                            zk.a_get(clustersPath+"/test1/nodes/node2",false,function(rc,error,stat,data){
                                 rc.should.equal(0)
                                 var d = JSON.parse(data)
                                 d.host.should.equal("1234")
@@ -301,16 +303,16 @@ describe("Clusters administration for multicluster purposes",function(){
             admClient.createBigQueueCluster({
                     name:"test1",
                     nodes:[
-                        {name:"node1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}},
-                        {name:"node2",config:{"host":"127.0.0.1","port":6380,"errors":0,"status":"UP"}}
+                        {name:"node1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP","journals":[]}},
+                        {name:"node2",config:{"host":"127.0.0.1","port":6380,"errors":0,"status":"UP","journals":[]}}
                     ]
                },function(err){
                    should.not.exist(err)
                    admClient.createBigQueueCluster({
                         name:"test2",
                         nodes:[
-                            {name:"node1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}},
-                            {name:"node2",config:{"host":"127.0.0.1","port":6380,"errors":0,"status":"UP"}}
+                            {name:"node1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP","journals":[]}},
+                            {name:"node2",config:{"host":"127.0.0.1","port":6380,"errors":0,"status":"UP","journals":[]}}
                         ]
                    },function(err){
                        should.not.exist(err)
@@ -421,16 +423,16 @@ describe("Clusters administration for multicluster purposes",function(){
             admClient.createBigQueueCluster({
                     name:"test1",
                     nodes:[
-                        {name:"node1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}},
-                        {name:"node2",config:{"host":"127.0.0.1","port":6380,"errors":0,"status":"UP"}}
+                        {name:"node1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP","journals":[]}},
+                        {name:"node2",config:{"host":"127.0.0.1","port":6380,"errors":0,"status":"UP","journals":[]}}
                     ]
                },function(err){
                    should.not.exist(err)
                    admClient.createBigQueueCluster({
                         name:"test2",
                         nodes:[
-                            {name:"node1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}},
-                            {name:"node2",config:{"host":"127.0.0.1","port":6380,"errors":0,"status":"UP"}}
+                            {name:"node1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP","journals":[]}},
+                            {name:"node2",config:{"host":"127.0.0.1","port":6380,"errors":0,"status":"UP","journals":[]}}
                         ]
                    },function(err){
                        should.not.exist(err)
@@ -497,16 +499,16 @@ describe("Clusters administration for multicluster purposes",function(){
             admClient.createBigQueueCluster({
                     name:"test1",
                     nodes:[
-                        {name:"node1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}},
-                        {name:"node2",config:{"host":"127.0.0.1","port":6380,"errors":0,"status":"UP"}}
+                        {name:"node1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP","journals":[]}},
+                        {name:"node2",config:{"host":"127.0.0.1","port":6380,"errors":0,"status":"UP","journals":[]}}
                     ]
                },function(err){
                    should.not.exist(err)
                    admClient.createBigQueueCluster({
                         name:"test2",
                         nodes:[
-                            {name:"node1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}},
-                            {name:"node2",config:{"host":"127.0.0.1","port":6380,"errors":0,"status":"UP"}}
+                            {name:"node1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP","journals":[]}},
+                            {name:"node2",config:{"host":"127.0.0.1","port":6380,"errors":0,"status":"UP","journals":[]}}
                         ]
                    },function(err){
                        should.not.exist(err)
@@ -550,8 +552,8 @@ describe("Clusters administration for multicluster purposes",function(){
             admClient.createBigQueueCluster({
                 name:"test1",
                 nodes:[
-                    {name:"node1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}},
-                    {name:"node2",config:{"host":"127.0.0.1","port":6380,"errors":0,"status":"UP"}}
+                    {name:"node1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP","journals":[]}},
+                    {name:"node2",config:{"host":"127.0.0.1","port":6380,"errors":0,"status":"UP","journals":[]}}
                 ],
                 journals:[
                     {name:"j1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}},
@@ -566,8 +568,8 @@ describe("Clusters administration for multicluster purposes",function(){
                admClient.createBigQueueCluster({
                     name:"test2",
                     nodes:[
-                        {name:"node1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}},
-                        {name:"node2",config:{"host":"127.0.0.1","port":6380,"errors":0,"status":"UP"}}
+                        {name:"node1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP","journals":[]}},
+                        {name:"node2",config:{"host":"127.0.0.1","port":6380,"errors":0,"status":"UP","journals":[]}}
                     ],
                     endpoints:[
                         {name:"e1",config:{"host":"127.0.0.1","port":8080}},
