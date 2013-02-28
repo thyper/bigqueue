@@ -163,6 +163,26 @@ describe("Big Queue Client",function(){
                 done()
             })
         })
+        it("should refresh local lag in get operations",function(done){
+            //If not get no data
+            bqClient.postMessage("testTopic",{msg:"test"},function(err,key){
+                bqClient.postMessage("testTopic",{msg:"test"},function(err,key){
+                    bqClient.getMessage("testTopic","testConsumer",undefined,function(err,data){
+                        bqClient.getConsumerLag("testTopic","testConsumer").should.equal(2)
+                        bqClient.getMessage("testTopic","testConsumer",undefined,function(err,data){
+                            bqClient.getConsumerLag("testTopic","testConsumer").should.equal(1)
+                            bqClient.getMessage("testTopic","testConsumer",undefined,function(err,data){
+                                bqClient.getConsumerLag("testTopic","testConsumer").should.equal(0)
+                                bqClient.getMessage("testTopic","testConsumer",undefined,function(err,data){
+                                    bqClient.getConsumerLag("testTopic","testConsumer").should.equal(0)
+                                    done()
+                                })
+                            })
+                        })
+                    })
+                })
+            })
+        })
     })
 
     describe("#ackMessage",function(){

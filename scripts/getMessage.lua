@@ -66,6 +66,9 @@ if isEmpty(failed) then
         return {}
     end
     local lag = topicHead - msgId
+    if lag < 0 then
+        lag = 0
+    end
     message = getMessage(msgId)
     if isEmpty(message) then
         if tonumber(msgId) <= tonumber(topicHead) then
