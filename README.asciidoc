@@ -1,6 +1,6 @@
 == Big Queue
 
-Big queue (BQ) is a multi-consumer queue system designed on the concept of be very simple and very scalable, the main idea of this queue is to be consumed asynchronously by many consumer groups, we'll call consumer group to a pool of process which will receive the same bunch of messages, using this method we can send a group of messages to a topic and each consumer group will receive this messages (like a kestrel fanout queue) then we can read it in a paralelized fashion using many process reading from the same consumer group
+Big queue (BQ) is a multi-consumer topic system designed to be very simple and very scalable, the main idea of is that each topic can be consumed asynchronously by many consumer groups, we'll call consumer group to a pool of process which will receive the same bunch of messages, using this method we can send a group of messages to a topic and each consumer group will receive this messages (like a kestrel fanout queue) then we can read it in a paralelized fashion using many process reading from the same consumer group
 
 BQ is based on top of redis http://redis.io/[] as their main storage (in memory) but could be implemented over any persistent system
 
