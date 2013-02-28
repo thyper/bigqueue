@@ -9,7 +9,7 @@ if visibilityWindow == nil or tonumber(visibilityWindow) <= 0 then
 end
 
 local topicKey="topics:"..topic
-local topicHead="topics:"..topic..":head"
+local topicHeadKey="topics:"..topic..":head"
 local consumerKey=topicKey..":consumers:"..consumerGroup
 local lastPointer = consumerKey..":last"
 local failsList = consumerKey..":fails"
@@ -57,25 +57,28 @@ if isEmpty(failed) then
     -- Standar flow if no failed found
    
     ---- Get last id
+    local topicHead = redis.call("get",topicHeadKey)
     local msgId = redis.call("get",lastPointer)
     if not msgId then
         return {err="Last pointer for consumer ["..consumerGroup.."] of topic ["..topic.."] not found"}
     end
+    if not topicHead then
+        return {}
+    end
+    local lag = topicHead - msgId
     message = getMessage(msgId)
     if isEmpty(message) then
-        local topicHead = redis.call("get",topicKey..":head")
-        if not topicHead then
-           return {}
-        end
         if tonumber(msgId) <= tonumber(topicHead) then
             redis.call("incr",lastPointer)
-            return {err="Message with id ["..msgId.."] was expired"}
+            return {err="Message with id ["..msgId.."] was expired",lag=lag}
         else
-            return  {}
+            return  {lag=lag}
         end
     else
         addToProcessing(msgId)
         redis.call("incr",lastPointer)
+        table.insert(message,"lag")
+        table.insert(message,lag)
         addIdToMessage(msgId,message)
     end
 else
