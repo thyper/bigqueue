@@ -17,7 +17,7 @@
     }, 
     "dependencies": {
         "express" : "2.5.x",
-        "redis" : "https://github.com/downloads/mercadolibre/node_redis/redis-0.7.4.tgz",
+        "simple_redis_client" : "0.2.0",
        	"should" : "0.6.x",
         "request" : "2.9.x",
         "zookeeper":"3.4.x",

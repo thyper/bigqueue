@@ -1,5 +1,5 @@
 var should = require('should'),
-    redis = require('redis'),
+    redis = require('simple_redis_client'),
     bq = require('../lib/bq_client.js'),
     log = require("node-logging")
 
@@ -12,7 +12,7 @@ describe("Big Queue Client",function(){
         log.setLevel("critical")
         bqClient = bq.createClient(redisConf)
         bqClient.on("ready",function(){
-            redisClient = redis.createClient()
+            redisClient = redis.createClient(redisConf.port,redisConf.host)
             redisClient.on("ready",function(){
                 done()
             })
@@ -20,7 +20,7 @@ describe("Big Queue Client",function(){
     })    
 
     beforeEach(function(done){
-        redisClient.flushall(function(data,err){
+        redisClient.execute("FLUSHALL",function(data,err){
             done()
         })
     })    
@@ -29,19 +29,19 @@ describe("Big Queue Client",function(){
         it("should add the topic to the topic list",function(done){
             bqClient.createTopic("testTopic",function(err){
                 should.not.exist(err)
-                redisClient.sismember("topics","testTopic",function(err,data){
+                redisClient.execute("SISMEMBER","topics","testTopic",function(err,data){
                    should.not.exist(err)
-                    data.should.equal(1)
-                    done()
+                   data.should.equal(1)
+                   done()
                 })
             })
         })
         it("should set a ttl if is set as parameter",function(done){
             bqClient.createTopic("testTopic",1,function(err){
                 should.not.exist(err)
-                redisClient.get("topics:testTopic:ttl",function(err,data){
+                redisClient.execute("GET","topics:testTopic:ttl",function(err,data){
                     should.not.exist(err)
-                    data.should.equal(""+1)
+                    data.toString().should.equal(""+1)
                     done()
                 })
             })
@@ -67,7 +67,7 @@ describe("Big Queue Client",function(){
         it("should add the consumer to the consumer list",function(done){
             bqClient.createConsumerGroup("testTopic","testConsumer",function(err){
                 should.not.exist(err)
-                redisClient.sismember("topics:testTopic:consumers","testConsumer",function(err,data){
+                redisClient.execute("SISMEMBER","topics:testTopic:consumers","testConsumer",function(err,data){
                     should.not.exist(err)
                     data.should.equal(1)
                     done()
@@ -77,7 +77,7 @@ describe("Big Queue Client",function(){
         it("should add the consumer key 'last'",function(done){
             bqClient.createConsumerGroup("testTopic","testConsumer",function(err){
                 should.not.exist(err)
-                redisClient.exists("topics:testTopic:consumers:testConsumer:last",function(err,data){
+                redisClient.execute("EXISTS","topics:testTopic:consumers:testConsumer:last",function(err,data){
                     should.not.exist(err)
                     data.should.equal(1)
                     done()
@@ -108,7 +108,7 @@ describe("Big Queue Client",function(){
             bqClient.postMessage("testTopic",{msg:"testMessage"},function(err,key){
                 should.not.exist(err)
                 key.id.should.be.above(0)
-                redisClient.exists("topics:testTopic:messages:"+key.id,function(err,data){
+                redisClient.execute("EXISTS","topics:testTopic:messages:"+key.id,function(err,data){
                     should.not.exist(err)
                     data.should.equal(1)
                     done()
@@ -148,7 +148,7 @@ describe("Big Queue Client",function(){
         it("should override visibility window if one is set as param",function(done){
             var tmsExpired = Math.floor(new Date().getTime()/1000)+10
             bqClient.getMessage("testTopic","testConsumer",10,function(err,data){
-                redisClient.zrangebyscore("topics:testTopic:consumers:testConsumer:processing","-inf","+inf","withscores",function(err,data){
+                redisClient.execute("zrangebyscore","topics:testTopic:consumers:testConsumer:processing","-inf","+inf","withscores",function(err,data){
                     should.not.exist(err)
                     data[1].should.be.above(tmsExpired-2)
                     data[1].should.be.below(tmsExpired+1)
@@ -185,7 +185,7 @@ describe("Big Queue Client",function(){
         it("should set a message as processed",function(done){
             bqClient.ackMessage("testTopic","testConsumer",id,function(err){
                 should.not.exist(err)
-                redisClient.zrangebyscore("topics:testTopic:consumers:testConsumer:processing","-inf","+inf",function(err,data){
+                redisClient.execute("zrangebyscore","topics:testTopic:consumers:testConsumer:processing","-inf","+inf",function(err,data){
                     should.not.exist(err)
                     data.should.not.include(""+id)
                     done()
@@ -226,9 +226,9 @@ describe("Big Queue Client",function(){
         it("should move a message to the fails list",function(done){
             bqClient.failMessage("testTopic","testConsumer",id,function(err){
                 should.not.exist(err)
-                redisClient.lrange("topics:testTopic:consumers:testConsumer:fails",0,-1,function(err,data){
+                redisClient.execute("lrange","topics:testTopic:consumers:testConsumer:fails",0,-1,function(err,data){
                     should.not.exist(err)
-                    data.should.include(id)
+                    data.toString().should.include(id)
                     done()
                 })
             }) 
@@ -267,6 +267,7 @@ describe("Big Queue Client",function(){
         it("should get the consumer group list for a topic",function(done){
             bqClient.getConsumerGroups("testTopic",function(err,data){
                 should.not.exist(err)
+                should.exist(data)
                 data.should.be.empty
                 bqClient.createConsumerGroup("testTopic","testConsumer",function(err){
                     should.not.exist(err)
@@ -476,16 +477,16 @@ describe("Big Queue Client",function(){
         })
 
         it("should reset consumers",function(done){
-            redisClient.set("topics:testTopic:head",10,function(err,data){
+            redisClient.execute("SET","topics:testTopic:head",10,function(err,data){
                 should.not.exist(err)
-                redisClient.get("topics:testTopic:consumers:testConsumer:last",function(err,data){
+                redisClient.execute("GET","topics:testTopic:consumers:testConsumer:last",function(err,data){
                     should.not.exist(err)
-                    data.should.equal("1")
+                    data.toString().should.equal("1")
                     bqClient.resetConsumerGroup("testTopic","testConsumer",function(err,data){
                         should.not.exist(err)
-                        redisClient.get("topics:testTopic:consumers:testConsumer:last",function(err,data){
+                        redisClient.execute("GET","topics:testTopic:consumers:testConsumer:last",function(err,data){
                             should.not.exist(err)
-                            data.should.equal("11")
+                            data.toString().should.equal("11")
                             done()
                         })
                     })

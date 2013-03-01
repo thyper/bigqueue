@@ -2,12 +2,14 @@ define REDIS1_CONF
 daemonize yes
 port 6379
 pidfile /tmp/redis1.pid
+dir /tmp
 endef
 
 define REDIS2_CONF
 daemonize yes
 port 6380
 pidfile /tmp/redis2.pid
+dir /tmp
 endef
 
 export REDIS1_CONF
