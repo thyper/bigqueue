@@ -1,5 +1,5 @@
 var should = require('should'),
-    redis = require('redis'),
+    redis = require('simple_redis_client'),
     ZK = require('zookeeper'),
     utils = require('../lib/bq_client_utils.js'),
     bq = require('../lib/bq_client.js'),
@@ -41,9 +41,9 @@ describe("Big Queue Cluster",function(){
     
     before(function(done){
         log.setLevel("critical")
-        redisClient1 = redis.createClient(6379,"127.0.0.1")
+        redisClient1 = redis.createClient(6379,"127.0.0.1",{"return_buffers":false})
         redisClient1.on("ready",function(){
-            redisClient2= redis.createClient(6380,"127.0.0.1")
+            redisClient2= redis.createClient(6380,"127.0.0.1",{"return_buffers":false})
             redisClient2.on("ready",function(){
                 done()
             })
@@ -71,8 +71,8 @@ describe("Big Queue Cluster",function(){
     })
     
     beforeEach(function(done){
-        redisClient1.flushall(function(err,data){
-            redisClient2.flushall(function(err,data){
+        redisClient1.execute("flushall",function(err,data){
+            redisClient2.execute("flushall",function(err,data){
                 done()
             })
         })
@@ -169,10 +169,10 @@ describe("Big Queue Cluster",function(){
         it("should propagate the create throught all redis",function(done){
             bqClient.createTopic("testTopic",function(err){
                 should.not.exist(err)
-                redisClient1.sismember("topics","testTopic",function(err,data){
+                redisClient1.execute("sismember","topics","testTopic",function(err,data){
                     should.not.exist(err)
                     data.should.equal(1)
-                    redisClient2.sismember("topics","testTopic",function(err,data){
+                    redisClient2.execute("sismember","topics","testTopic",function(err,data){
                         should.not.exist(err)
                         data.should.equal(1)
                         done()
@@ -206,21 +206,21 @@ describe("Big Queue Cluster",function(){
         it("should enable to create a topic with specific ttl",function(done){
             bqClient.createTopic("testTopic1",1,function(err){
                 should.not.exist(err)
-                redisClient1.get("topics:testTopic1:ttl",function(err,data){
+                redisClient1.execute("get","topics:testTopic1:ttl",function(err,data){
                     should.not.exist(err)
                     should.exist(data)
                     data.should.equal(""+1)
-                    redisClient2.get("topics:testTopic1:ttl",function(err,data){
+                    redisClient2.execute("get","topics:testTopic1:ttl",function(err,data){
                         should.not.exist(err)
                         should.exist(data)
                         data.should.equal(""+1)
                         bqClient.createTopic("testTopic2",2,function(err){
                             should.not.exist(err)
-                            redisClient1.get("topics:testTopic2:ttl",function(err,data){
+                            redisClient1.execute("get","topics:testTopic2:ttl",function(err,data){
                                 should.not.exist(err)
                                 should.exist(data)
                                 data.should.equal(""+2)
-                                redisClient2.get("topics:testTopic2:ttl",function(err,data){
+                                redisClient2.execute("get","topics:testTopic2:ttl",function(err,data){
                                     should.not.exist(err)
                                     should.exist(data)
                                     data.should.equal(""+2)
@@ -253,10 +253,10 @@ describe("Big Queue Cluster",function(){
         it("should remove the topic from all redis",function(done){
             bqClient.deleteTopic("testTopic",function(err){
                 should.not.exist(err)
-                redisClient1.sismember("topics","testTopic",function(err,data){
+                redisClient1.execute("sismember","topics","testTopic",function(err,data){
                     should.not.exist(err)
                     data.should.equal(0)
-                    redisClient2.sismember("topics","testTopic",function(err,data){
+                    redisClient2.execute("sismember","topics","testTopic",function(err,data){
                         should.not.exist(err)
                         data.should.equal(0)
                         done()
@@ -342,10 +342,10 @@ describe("Big Queue Cluster",function(){
         it("should propagate the creation through all nodes",function(done){
             bqClient.createConsumerGroup("testTopic","testConsumer",function(err){
                 should.not.exist(err)
-                redisClient1.sismember("topics:testTopic:consumers","testConsumer",function(err,data){
+                redisClient1.execute("sismember","topics:testTopic:consumers","testConsumer",function(err,data){
                     should.not.exist(err)
                     data.should.equal(1)
-                    redisClient2.sismember("topics:testTopic:consumers","testConsumer",function(err,data){
+                    redisClient2.execute("sismember","topics:testTopic:consumers","testConsumer",function(err,data){
                         should.not.exist(err)
                         data.should.equal(1)
                         done()
@@ -354,7 +354,7 @@ describe("Big Queue Cluster",function(){
             })
         })
         it("should fail if any redis get an error on create",function(done){
-            redisClient2.del("topics",function(err,data){
+            redisClient2.execute("del","topics",function(err,data){
                 should.not.exist(err)
                 bqClient.createConsumerGroup("testTopic","testConsumer",function(err){
                     should.exist(err)
@@ -394,17 +394,17 @@ describe("Big Queue Cluster",function(){
             })
         })
         it("should remove consumer on all servers",function(done){
-            redisClient1.sismember("topics:testTopic:consumers","testConsumer",function(err,data){
+            redisClient1.execute("sismember","topics:testTopic:consumers","testConsumer",function(err,data){
                 should.not.exist(err)
                 data.should.equal(1)
-                redisClient2.sismember("topics:testTopic:consumers","testConsumer",function(err,data){
+                redisClient2.execute("sismember","topics:testTopic:consumers","testConsumer",function(err,data){
                     should.not.exist(err)
                     data.should.equal(1)
                     bqClient.deleteConsumerGroup("testTopic","testConsumer",function(err){
-                        redisClient1.sismember("topics:testTopic:consumers","testConsumer",function(err,data){
+                        redisClient1.execute("sismember","topics:testTopic:consumers","testConsumer",function(err,data){
                             should.not.exist(err)
                             data.should.equal(0)
-                            redisClient2.sismember("topics:testTopic:consumers","testConsumer",function(err,data){
+                            redisClient2.execute("sismember","topics:testTopic:consumers","testConsumer",function(err,data){
                                 should.not.exist(err)
                                 data.should.equal(0)
                                 done()
@@ -416,7 +416,7 @@ describe("Big Queue Cluster",function(){
 
         })
         it("should fail if any redis fails",function(done){
-            redisClient2.flushall(function(err,data){
+            redisClient2.execute("flushall",function(err,data){
                 should.not.exist(err)
                 bqClient.deleteConsumerGroup("testTopic","testConsumer",function(err){
                     should.exist(err)
@@ -444,15 +444,15 @@ describe("Big Queue Cluster",function(){
         })
 
         it("should reset consumer on all servers",function(done){
-            redisClient1.set("topics:testTopic:head","10",function(err,data){
+            redisClient1.execute("set","topics:testTopic:head","10",function(err,data){
                 should.not.exist(err)
-                redisClient2.set("topics:testTopic:head","10",function(err,data){
+                redisClient2.execute("set","topics:testTopic:head","10",function(err,data){
                     should.not.exist(err)
                     bqClient.resetConsumerGroup("testTopic","testConsumer",function(err){
-                        redisClient1.get("topics:testTopic:consumers:testConsumer:last",function(err,data){
+                        redisClient1.execute("get","topics:testTopic:consumers:testConsumer:last",function(err,data){
                             should.not.exist(err)
                             data.should.equal("11")
-                            redisClient2.get("topics:testTopic:consumers:testConsumer:last",function(err,data){
+                            redisClient2.execute("get","topics:testTopic:consumers:testConsumer:last",function(err,data){
                                 should.not.exist(err)
                                 data.should.equal("11")
                                 done()
@@ -464,7 +464,7 @@ describe("Big Queue Cluster",function(){
 
         })
         it("should fail if any redis fails",function(done){
-            redisClient2.flushall(function(err,data){
+            redisClient2.execute("flushall",function(err,data){
                 should.not.exist(err)
                 bqClient.resetConsumerGroup("testTopic","testConsumer",function(err){
                     should.exist(err)
@@ -493,11 +493,11 @@ describe("Big Queue Cluster",function(){
                 bqClient.postMessage("testTopic",{msg:"test2"},function(err,key){
                     bqClient.postMessage("testTopic",{msg:"test3"},function(err,key){
                         bqClient.postMessage("testTopic",{msg:"test4"},function(err,key){
-                            redisClient1.get("topics:testTopic:head",function(err,data){
+                            redisClient1.execute("get","topics:testTopic:head",function(err,data){
                                 should.not.exist(err)
                                 should.exist(data)
                                 data.should.equal(""+2)
-                                redisClient2.get("topics:testTopic:head",function(err,data){
+                                redisClient2.execute("get","topics:testTopic:head",function(err,data){
                                     should.not.exist(err)
                                     should.exist(data)
                                     data.should.equal(""+2)
@@ -518,10 +518,10 @@ describe("Big Queue Cluster",function(){
                         bqClient.postMessage("testTopic",{msg:"test2"},function(err,key){
                             bqClient.postMessage("testTopic",{msg:"test3"},function(err,key){
                                 bqClient.postMessage("testTopic",{msg:"test4"},function(err,key){
-                                    redisClient1.get("topics:testTopic:head",function(err,data1){
+                                    redisClient1.execute("get","topics:testTopic:head",function(err,data1){
                                         should.not.exist(err)
                                         should.exist(data1)
-                                        redisClient2.get("topics:testTopic:head",function(err,data2){
+                                        redisClient2.execute("get","topics:testTopic:head",function(err,data2){
                                             should.not.exist(err)
                                             should.exist(data2)
                                             var sum = parseInt(data1)+parseInt(data2)
@@ -641,7 +641,7 @@ describe("Big Queue Cluster",function(){
                         bqClient.postMessage("testTopic",{msg:"test2"},function(err,key){
                             bqClient.postMessage("testTopic",{msg:"test3"},function(err,key){
                                 bqClient.postMessage("testTopic",{msg:"test4"},function(err,key){
-                                    redisClient1.get("topics:testTopic:head",function(err,data){
+                                    redisClient1.execute("get","topics:testTopic:head",function(err,data){
                                         should.not.exist(err)
                                         should.exist(data)
                                         data.should.equal(""+4)
@@ -661,7 +661,7 @@ describe("Big Queue Cluster",function(){
                         bqClient.postMessage("testTopic",{msg:"test2"},function(err,key){
                             bqClient.postMessage("testTopic",{msg:"test3"},function(err,key){
                                 bqClient.postMessage("testTopic",{msg:"test4"},function(err,key){
-                                    redisClient1.get("topics:testTopic:head",function(err,data){
+                                    redisClient1.execute("get","topics:testTopic:head",function(err,data){
                                         should.not.exist(err)
                                         should.exist(data)
                                         data.should.equal(""+4)
@@ -807,8 +807,8 @@ describe("Big Queue Cluster",function(){
 
         })
         it("should return undefined if no message found",function(done){
-            redisClient1.set("topics:testTopic:head",0,function(err,data){
-                redisClient2.set("topics:testTopic:head",0,function(err,data){
+            redisClient1.execute("set","topics:testTopic:head",0,function(err,data){
+                redisClient2.execute("set","topics:testTopic:head",0,function(err,data){
                     bqClient.getMessage("testTopic","testGroup",undefined,function(err,data){
                         should.not.exist(err)
                         should.not.exist(data)
@@ -825,8 +825,8 @@ describe("Big Queue Cluster",function(){
         })
 
         it("should fail if the consumer group doesn't exist",function(done){
-            redisClient1.set("topics:testTopic:head",0,function(err,data){
-                redisClient2.set("topics:testTopic:head",0,function(err,data){
+            redisClient1.execute("set","topics:testTopic:head",0,function(err,data){
+                redisClient2.execute("set","topics:testTopic:head",0,function(err,data){
                     bqClient.getMessage("testTopic","testGroup-no-exist",undefined,function(err,data){
                         should.exist(err)
                         done()
@@ -879,12 +879,12 @@ describe("Big Queue Cluster",function(){
                         }else{
                             client = redisClient2
                         }
-                        client.zrangebyscore("topics:testTopic:consumers:testGroup:processing","-inf","+inf",function(err,data){
+                        client.execute("zrangebyscore","topics:testTopic:consumers:testGroup:processing","-inf","+inf",function(err,data){
                             should.not.exist(err)
                             should.exist(data)
                             data.should.have.length(1)
                             bqClient.ackMessage("testTopic","testGroup",recipientCallback,function(err){
-                                client.zrangebyscore("topics:testTopic:consumers:testGroup:processing","-inf","+inf",function(err,data){
+                                client.execute("zrangebyscore","topics:testTopic:consumers:testGroup:processing","-inf","+inf",function(err,data){
                                     should.not.exist(err)
                                     should.not.exist(err)
                                     should.exist(data)
@@ -940,13 +940,13 @@ describe("Big Queue Cluster",function(){
                         }else{
                             client = redisClient2
                         }
-                        client.lrange("topics:testTopic:consumers:testConsumer:fails",0,-1,function(err,data){
+                        client.execute("lrange","topics:testTopic:consumers:testConsumer:fails",0,-1,function(err,data){
                             should.not.exist(err)
                             should.exist(data)
                             data.should.have.lengthOf(0)
                             bqClient.failMessage("testTopic","testGroup",recipientCallback,function(err){
                                 should.not.exist(err)
-                                client.lrange("topics:testTopic:consumers:testGroup:fails",0,-1,function(err,data){
+                                client.execute("lrange","topics:testTopic:consumers:testGroup:fails",0,-1,function(err,data){
                                     should.not.exist(err)
                                     should.exist(data)
                                     data.should.have.lengthOf(1)
@@ -1154,7 +1154,7 @@ describe("Big Queue Cluster",function(){
                 setTimeout(function(){
                     client.data.status.should.equal("DOWN")
                     done()
-                },500)
+                },1000)
            })
        })
        it("should get an error if all execution where timeout",function(done){

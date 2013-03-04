@@ -1,5 +1,4 @@
 var should = require('should'),
-    redis = require('redis'),
     ZKMonitor = require('../lib/zk_monitor.js'),
     ZK = require("zookeeper")
 

@@ -1,5 +1,5 @@
 var should = require('should'),
-    redis = require('redis'),
+    redis = require('simple_redis_client'),
     bj = require('../lib/bq_journal_client_redis.js'),
     log = require("node-logging")
 
@@ -12,15 +12,15 @@ describe("Big Queue Redis Journal Client",function(){
         log.setLevel("critical")
         journal = bj.createJournalClient(redisConf)
         journal.on("ready",function(){
-            redisClient = redis.createClient()
-            redisClient.on("ready",function(){
+            redisClient = redis.createClient(redisConf.port,redisConf.host,{"return_buffers":false})
+            redisClient.execute("on","ready",function(){
                 done()
             })
         })
     })    
 
     beforeEach(function(done){
-        redisClient.flushall(function(data,err){
+        redisClient.execute("flushall",function(data,err){
             done()
         })
     })    
@@ -29,15 +29,15 @@ describe("Big Queue Redis Journal Client",function(){
         it("should receive a message and store into a named journal",function(done){
             journal.write("testJournal","testTopic",1,{msg:"testMessage"},undefined,function(err){
                 should.not.exist(err)
-                redisClient.get("journals:testJournal:testTopic:head",function(err,data){
+                redisClient.execute("get","journals:testJournal:testTopic:head",function(err,data){
                     should.not.exist(err)
                     should.exist(data)
                     data.should.equal("1")
-                    redisClient.hgetall("journals:testJournal:testTopic:messages:1",function(err,data){
+                    redisClient.execute("hgetall","journals:testJournal:testTopic:messages:1",function(err,data){
                         should.not.exist(err)
                         should.exist(data)
-                        data.should.have.keys("msg")
-                        data.msg.should.equal("testMessage")
+                        data[0].should.equal("msg")
+                        data[1].should.equal("testMessage")
                         done()
                     })
                 })
@@ -76,7 +76,7 @@ describe("Big Queue Redis Journal Client",function(){
         })
         it("should ignore unexistent messages id's",function(done){
             journal.write("testJournal","testTopic",10,{msg:"testMessage"},undefined,function(err){
-                redisClient.get("journals:testJournal:testTopic:head",function(err,data){
+                redisClient.execute("get","journals:testJournal:testTopic:head",function(err,data){
                     should.not.exist(err)
                     data.should.equal(""+10)
                     journal.retrieveMessages("testJournal","testTopic",1,function(err,data){

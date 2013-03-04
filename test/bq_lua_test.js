@@ -1,5 +1,5 @@
 var should = require('should'),
-    redis = require('redis'),
+    redis = require('simple_redis_client'),
     spawn = require('child_process').spawn,
     fs = require('fs');
 
@@ -38,7 +38,7 @@ describe("Redis lua scripts",function(){
                                     fs.readFile('scripts/deleteTopic.lua','ascii',function(err,strFile){
                                         should.not.exist(err)
                                         deleteTopicScript = strFile
-                                        redisClient = redis.createClient(6379,"127.0.0.1")
+                                        redisClient = redis.createClient(6379,"127.0.0.1",{"return_buffers":false})
                                         redisClient.on("ready",function(){
                                             done()
                                         })
@@ -55,14 +55,14 @@ describe("Redis lua scripts",function(){
 
     describe("#createTopic",function(){
         beforeEach(function(done){
-            redisClient.flushall(function(err){
+            redisClient.execute("flushall",function(err){
                 done();
             })
         })
         it("should add the topicKey to topics set",function(done){
-            redisClient.eval(createTopicScript,0,"testTopic",function(err,data){
+            redisClient.execute("eval",createTopicScript,0,"testTopic",function(err,data){
                 should.not.exist(err)
-                redisClient.sismember("topics","testTopic",function(err,data){
+                redisClient.execute("sismember","topics","testTopic",function(err,data){
                     should.not.exist(err)
                     data.should.be.ok
                     done()
@@ -70,8 +70,8 @@ describe("Redis lua scripts",function(){
             })
         })
         it("should set the property topics:topic:ttl default if no set as parameter",function(done){
-            redisClient.eval(createTopicScript,0,"testTopic",function(err,data){
-                redisClient.get("topics:testTopic:ttl",function(err,data){
+            redisClient.execute("eval",createTopicScript,0,"testTopic",function(err,data){
+                redisClient.execute("get","topics:testTopic:ttl",function(err,data){
                     should.not.exist(err)
                     should.exist(data)
                     done()
@@ -79,8 +79,8 @@ describe("Redis lua scripts",function(){
             })
         })
         it("should set the property topics:topic:ttl send as parameter",function(done){
-            redisClient.eval(createTopicScript,0,"testTopic","1",function(err,data){
-                 redisClient.get("topics:testTopic:ttl",function(err,data){
+            redisClient.execute("eval",createTopicScript,0,"testTopic","1",function(err,data){
+                 redisClient.execute("get","topics:testTopic:ttl",function(err,data){
                     should.not.exist(err)
                     should.exist(data)
                     data.should.be.equal("1")
@@ -90,9 +90,9 @@ describe("Redis lua scripts",function(){
         })
 
         it("should fail if topic already exist",function(done){
-            redisClient.eval(createTopicScript,0,"testTopic",function(err,data){
+            redisClient.execute("eval",createTopicScript,0,"testTopic",function(err,data){
                 should.not.exist(err)
-                redisClient.eval(createTopicScript,0,"testTopic",function(err,data){
+                redisClient.execute("eval",createTopicScript,0,"testTopic",function(err,data){
                     should.exist(err)
                     done()
                 })
@@ -102,9 +102,9 @@ describe("Redis lua scripts",function(){
 
     describe("#createConsumer",function(done){
         beforeEach(function(done){
-            redisClient.flushall(function(err,data){
+            redisClient.execute("flushall",function(err,data){
                 should.not.exist(err)
-                redisClient.eval(createTopicScript,0,"testTopic",function(err,data){
+                redisClient.execute("eval",createTopicScript,0,"testTopic",function(err,data){
                     should.not.exist(err)
                     done()
                 })
@@ -112,9 +112,9 @@ describe("Redis lua scripts",function(){
         })
 
         it("should create the key topics:topic:consumers:consumer:last with value 1 if the head of topic dosn't exist",function(done){
-            redisClient.eval(createConsumerScript,0,"testTopic","testConsumer",function(err){
+            redisClient.execute("eval",createConsumerScript,0,"testTopic","testConsumer",function(err){
                 should.not.exist(err)
-                redisClient.get("topics:testTopic:consumers:testConsumer:last",function(err,data){
+                redisClient.execute("get","topics:testTopic:consumers:testConsumer:last",function(err,data){
                     should.not.exist(err)
                     should.exist(data)
                     data.should.be.equal("1")
@@ -125,11 +125,11 @@ describe("Redis lua scripts",function(){
         })
         it("should create the key topics:topic:consumer:last with the head of the topic",function(done){
             var random=Math.floor(Math.random()*1000)
-            redisClient.set("topics:testTopic:head",random,function(err,data){
+            redisClient.execute("set","topics:testTopic:head",random,function(err,data){
                 should.not.exist(err)
-                redisClient.eval(createConsumerScript,0,"testTopic","testConsumer",function(err){
+                redisClient.execute("eval",createConsumerScript,0,"testTopic","testConsumer",function(err){
                     should.not.exist(err)
-                    redisClient.get("topics:testTopic:consumers:testConsumer:last",function(err,data){
+                    redisClient.execute("get","topics:testTopic:consumers:testConsumer:last",function(err,data){
                         should.not.exist(err)
                         should.exist(data)
                         data.should.equal(""+random)
@@ -139,8 +139,8 @@ describe("Redis lua scripts",function(){
             })
         });
         it("should add the consumer to topics:topic:consumers set",function(done){
-             redisClient.eval(createConsumerScript,0,"testTopic","testConsumer",function(err){
-                 redisClient.sismember("topics:testTopic:consumers","testConsumer",function(err,data){
+             redisClient.execute("eval",createConsumerScript,0,"testTopic","testConsumer",function(err){
+                 redisClient.execute("sismember","topics:testTopic:consumers","testConsumer",function(err,data){
                      should.not.exist(err)
                      should.exist(data)
                      data.should.equal(1)
@@ -149,16 +149,16 @@ describe("Redis lua scripts",function(){
              })
         })
         it("should fail if the topic doesn't exist",function(done){
-             redisClient.eval(createConsumerScript,0,"testTopic-inexistent","testConsumer",function(err){
+             redisClient.execute("eval",createConsumerScript,0,"testTopic-inexistent","testConsumer",function(err){
                  should.exist(err)
                  done()
              })
 
         })
         it("should fail if the consumer already exist",function(done){
-             redisClient.eval(createConsumerScript,0,"testTopic","testConsumer",function(err){
+             redisClient.execute("eval",createConsumerScript,0,"testTopic","testConsumer",function(err){
                  should.not.exist(err)
-                 redisClient.eval(createConsumerScript,0,"testTopic","testConsumer",function(err){
+                 redisClient.execute("eval",createConsumerScript,0,"testTopic","testConsumer",function(err){
                      should.exist(err)
                      done()
                  })
@@ -169,10 +169,10 @@ describe("Redis lua scripts",function(){
     describe("#postMessage",function(){
         var simpleMessage = JSON.stringify({msg:"testMessage"})
         beforeEach(function(done){
-            redisClient.flushall(function(err,data){
-                redisClient.eval(createTopicScript, 0, "testTopic", function(err,data){
+            redisClient.execute("flushall",function(err,data){
+                redisClient.execute("eval",createTopicScript, 0, "testTopic", function(err,data){
                     should.not.exist(err)
-                    redisClient.eval(createConsumerScript, 0, "testTopic", "testConsumer", function(err,data){
+                    redisClient.execute("eval",createConsumerScript, 0, "testTopic", "testConsumer", function(err,data){
                         should.not.exist(err)
                         done()
                     })
@@ -181,27 +181,27 @@ describe("Redis lua scripts",function(){
         })
 
         it("should create the entry topics:topic:messages:msgId and return the id",function(done){
-            redisClient.eval(postMessageScript,0,"testTopic",simpleMessage,function(err,data){
+            redisClient.execute("eval",postMessageScript,0,"testTopic",simpleMessage,function(err,data){
                 should.not.exist(err)
                 should.exist(data)
                 var id = data
-                redisClient.hgetall("topics:testTopic:messages:"+id,function(err,data){
+                redisClient.execute("hgetall","topics:testTopic:messages:"+id,function(err,data){
                     should.not.exist(err)
                     should.exist(data)
-                    data.should.have.keys("msg")
-                    data.msg.should.equal("testMessage")
+                    data[0].should.equal("msg")
+                    data[1].should.equal("testMessage")
                     done()
                 })
             })
         })
         it("should increment sequentially the property topics:topic:head",function(done){
-            redisClient.eval(postMessageScript,0,"testTopic",simpleMessage,function(err,data){
+            redisClient.execute("eval",postMessageScript,0,"testTopic",simpleMessage,function(err,data){
                 should.not.exist(err)
                 var id1=data
-                redisClient.eval(postMessageScript,0,"testTopic",simpleMessage,function(err,data){
+                redisClient.execute("eval",postMessageScript,0,"testTopic",simpleMessage,function(err,data){
                     should.not.exist(err)
                     var id2=data
-                    redisClient.eval(postMessageScript,0,"testTopic",simpleMessage,function(err,data){
+                    redisClient.execute("eval",postMessageScript,0,"testTopic",simpleMessage,function(err,data){
                         should.not.exist(err)
                         var id3=data
                         id2.should.equal(id1+1)
@@ -212,9 +212,9 @@ describe("Redis lua scripts",function(){
             })
         })
         it("the last id returned should be equals to the proprety topics:topic:head",function(done){
-            redisClient.eval(postMessageScript,0,"testTopic",simpleMessage,function(err,data){
+            redisClient.execute("eval",postMessageScript,0,"testTopic",simpleMessage,function(err,data){
                 var id = data;
-                redisClient.get("topics:testTopic:head",function(err,data){
+                redisClient.execute("get","topics:testTopic:head",function(err,data){
                     var eq = id == data
                     eq.should.be.ok
                     done()
@@ -224,12 +224,12 @@ describe("Redis lua scripts",function(){
         })
 
         it("should set exipire to the message",function(done){
-            redisClient.eval(postMessageScript,0,"testTopic",simpleMessage,function(err,messageId){
+            redisClient.execute("eval",postMessageScript,0,"testTopic",simpleMessage,function(err,messageId){
                 should.not.exist(err)
-                    redisClient.ttl("topics:testTopic:messages:"+messageId,function(err,expire){
+                    redisClient.execute("ttl","topics:testTopic:messages:"+messageId,function(err,expire){
                      should.not.exist(err)
                      should.exist(expire)
-                     redisClient.get("topics:testTopic:ttl",function(err,ttl){
+                     redisClient.execute("get","topics:testTopic:ttl",function(err,ttl){
                         should.not.exist(err)
                         should.exist(ttl)
                         expire.should.be.below(ttl+1)
@@ -240,21 +240,21 @@ describe("Redis lua scripts",function(){
             })
         })
         it("should fail if the property msg doesn't exist",function(done){
-            redisClient.eval(postMessageScript,0,"testTopic",JSON.stringify({}),function(err,messageId){
+            redisClient.execute("eval",postMessageScript,0,"testTopic",JSON.stringify({}),function(err,messageId){
                 should.exist(err)
                 done()
             })
         })
         it("should fail if topic doesn't exist",function(done){
-            redisClient.eval(postMessageScript,0,"testTopic-noexist",simpleMessage,function(err,messageId){
+            redisClient.execute("eval",postMessageScript,0,"testTopic-noexist",simpleMessage,function(err,messageId){
                 should.exist(err)
                 done()
             })
         })
         it("should fail if no ttl found",function(done){
-            redisClient.del("topics:testTopic:ttl",function(err,data){
+            redisClient.execute("del","topics:testTopic:ttl",function(err,data){
                 should.not.exist(err)
-                redisClient.eval(postMessageScript,0,"testTopic",simpleMessage,function(err,messageId){
+                redisClient.execute("eval",postMessageScript,0,"testTopic",simpleMessage,function(err,messageId){
                     should.exist(err)
                     done()
                 })
@@ -266,12 +266,12 @@ describe("Redis lua scripts",function(){
 
         var tms = Math.floor(new Date().getTime()/1000)
         beforeEach(function(done){
-            redisClient.flushall(function(err,data){
-                redisClient.eval(createTopicScript, 0, "testTopic", function(err,data){
+            redisClient.execute("flushall",function(err,data){
+                redisClient.execute("eval",createTopicScript, 0, "testTopic", function(err,data){
                     should.not.exist(err)
-                    redisClient.eval(createConsumerScript, 0, "testTopic", "testConsumer", function(err,data){
+                    redisClient.execute("eval",createConsumerScript, 0, "testTopic", "testConsumer", function(err,data){
                         should.not.exist(err)
-                        redisClient.eval(postMessageScript, 0, "testTopic", JSON.stringify({msg:"testMessage"}), function(err, data){
+                        redisClient.execute("eval",postMessageScript, 0, "testTopic", JSON.stringify({msg:"testMessage"}), function(err, data){
                             should.not.exist(err)
                             done()
                         })
@@ -289,9 +289,9 @@ describe("Redis lua scripts",function(){
         }
 
         it("should get the message with id equals to topics:topic:consumers:consumer:last if no fails found", function(done){
-            redisClient.get("topics:testTopic:consumers:testConsumer:last",function(err,data){
+            redisClient.execute("get","topics:testTopic:consumers:testConsumer:last",function(err,data){
                 var last = data;
-                redisClient.eval(getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data){
+                redisClient.execute("eval",getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data){
                     should.not.exist(err)
                     var obj = redisListToObj(data)
                     obj.id.should.equal(last)
@@ -300,10 +300,10 @@ describe("Redis lua scripts",function(){
             })
         })
         it("should put the message id into topics:topic:consumers:consumer:processing with the expiration time equals to tms+visibilityWindow",function(done){
-            redisClient.eval(getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data){
+            redisClient.execute("eval",getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data){
                 should.not.exist(err)
                 var obj = redisListToObj(data)
-                redisClient.zrangebyscore("topics:testTopic:consumers:testConsumer:processing","-inf","+inf","WITHSCORES",function(err,data){
+                redisClient.execute("zrangebyscore","topics:testTopic:consumers:testConsumer:processing","-inf","+inf","WITHSCORES",function(err,data){
                     should.not.exist(err)
                     data[0].should.equal(""+1)
                     data[1].should.equal(""+(tms+20))
@@ -314,15 +314,15 @@ describe("Redis lua scripts",function(){
         it("should move to topics:topic:consumers:consumer:fails the expired messages into topics:topic:consumers:consumer:processing",function(done){
             var expiredTime = tms -1
             var noExpiredTime = tms + 1
-            redisClient.zadd("topics:testTopic:consumers:testConsumer:processing",noExpiredTime,"1",function(err,data){
-                redisClient.zadd("topics:testTopic:consumers:testConsumer:processing",expiredTime,"2",function(err,data){
-                    redisClient.zadd("topics:testTopic:consumers:testConsumer:processing",expiredTime,"3",function(err,data){
-                        redisClient.zadd("topics:testTopic:consumers:testConsumer:processing",expiredTime,"4",function(err,data){
+            redisClient.execute("zadd","topics:testTopic:consumers:testConsumer:processing",noExpiredTime,"1",function(err,data){
+                redisClient.execute("zadd","topics:testTopic:consumers:testConsumer:processing",expiredTime,"2",function(err,data){
+                    redisClient.execute("zadd","topics:testTopic:consumers:testConsumer:processing",expiredTime,"3",function(err,data){
+                        redisClient.execute("zadd","topics:testTopic:consumers:testConsumer:processing",expiredTime,"4",function(err,data){
                             should.not.exist(err)
-                            redisClient.eval(getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data){
+                            redisClient.execute("eval",getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data){
                                 //Because expired message doesn't exist
                                 should.exist(err)
-                                redisClient.lrange("topics:testTopic:consumers:testConsumer:fails",0,-1,function(err,data){
+                                redisClient.execute("lrange","topics:testTopic:consumers:testConsumer:fails",0,-1,function(err,data){
                                     //The first should be returned at the get phase with error because the message dosn't exist
                                     data.should.have.length(2)
                                     data.should.include("3")
@@ -336,11 +336,11 @@ describe("Redis lua scripts",function(){
             })
         })
         it("should throw an error if an expired or no exist message is found",function(done){
-            redisClient.set("topics:testTopic:head",2,function(err,data){
-                redisClient.eval(getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data){
+            redisClient.execute("set","topics:testTopic:head",2,function(err,data){
+                redisClient.execute("eval",getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data){
                     should.not.exist(err)
                     should.exist(data)
-                    redisClient.eval(getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data){
+                    redisClient.execute("eval",getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data){
                         should.exist(err)
                         done()
                     })
@@ -349,12 +349,12 @@ describe("Redis lua scripts",function(){
         })
         it("should get a failed message over an standar message if topics:topic:consumers:consumer:fails is not empty",function(done){
             var expired = tms-21
-            redisClient.eval(postMessageScript, 0, "testTopic", JSON.stringify({msg:"testMessage"}), function(err, newId){
+            redisClient.execute("eval",postMessageScript, 0, "testTopic", JSON.stringify({msg:"testMessage"}), function(err, newId){
                 should.not.exist(err)
-                redisClient.lpush("topics:testTopic:consumers:testConsumer:fails",newId,function(err,data){
-                    redisClient.eval(getMessageScript,0,expired,"testTopic","testConsumer","20",function(err,data1){
+                redisClient.execute("lpush","topics:testTopic:consumers:testConsumer:fails",newId,function(err,data){
+                    redisClient.execute("eval",getMessageScript,0,expired,"testTopic","testConsumer","20",function(err,data1){
                         should.not.exist(err)
-                        redisClient.eval(getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data2){
+                        redisClient.execute("eval",getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data2){
                             var obj1 = redisListToObj(data1)
                             var obj2 = redisListToObj(data2)
                             should.exist(obj1)
@@ -367,20 +367,20 @@ describe("Redis lua scripts",function(){
             })
         })
         it("should put into the processing list a failed message got",function(done){
-            redisClient.eval(postMessageScript, 0, "testTopic", JSON.stringify({msg:"testMessage"}), function(err, newId){
+            redisClient.execute("eval",postMessageScript, 0, "testTopic", JSON.stringify({msg:"testMessage"}), function(err, newId){
                 should.not.exist(err)
-                redisClient.lpush("topics:testTopic:consumers:testConsumer:fails",newId,function(err,data){
-                    redisClient.lpush("topics:testTopic:consumers:testConsumer:fails","1",function(err,data){
-                        redisClient.eval(getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data1){
+                redisClient.execute("lpush","topics:testTopic:consumers:testConsumer:fails",newId,function(err,data){
+                    redisClient.execute("lpush","topics:testTopic:consumers:testConsumer:fails","1",function(err,data){
+                        redisClient.execute("eval",getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data1){
                             should.not.exist(err)
-                            redisClient.eval(getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data2){
+                            redisClient.execute("eval",getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data2){
                                 var obj1 = redisListToObj(data1)
                                 var obj2 = redisListToObj(data2)
-                                redisClient.zrangebyscore("topics:testTopic:consumers:testConsumer:processing","-inf","+inf",function(err,data){
+                                redisClient.execute("zrangebyscore","topics:testTopic:consumers:testConsumer:processing","-inf","+inf",function(err,data){
                                     data.should.have.length(2)
                                     data.should.include(obj1.id)
                                     data.should.include(obj2.id)
-                                    redisClient.llen("topics:testTopic:consumers:testConsumer:fails",function(err,data){
+                                    redisClient.execute("llen","topics:testTopic:consumers:testConsumer:fails",function(err,data){
                                         data.should.equal(0)
                                         done()
                                    })
@@ -392,9 +392,9 @@ describe("Redis lua scripts",function(){
             })
         })
         it("should throw an error if a failed message was expired or not exist",function(done){
-            redisClient.lpush("topics:testTopic:consumers:testConsumer:fails","5",function(err,data){
+            redisClient.execute("lpush","topics:testTopic:consumers:testConsumer:fails","5",function(err,data){
                 should.not.exist(err)
-                redisClient.eval(getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data){
+                redisClient.execute("eval",getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data){
                     should.exist(err)
                     done()
 
@@ -402,11 +402,11 @@ describe("Redis lua scripts",function(){
             })
         })
         it("should increment the topics:topic:consumers:consumer:last after a get",function(done){
-            redisClient.get("topics:testTopic:consumers:testConsumer:last",function(err,data){
+            redisClient.execute("get","topics:testTopic:consumers:testConsumer:last",function(err,data){
                 should.not.exist(err)
                 var last = parseInt(data);
-                redisClient.eval(getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,obj){
-                    redisClient.get("topics:testTopic:consumers:testConsumer:last",function(err,newLast){
+                redisClient.execute("eval",getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,obj){
+                    redisClient.execute("get","topics:testTopic:consumers:testConsumer:last",function(err,newLast){
                         should.not.exist(err)
                         newLast.should.equal(""+(last+1))
                         done()
@@ -416,12 +416,12 @@ describe("Redis lua scripts",function(){
             })
         })
         it("shouldn't increment the topics:topic:consumers:consumer:last if the message is from the fails list",function(done){
-             redisClient.get("topics:testTopic:consumers:testConsumer:last",function(err,data){
+             redisClient.execute("get","topics:testTopic:consumers:testConsumer:last",function(err,data){
                 should.not.exist(err)
                 var last = parseInt(data);
-                redisClient.lpush("topics:testTopic:consumers:testConsumer:fails","5",function(err,data){
-                    redisClient.eval(getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data){
-                        redisClient.get("topics:testTopic:consumers:testConsumer:last",function(err,newLast){
+                redisClient.execute("lpush","topics:testTopic:consumers:testConsumer:fails","5",function(err,data){
+                    redisClient.execute("eval",getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data){
+                        redisClient.execute("get","topics:testTopic:consumers:testConsumer:last",function(err,newLast){
                             newLast.should.equal(""+last)
                             done()
                         })
@@ -430,14 +430,14 @@ describe("Redis lua scripts",function(){
              })
         })
         it("shouldn't increment the topics:topic:consumers:consumer:last if there are no more messages",function(done){
-            redisClient.get("topics:testTopic:consumers:testConsumer:last",function(err,data){
+            redisClient.execute("get","topics:testTopic:consumers:testConsumer:last",function(err,data){
                 should.not.exist(err)
                 var last = parseInt(data);
-                redisClient.eval(getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data){
+                redisClient.execute("eval",getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data){
                     should.not.exist(err)
-                    redisClient.eval(getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data){
+                    redisClient.execute("eval",getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data){
                         //Get 2 messages but the id must be incremented one time because the las item was reached
-                        redisClient.get("topics:testTopic:consumers:testConsumer:last",function(err,newLast){
+                        redisClient.execute("get","topics:testTopic:consumers:testConsumer:last",function(err,newLast){
                             should.not.exist(err)
                             newLast.should.equal(""+(last+1))
                             done()
@@ -448,9 +448,9 @@ describe("Redis lua scripts",function(){
 
         })
         it("should return void object if no message was found",function(done){
-            redisClient.eval(getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data){
+            redisClient.execute("eval",getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data){
                 should.not.exist(err)
-                redisClient.eval(getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data){
+                redisClient.execute("eval",getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data){
                     should.not.exist(err)
                     should.exist(data)
                     data.should.be.empty
@@ -460,23 +460,23 @@ describe("Redis lua scripts",function(){
 
         })
         it("should fail if topic doesn't exist",function(done){
-            redisClient.eval(getMessageScript,0,tms,"testTopic-noExist","testConsumer","20",function(err,obj){
+            redisClient.execute("eval",getMessageScript,0,tms,"testTopic-noExist","testConsumer","20",function(err,obj){
                 should.exist(err)
                 done()
             })
         })
         it("should fail if the consumerGroup dosn't exist",function(done){
-            redisClient.eval(getMessageScript,0,tms,"testTopic","testConsumer-no-exist","20",function(err,obj){
+            redisClient.execute("eval",getMessageScript,0,tms,"testTopic","testConsumer-no-exist","20",function(err,obj){
                 should.exist(err)
                 done()
             })
         })
         it("should not re-process an expired failed message",function(done){
-            redisClient.lpush("topics:testTopic:consumers:testConsumer:fails","2",function(err,data){
+            redisClient.execute("lpush","topics:testTopic:consumers:testConsumer:fails","2",function(err,data){
                 should.not.exist(err)
-                redisClient.eval(getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data){
+                redisClient.execute("eval",getMessageScript,0,tms,"testTopic","testConsumer","20",function(err,data){
                     should.exist(err)
-                    redisClient.zcard("topics:testTopic:processing",function(err,data){
+                    redisClient.execute("zcard","topics:testTopic:processing",function(err,data){
                         data.should.equal(0)
                         done()
                     })
@@ -488,12 +488,12 @@ describe("Redis lua scripts",function(){
     describe("#ackMessage",function(){
         var tms = Math.floor(new Date().getTime()/1000)
         beforeEach(function(done){
-            redisClient.flushall(function(err,data){
-                redisClient.eval(createTopicScript, 0, "testTopic", function(err,data){
+            redisClient.execute("flushall",function(err,data){
+                redisClient.execute("eval",createTopicScript, 0, "testTopic", function(err,data){
                     should.not.exist(err)
-                    redisClient.eval(createConsumerScript, 0, "testTopic", "testConsumer", function(err,data){
+                    redisClient.execute("eval",createConsumerScript, 0, "testTopic", "testConsumer", function(err,data){
                         should.not.exist(err)
-                        redisClient.eval(postMessageScript, 0, "testTopic", JSON.stringify({msg:"testMessage"}), function(err, data){
+                        redisClient.execute("eval",postMessageScript, 0, "testTopic", JSON.stringify({msg:"testMessage"}), function(err, data){
                             should.not.exist(err)
                             done()
                         })
@@ -504,11 +504,11 @@ describe("Redis lua scripts",function(){
 
 
         it("should remove the id from the processing list",function(done){
-            redisClient.zadd("topics:testTopic:consumers:testConsumer:processing",tms,"2",function(err,data){
+            redisClient.execute("zadd","topics:testTopic:consumers:testConsumer:processing",tms,"2",function(err,data){
                 should.not.exist(err)
-                redisClient.eval(ackMessageScript,0,"testTopic","testConsumer","2",function(err,data){
+                redisClient.execute("eval",ackMessageScript,0,"testTopic","testConsumer","2",function(err,data){
                     should.not.exist(err)
-                    redisClient.zrangebyscore("topics:testTopic:consumers:testConsumer:processing","-inf","+inf",function(err,data){
+                    redisClient.execute("zrangebyscore","topics:testTopic:consumers:testConsumer:processing","-inf","+inf",function(err,data){
                         should.not.exist(err)
                         data.should.be.empty
                         done()
@@ -517,20 +517,20 @@ describe("Redis lua scripts",function(){
             })
         })
         it("should fail if topic dosn't exist",function(done){
-            redisClient.eval(ackMessageScript,0,"testTopic-noExist","testConsumer","1",function(err,data){
+            redisClient.execute("eval",ackMessageScript,0,"testTopic-noExist","testConsumer","1",function(err,data){
                 should.exist(err)
                 done()
             })
 
         })
         it("should fail if consumer dosn't exist",function(done){
-            redisClient.eval(ackMessageScript,0,"testTopic","testConsumer-noExist","1",function(err,data){
+            redisClient.execute("eval",ackMessageScript,0,"testTopic","testConsumer-noExist","1",function(err,data){
                 should.exist(err)
                 done()
             })
         })
         it("should return 0 if no ack was found",function(done){
-            redisClient.eval(ackMessageScript,0,"testTopic","testConsumer","5",function(err,data){
+            redisClient.execute("eval",ackMessageScript,0,"testTopic","testConsumer","5",function(err,data){
                 should.not.exist(err)
                 data.should.equal(0)
                 done()
@@ -541,12 +541,12 @@ describe("Redis lua scripts",function(){
     describe("#failMessage",function(){
         var tms = Math.floor(new Date().getTime()/1000)
         beforeEach(function(done){
-            redisClient.flushall(function(err,data){
-                redisClient.eval(createTopicScript, 0, "testTopic", function(err,data){
+            redisClient.execute("flushall",function(err,data){
+                redisClient.execute("eval",createTopicScript, 0, "testTopic", function(err,data){
                     should.not.exist(err)
-                    redisClient.eval(createConsumerScript, 0, "testTopic", "testConsumer", function(err,data){
+                    redisClient.execute("eval",createConsumerScript, 0, "testTopic", "testConsumer", function(err,data){
                         should.not.exist(err)
-                        redisClient.eval(postMessageScript, 0, "testTopic", JSON.stringify({msg:"testMessage"}), function(err, data){
+                        redisClient.execute("eval",postMessageScript, 0, "testTopic", JSON.stringify({msg:"testMessage"}), function(err, data){
                             should.not.exist(err)
                             done()
                         })
@@ -556,15 +556,15 @@ describe("Redis lua scripts",function(){
         })
 
         it("should move the id from the processing list to the fails list",function(done){
-            redisClient.zadd("topics:testTopic:consumers:testConsumer:processing",tms,"2",function(err,data){
-                redisClient.zadd("topics:testTopic:consumers:testConsumer:processing",tms,"3",function(err,data){
+            redisClient.execute("zadd","topics:testTopic:consumers:testConsumer:processing",tms,"2",function(err,data){
+                redisClient.execute("zadd","topics:testTopic:consumers:testConsumer:processing",tms,"3",function(err,data){
                     should.not.exist(err)
-                    redisClient.eval(failMessageScript,0,"testTopic","testConsumer","2",function(err,data){
+                    redisClient.execute("eval",failMessageScript,0,"testTopic","testConsumer","2",function(err,data){
                         should.not.exist(err)
-                        redisClient.zrangebyscore("topics:testTopic:consumers:testConsumer:processing","-inf","+inf",function(err,data){
+                        redisClient.execute("zrangebyscore","topics:testTopic:consumers:testConsumer:processing","-inf","+inf",function(err,data){
                             should.not.exist(err)
                             data.should.include("3")
-                            redisClient.lrange("topics:testTopic:consumers:testConsumer:fails",0,-1,function(err,data){
+                            redisClient.execute("lrange","topics:testTopic:consumers:testConsumer:fails",0,-1,function(err,data){
                                 should.not.exist(err)
                                 data.should.have.length(1)
                                 data.should.include("2")
@@ -577,14 +577,14 @@ describe("Redis lua scripts",function(){
 
         })
         it("should fail if topic dosn't exist",function(done){
-            redisClient.eval(failMessageScript,0,"testTopic-noExist","testConsumer","2",function(err,data){
+            redisClient.execute("eval",failMessageScript,0,"testTopic-noExist","testConsumer","2",function(err,data){
                 should.exist(err)
                 done()
             })
 
         })
         it("should fail if consumer dosn't exist",function(done){
-            redisClient.eval(failMessageScript,0,"testTopic","testConsumer-noExist","2",function(err,data){
+            redisClient.execute("eval",failMessageScript,0,"testTopic","testConsumer-noExist","2",function(err,data){
                 should.exist(err)
                 done()
             })
@@ -594,12 +594,12 @@ describe("Redis lua scripts",function(){
 
     describe("#delete",function(){
         beforeEach(function(done){
-            redisClient.flushall(function(err,data){
-                redisClient.eval(createTopicScript, 0, "testTopic", function(err,data){
+            redisClient.execute("flushall",function(err,data){
+                redisClient.execute("eval",createTopicScript, 0, "testTopic", function(err,data){
                     should.not.exist(err)
-                    redisClient.eval(createConsumerScript, 0, "testTopic", "testConsumer", function(err,data){
+                    redisClient.execute("eval",createConsumerScript, 0, "testTopic", "testConsumer", function(err,data){
                         should.not.exist(err)
-                        redisClient.eval(createConsumerScript, 0, "testTopic", "testConsumer2", function(err,data){
+                        redisClient.execute("eval",createConsumerScript, 0, "testTopic", "testConsumer2", function(err,data){
                             should.not.exist(err)
                             done()
                         })
@@ -609,13 +609,13 @@ describe("Redis lua scripts",function(){
         })
 
         it("should delete an existent consumer",function(done){
-            redisClient.eval(deleteConsumerScript,0,"testTopic","testConsumer",function(err,data){
+            redisClient.execute("eval",deleteConsumerScript,0,"testTopic","testConsumer",function(err,data){
                 should.not.exist(err)
-                redisClient.smembers("topics:testTopic:consumers",function(err,data){
+                redisClient.execute("smembers","topics:testTopic:consumers",function(err,data){
                     should.not.exist(err)
                     data.length.should.equal(1)
                     data[0].should.equal("testConsumer2")
-                    redisClient.exists("topics:testTopics:consumers:testConsumer:last",function(err,data){
+                    redisClient.execute("exists","topics:testTopics:consumers:testConsumer:last",function(err,data){
                         data.should.equal(0)
                         done()
                     })
@@ -623,29 +623,29 @@ describe("Redis lua scripts",function(){
             })
         })
         it("should get an error if the consumer doesn't exists",function(done){
-            redisClient.eval(deleteConsumerScript,0,"testTopic","testConsumer-no-exist",function(err,data){
+            redisClient.execute("eval",deleteConsumerScript,0,"testTopic","testConsumer-no-exist",function(err,data){
                 should.exist(err)
                 done()
             })
         })
         
         it("should get an error on topic delete if already contains consumers",function(done){
-             redisClient.eval(deleteTopicScript,0,"testTopic",function(err,data){
+             redisClient.execute("eval",deleteTopicScript,0,"testTopic",function(err,data){
                  should.exist(err)
                  done()
              })
         })
         it("should delete an existent topics",function(done){
-            redisClient.eval(deleteConsumerScript,0,"testTopic","testConsumer",function(err,data){
+            redisClient.execute("eval",deleteConsumerScript,0,"testTopic","testConsumer",function(err,data){
                 should.not.exist(err)
-                redisClient.eval(deleteConsumerScript,0,"testTopic","testConsumer2",function(err,data){
+                redisClient.execute("eval",deleteConsumerScript,0,"testTopic","testConsumer2",function(err,data){
                     should.not.exist(err)
-                    redisClient.eval(deleteTopicScript,0,"testTopic",function(err,data){
+                    redisClient.execute("eval",deleteTopicScript,0,"testTopic",function(err,data){
                         should.not.exist(err)
-                        redisClient.smembers("topics",function(err,data){
+                        redisClient.execute("smembers","topics",function(err,data){
                             should.not.exist(err)
                             data.length.should.equal(0)
-                            redisClient.exists("topics:testTopics:head",function(err,data){
+                            redisClient.execute("exists","topics:testTopics:head",function(err,data){
                                 data.should.equal(0)
                                 done()
                             })
@@ -656,7 +656,7 @@ describe("Redis lua scripts",function(){
             })
         })
         it("should get an error if the topic doesn't exists",function(done){
-            redisClient.eval(deleteTopicScript,0,"testTopic-no-exist",function(err,data){
+            redisClient.execute("eval",deleteTopicScript,0,"testTopic-no-exist",function(err,data){
                 should.exist(err)
                 done()
             })
