@@ -3,7 +3,7 @@ var should = require("should"),
     oc = require("../lib/bq_cluster_orchestrator.js"),
     bq = require("../lib/bq_client.js"),
     bj = require("../lib/bq_journal_client_redis.js"),
-    redis = require("redis"),
+    redis = require("simple_redis_client"),
     log = require("node-logging"),
     utils = require("../lib/bq_client_utils.js"),
     os = require("os");
@@ -35,8 +35,8 @@ describe("Orchestrator",function(){
 
     before(function(done){
          log.setLevel("critical")
-         redisClient1 = redis.createClient()
-         redisClient2 = redis.createClient(6380,"127.0.0.1")
+         redisClient1 = redis.createClient(6379,"127.0.0.1",{"return_buffers":false})
+         redisClient2 = redis.createClient(6380,"127.0.0.1",{"return_buffers":false})
          zk.connect(function(err){
             if(err){
                 done(err)
@@ -82,8 +82,8 @@ describe("Orchestrator",function(){
     }) 
 
     beforeEach(function(done){
-        redisClient1.flushall(function(err,data){
-            redisClient2.flushall(function(err,data){
+        redisClient1.execute("flushall",function(err,data){
+            redisClient2.execute("flushall",function(err,data){
                 done()
             })
         })
@@ -160,32 +160,32 @@ describe("Orchestrator",function(){
         zk.a_create("/bq/clusters/test/topics/test2","",0,function(rc,error,path){
             zk.a_create("/bq/clusters/test/topics/test2/consumerGroups","",0,function(rc,error,path){
                 zk.a_create("/bq/clusters/test/topics/test2/consumerGroups/testConsumer","",0,function(rc,error,path){
-                    redisClient1.exists("topics:test2:ttl",function(err,data){
+                    redisClient1.execute("exists","topics:test2:ttl",function(err,data){
                         data.should.equal(0)
-                        redisClient1.sismember("topics","test2",function(err,data){
+                        redisClient1.execute("sismember","topics","test2",function(err,data){
                             data.should.equal(0)
-                            redisClient1.exists("topics:test2:consumers:testConsumer:last",function(err,data){
+                            redisClient1.execute("exists","topics:test2:consumers:testConsumer:last",function(err,data){
                                 data.should.equal(0)
-                                redisClient2.exists("topics:test2:ttl",function(err,data){
+                                redisClient2.execute("exists","topics:test2:ttl",function(err,data){
                                     data.should.equal(0)
-                                    redisClient2.exists("topics:test2:consumers:testConsumer:last",function(err,data){
+                                    redisClient2.execute("exists","topics:test2:consumers:testConsumer:last",function(err,data){
                                         data.should.equal(0)
-                                        redisClient2.sismember("topics","test2",function(err,data){
+                                        redisClient2.execute("sismember","topics","test2",function(err,data){
                                         data.should.equal(0)
                                             var orch = oc.createOrchestrator(ocConfig)
                                             orch.on("ready",function(){
                                                 setTimeout(function(){
-                                                    redisClient1.exists("topics:test2:ttl",function(err,data){
+                                                    redisClient1.execute("exists","topics:test2:ttl",function(err,data){
                                                         data.should.equal(1)
-                                                        redisClient1.exists("topics:test2:consumers:testConsumer:last",function(err,data){
+                                                        redisClient1.execute("exists","topics:test2:consumers:testConsumer:last",function(err,data){
                                                             data.should.equal(1)
-                                                            redisClient1.sismember("topics","test2",function(err,data){
+                                                            redisClient1.execute("sismember","topics","test2",function(err,data){
                                                                 data.should.equal(1)
-                                                                redisClient2.sismember("topics","test2",function(err,data){
+                                                                redisClient2.execute("sismember","topics","test2",function(err,data){
                                                                     data.should.equal(1)
-                                                                    redisClient2.exists("topics:test2:ttl",function(err,data){
-                                                                        redisClient2.exists("topics:test2:consumers:testConsumer:last",function(err,data){
-                                                                            redisClient2.sismember("topics","test2",function(err,data){
+                                                                    redisClient2.execute("exists","topics:test2:ttl",function(err,data){
+                                                                        redisClient2.execute("exists","topics:test2:consumers:testConsumer:last",function(err,data){
+                                                                            redisClient2.execute("sismember","topics","test2",function(err,data){
                                                                                  data.should.equal(1)
                                                                                  done()
                                                                                  orch.shutdown()
@@ -215,19 +215,19 @@ describe("Orchestrator",function(){
                     zk.a_delete_("/bq/clusters/test/nodes/redis1",-1,function(rc,err){
                         var orch = oc.createOrchestrator(ocConfig)
                         orch.on("ready",function(){
-                            redisClient1.sismember("topics","test2",function(err,data){
+                            redisClient1.execute("sismember","topics","test2",function(err,data){
                                 data.should.equal(0)
-                                redisClient1.exists("topics:test2:consumers:testConsumer:last",function(err,data){
+                                redisClient1.execute("exists","topics:test2:consumers:testConsumer:last",function(err,data){
                                     data.should.equal(0)
-                                    redisClient1.sismember("topics","test2",function(err,data){
+                                    redisClient1.execute("sismember","topics","test2",function(err,data){
                                         data.should.equal(0)
                                         zk.a_create("/bq/clusters/test/nodes/redis1",JSON.stringify({"journals":[],"host":"127.0.0.1","port":6379,"errors":0,"status":"DOWN"}),0,function(rc,error,path){
                                             setTimeout(function(){
-                                                redisClient1.sismember("topics","test2",function(err,data){
+                                                redisClient1.execute("sismember","topics","test2",function(err,data){
                                                     data.should.equal(1)
-                                                    redisClient1.exists("topics:test2:consumers:testConsumer:last",function(err,data){
+                                                    redisClient1.execute("exists","topics:test2:consumers:testConsumer:last",function(err,data){
                                                         data.should.equal(1)
-                                                         redisClient1.sismember("topics","test2",function(err,data){
+                                                         redisClient1.execute("sismember","topics","test2",function(err,data){
                                                             data.should.equal(1)
                                                             zk.a_get("/bq/clusters/test/nodes/redis1",false,function(rc,error,stat,data){
                                                                var d = JSON.parse(data)
@@ -378,7 +378,7 @@ describe("Orchestrator",function(){
                         zk.a_create("/bq/clusters/test/topics/test2/consumerGroups/testConsumer","",0,function(rc,error,path){
                             //Wait for sync
                             setTimeout(function(){
-                                redisClient1.get("topics:test2:head",function(err,data){
+                                redisClient1.execute("get","topics:test2:head",function(err,data){
                                     should.not.exist(data)
                                     var journal = bj.createJournalClient({"host":"127.0.0.1","port":6380,"errors":0,"status":"UP","start_date":new Date()})
                                     journal.on("ready",function(){
@@ -386,14 +386,14 @@ describe("Orchestrator",function(){
                                             journal.write("redis1","test2", 2, {"msg":"test"}, 120,function(){
                                                 zk.a_set("/bq/clusters/test/nodes/redis1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"DOWN","journals":["j2"]}),-1,function(){
                                                      setTimeout(function(){
-                                                        redisClient1.get("topics:test2:head",function(err,data){
+                                                        redisClient1.execute("get","topics:test2:head",function(err,data){
                                                             data.should.equal(""+2)
-                                                            redisClient1.hgetall("topics:test2:messages:1",function(err,data){
+                                                            redisClient1.execute("hgetall","topics:test2:messages:1",function(err,data){
                                                                 should.not.exist(err)
                                                                 should.exist(data)
-                                                                data.msg.should.equal("test") 
+                                                                data[1].should.equal("test") 
                                                                 setTimeout(function(){
-                                                                     zk.a_get("/bq/clusters/test/nodes/redis1",false,function(rc,error,stat,data){
+                                                                zk.a_get("/bq/clusters/test/nodes/redis1",false,function(rc,error,stat,data){
                                                                         should.exist(data)
                                                                         var d = JSON.parse(data)
                                                                         d.status.should.equal("UP")
@@ -427,11 +427,11 @@ describe("Orchestrator",function(){
                         zk.a_create("/bq/clusters/test/topics/test2/consumerGroups/testConsumer","",0,function(rc,error,path){
                             //Wait for sync
                             setTimeout(function(){
-                                redisClient1.get("topics:test2:head",function(err,data){
+                                redisClient1.execute("get","topics:test2:head",function(err,data){
                                     should.not.exist(data)
                                     zk.a_set("/bq/clusters/test/nodes/redis1",JSON.stringify({"host":"127.0.0.1","port":6379,"errors":0,"status":"DOWN","journals":["j2"]}),-1,function(){
                                         setTimeout(function(){
-                                            redisClient1.get("topics:test2:ttl",function(err,data){
+                                            redisClient1.execute("get","topics:test2:ttl",function(err,data){
                                                 data.should.equal(""+10)
                                                 orch.shutdown()
                                                 done()
@@ -471,12 +471,12 @@ describe("Orchestrator",function(){
                var orch = oc.createOrchestrator(ocConfig)
                orch.on("ready",function(){
                     setTimeout(function(){
-                        redisClient1.sismember("topics","test2",function(err,data){
+                        redisClient1.execute("sismember","topics","test2",function(err,data){
                             data.should.equal(1)
                             utils.deleteZkRecursive(zk,"/bq/clusters/test/topics/test2",function(rc,err){
-                                redisClient1.srem("topics","test2",function(err,data){
+                                redisClient1.execute("srem","topics","test2",function(err,data){
                                     setTimeout(function(){
-                                        redisClient1.sismember("topics","test2",function(err,data){
+                                        redisClient1.execute("sismember","topics","test2",function(err,data){
                                             data.should.equal(0)
                                             orch.shutdown()
                                             done()
@@ -486,7 +486,6 @@ describe("Orchestrator",function(){
                             })
 
                         })
-
                     },300)
                })
             })
@@ -500,16 +499,16 @@ describe("Orchestrator",function(){
                         var orch = oc.createOrchestrator(ocConfig)
                         orch.on("ready",function(){
                             setTimeout(function(){
-                                redisClient1.sismember("topics:test2:consumers","test",function(err,data){
+                                redisClient1.execute("sismember","topics:test2:consumers","test",function(err,data){
                                     data.should.equal(1)
-                                    redisClient1.sismember("topics:test2:consumers","test1",function(err,data){
+                                    redisClient1.execute("sismember","topics:test2:consumers","test1",function(err,data){
                                         data.should.equal(1)
                                         utils.deleteZkRecursive(zk,"/bq/clusters/test/topics/test2/consumerGroups/test",function(rc,err){
-                                            redisClient1.srem("topics:test2:consumers","test",function(err,data){
+                                            redisClient1.execute("srem","topics:test2:consumers","test",function(err,data){
                                                 setTimeout(function(){
-                                                    redisClient1.sismember("topics:test2:consumers","test1",function(err,data){
+                                                    redisClient1.execute("sismember","topics:test2:consumers","test1",function(err,data){
                                                         data.should.equal(1)
-                                                        redisClient1.sismember("topics:test2:consumers","test",function(err,data){
+                                                        redisClient1.execute("sismember","topics:test2:consumers","test",function(err,data){
                                                             data.should.equal(0)
                                                             orch.shutdown()
                                                             done()

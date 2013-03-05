@@ -1,7 +1,7 @@
 var should = require('should'),
     ZK = require("zookeeper"),
     http = require('http'),
-    redis = require("redis"),
+    redis = require("simple_redis_client"),
     bq = require('../lib/bq_client.js'),
     httpApi = require("../ext/openstack/bq_os_admin_http_api.js")
     request = require('request'),
@@ -57,9 +57,9 @@ describe("openstack admin http api",function(){
     })
 
     beforeEach(function(done){
-    var redisCli =  redis.createClient()
+    var redisCli =  redis.createClient(6379,"127.0.0.1",{"return_buffers":false})
         redisCli.on("ready",function(){
-            redisCli.flushall(function(err){
+            redisCli.execute("flushall",function(err){
                 should.not.exist(err)
                 redisCli.quit()
                 done()

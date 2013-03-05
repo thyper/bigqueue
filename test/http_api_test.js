@@ -1,7 +1,7 @@
 var should = require('should'),
     bq = require('../lib/bq_client.js'),
     httpApi = require("../ext/http_api.js")
-    redis = require('redis'),
+    redis = require('simple_redis_client'),
     request = require('request'),
     log = require("node-logging")
 
@@ -19,7 +19,7 @@ describe("http api",function(){
 
     before(function(done){
         log.setLevel("critical")
-        redisClient = redis.createClient()
+        redisClient = redis.createClient(6379,"127.0.0.1",{"return_buffers":false})
         redisClient.on("ready",function(){
             httpApi.startup(httpApiConf,function(err){
                 done()
@@ -29,7 +29,7 @@ describe("http api",function(){
     })
 
     beforeEach(function(done){
-        redisClient.flushall(function(err,data){
+        redisClient.execute("flushall", function(err,data){
             done()
         })
     })
