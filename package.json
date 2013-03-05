@@ -3,7 +3,7 @@
     "description": "",
     "version": "0.2.0",
     "author": "",
-    "engines": { "node":">= 0.6.7" },
+    "engines": { "node":">= 0.8.21" },
     "bin":{ 
         "bigqueue-http":"./bin/http_launcher.js",
         "bigqueue-orchestrator":"./bin/orchestrator_launcher.js",
