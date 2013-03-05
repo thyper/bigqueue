@@ -26,6 +26,6 @@
         "json2yaml":"1.0.x"
     },
     "devDependencies": {
-        "mocha" : "0.14.x"
+        "mocha" : "1.8.x"
     }
 }
