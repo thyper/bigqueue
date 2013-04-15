@@ -47,7 +47,7 @@ var startOrchestrator = function(){
             }
         })
         orch.on("error",function(err){
-            console.log("error on orchestrator exiting ["+error+"]")
+            console.log("error on orchestrator exiting ["+err+"]")
             process.exit(1)
         })
     }
