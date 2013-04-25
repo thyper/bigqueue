@@ -1,5 +1,5 @@
 var should = require('should'),
-    redis = require('simple_redis_client'),
+    redis = require('redis'),
     spawn = require('child_process').spawn,
     fs = require('fs');
 
@@ -13,6 +13,9 @@ describe("Redis lua scripts",function(){
     var redisClient;
     var deleteConsumerScript;
     var deleteTopicScript;
+
+
+
     before(function(done){
         fs.readFile('scripts/getMessage.lua','ascii',function(err,strFile){
             should.not.exist(err)
@@ -39,6 +42,15 @@ describe("Redis lua scripts",function(){
                                         should.not.exist(err)
                                         deleteTopicScript = strFile
                                         redisClient = redis.createClient(6379,"127.0.0.1",{"return_buffers":false})
+                                        redisClient.execute = function() {
+                                          var args = [];
+                                          for (var key in arguments) {
+                                            args.push(arguments[key]);
+                                          }
+                                          var command = args.shift();
+                                          var callback = args.pop();
+                                          return redisClient.send_command(command, args, callback);
+                                        }
                                         redisClient.on("ready",function(){
                                             done()
                                         })
@@ -188,8 +200,7 @@ describe("Redis lua scripts",function(){
                 redisClient.execute("hgetall","topics:testTopic:messages:"+id,function(err,data){
                     should.not.exist(err)
                     should.exist(data)
-                    data[0].should.equal("msg")
-                    data[1].should.equal("testMessage")
+                    data.msg.should.equal("testMessage")
                     done()
                 })
             })

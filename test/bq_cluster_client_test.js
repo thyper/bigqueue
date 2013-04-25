@@ -1,5 +1,5 @@
 var should = require('should'),
-    redis = require('simple_redis_client'),
+    redis = require('redis'),
     ZK = require('zookeeper'),
     utils = require('../lib/bq_client_utils.js'),
     bq = require('../lib/bq_client.js'),
@@ -40,10 +40,22 @@ describe("Big Queue Cluster",function(){
     var journalClient2
     
     before(function(done){
+        var execute = function() {
+          var args = [];
+          for (var key in arguments) {
+            args.push(arguments[key]);
+          }
+          var command = args.shift();
+          var callback = args.pop();
+          return this.send_command(command, args, callback);
+        }
+
         log.setLevel("critical")
         redisClient1 = redis.createClient(6379,"127.0.0.1",{"return_buffers":false})
+        redisClient1.execute = execute;
         redisClient1.on("ready",function(){
             redisClient2= redis.createClient(6380,"127.0.0.1",{"return_buffers":false})
+            redisClient2.execute = execute;
             redisClient2.on("ready",function(){
                 done()
             })

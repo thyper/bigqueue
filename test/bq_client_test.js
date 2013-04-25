@@ -1,5 +1,5 @@
 var should = require('should'),
-    redis = require('simple_redis_client'),
+    redis = require('redis'),
     bq = require('../lib/bq_client.js'),
     log = require("node-logging")
 
@@ -13,6 +13,15 @@ describe("Big Queue Client",function(){
         bqClient = bq.createClient(redisConf)
         bqClient.on("ready",function(){
             redisClient = redis.createClient(redisConf.port,redisConf.host)
+            redisClient.execute = function() {
+              var args = [];
+              for (var key in arguments) {
+                args.push(arguments[key]);
+              }
+              var command = args.shift();
+              var callback = args.pop();
+              return redisClient.send_command(command, args, callback);
+            }
             redisClient.on("ready",function(){
                 done()
             })

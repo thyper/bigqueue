@@ -3,7 +3,7 @@ var should = require("should"),
     oc = require("../lib/bq_cluster_orchestrator.js"),
     bq = require("../lib/bq_client.js"),
     bj = require("../lib/bq_journal_client_redis.js"),
-    redis = require("simple_redis_client"),
+    redis = require("redis"),
     log = require("node-logging"),
     utils = require("../lib/bq_client_utils.js"),
     os = require("os");
@@ -34,9 +34,21 @@ describe("Orchestrator",function(){
     var zk = new ZK(zkConfig)
 
     before(function(done){
+         var execute = function() {
+          var args = [];
+          for (var key in arguments) {
+            args.push(arguments[key]);
+          }
+          var command = args.shift();
+          var callback = args.pop();
+          return this.send_command(command, args, callback);
+        }
          log.setLevel("critical")
          redisClient1 = redis.createClient(6379,"127.0.0.1",{"return_buffers":false})
+         redisClient1.execute = execute;
+
          redisClient2 = redis.createClient(6380,"127.0.0.1",{"return_buffers":false})
+         redisClient2.execute = execute;
          zk.connect(function(err){
             if(err){
                 done(err)
@@ -391,7 +403,7 @@ describe("Orchestrator",function(){
                                                             redisClient1.execute("hgetall","topics:test2:messages:1",function(err,data){
                                                                 should.not.exist(err)
                                                                 should.exist(data)
-                                                                data[1].should.equal("test") 
+                                                                data.msg.should.equal("test")
                                                                 setTimeout(function(){
                                                                 zk.a_get("/bq/clusters/test/nodes/redis1",false,function(rc,error,stat,data){
                                                                         should.exist(data)

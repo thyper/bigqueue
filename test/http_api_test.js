@@ -1,7 +1,7 @@
 var should = require('should'),
     bq = require('../lib/bq_client.js'),
     httpApi = require("../ext/http_api.js")
-    redis = require('simple_redis_client'),
+    redis = require('redis'),
     request = require('request'),
     log = require("node-logging")
 
@@ -29,7 +29,7 @@ describe("http api",function(){
     })
 
     beforeEach(function(done){
-        redisClient.execute("flushall", function(err,data){
+        redisClient.send_command("flushall", [],  function(err,data){
             done()
         })
     })

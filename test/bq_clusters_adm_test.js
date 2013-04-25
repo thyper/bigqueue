@@ -1,6 +1,6 @@
 var should = require('should'),
     ZK = require("zookeeper"),
-    redis = require("simple_redis_client"),
+    redis = require("redis"),
     bq = require('../lib/bq_client.js'),
     bqadm = require("../lib/bq_clusters_adm.js"),
     request = require('request'),
@@ -51,9 +51,9 @@ describe("Clusters administration for multicluster purposes",function(){
 
     before(function(done){
         redisClient1 = redis.createClient(6379,"127.0.0.1")
-        redisClient1.execute("on","ready",function(){
+        redisClient1.on("ready",function(){
             redisClient2= redis.createClient(6380,"127.0.0.1")
-            redisClient2.execute("on","ready",function(){
+            redisClient2.on("ready",function(){
                 done()
             })
         })
@@ -70,8 +70,8 @@ describe("Clusters administration for multicluster purposes",function(){
     })
 
     beforeEach(function(done){
-        redisClient1.execute("flushall",function(err){
-            redisClient2.execute("flushall",function(){
+        redisClient1.send_command("flushall", [], function(err){
+            redisClient2.send_command("flushall", [], function(){
                 done()
             })
         })

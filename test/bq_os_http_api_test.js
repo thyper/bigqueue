@@ -1,7 +1,7 @@
 var should = require('should'),
     bq = require('../lib/bq_client.js'),
     httpApi = require("../ext/openstack/bq_os_http_api.js")
-    redis = require('simple_redis_client'),
+    redis = require('redis'),
     request = require('request'),
     log = require("node-logging")
 
@@ -29,7 +29,7 @@ describe("Open stack http api",function(){
     before(function(done){
         log.setLevel("critical")
         redisClient = redis.createClient(redisConf.port,redisConf.host,{"return_buffers":false})
-        redisClient.execute("on","ready",function(){
+        redisClient.on("ready",function(){
             httpApi.startup(httpApiConf,function(err){
                 done()
             })
@@ -38,7 +38,7 @@ describe("Open stack http api",function(){
     })
 
     beforeEach(function(done){
-        redisClient.execute("flushall",function(err,data){
+        redisClient.send_command("flushall", [], function(err,data){
             done()
         })
     })
