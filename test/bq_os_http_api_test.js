@@ -14,17 +14,36 @@ describe("Open stack http api",function(){
         "port": 8082,
         "bqConfig": redisConf, 
         "bqClientCreateFunction": bq.createClient,
-        "logLevel":"critical"
+        "logLevel":"critical",
+        "singleNodeMaxReCall":2
     }
 
-    var bqClient  
+    var getMessage = bq.bqClient.prototype.getMessage;
+    var bqClient;
+    before(function() {
+      bq.bqClient.prototype.getMessageFromNode = function(node,topic,consumer,vW,cb) {
+        getMessage.call(this,topic,consumer,vW,function(err, data) {
+          if(data) {
+            data["nodeId"] = node || "redis1";
+          }
+          cb(err,data);
+        });
+      }
+      bq.bqClient.prototype.getMessage = function(topic,consumer,vW,cb) {
+        this.getMessageFromNode("redis1",topic,consumer,vW,cb);
+      };
+
+    });
+    after(function() {
+      bq.bqClient.prototype.getMessage = getMessage;
+    });
 
     before(function(done){
         bqClient = bq.createClient(redisConf)
         bqClient.on("ready",function(){
             done()
         })
-    })
+    });
 
     before(function(done){
         log.setLevel("critical")
@@ -124,6 +143,124 @@ describe("Open stack http api",function(){
                 })
             })
         })
+
+        it("Should return remaining and node if there are remaining messages", function(done) {
+            request({
+                url:"http://127.0.0.1:8082/messages",
+                method:"POST",
+                json:{msg:"testMessage",topics:["testTopic"]}
+            },function(error,response,body){
+              response.statusCode.should.equal(201)
+              request({
+                  url:"http://127.0.0.1:8082/messages",
+                  method:"POST",
+                  json:{msg:"testMessage",topics:["testTopic"]}
+              },function(error,response,body){
+                response.statusCode.should.equal(201)
+                request({
+                    uri:"http://127.0.0.1:8082/topics/testTopic/consumers/testConsumer1/messages",
+                    method:"GET",
+                    json:true
+                },function(error,response,body){
+                  response.statusCode.should.equal(200)
+                  response.headers["x-remaining"].should.equal("1");
+                  response.headers["x-nodeid"].should.equal("redis1@1");
+                  request({
+                      uri:"http://127.0.0.1:8082/topics/testTopic/consumers/testConsumer1/messages",
+                      method:"GET",
+                      json:true
+                  },function(error,response,body){
+                    response.statusCode.should.equal(200)
+                    should.not.exist(response.headers["x-remaining"]);
+                    should.not.exist(response.headers["x-nodeid"]);
+                    done(); 
+                 });
+               });
+            });
+          });
+        });
+
+      it("Should enable to select node to get", function(done) {
+          request({
+              url:"http://127.0.0.1:8082/messages",
+              method:"POST",
+              json:{msg:"testMessage",topics:["testTopic"]}
+          },function(error,response,body){
+            response.statusCode.should.equal(201)
+            request({
+                url:"http://127.0.0.1:8082/messages",
+                method:"POST",
+                json:{msg:"testMessage",topics:["testTopic"]}
+            },function(error,response,body){
+              response.statusCode.should.equal(201)
+              request({
+                  uri:"http://127.0.0.1:8082/topics/testTopic/consumers/testConsumer1/messages",
+                  method:"GET",
+                  headers:{"X-NodeId":"redis2@1"},
+                  json:true
+              },function(error,response,body){
+                response.statusCode.should.equal(200)
+                response.headers["x-remaining"].should.equal("1");
+                response.headers["x-nodeid"].should.equal("redis2@2");
+                done();
+               });
+             });
+          });
+        });
+        
+        it("Should not reponse node id if max call reached", function(done) {
+          request({
+              url:"http://127.0.0.1:8082/messages",
+              method:"POST",
+              json:{msg:"testMessage",topics:["testTopic"]}
+          },function(error,response,body){
+            response.statusCode.should.equal(201)
+            request({
+                url:"http://127.0.0.1:8082/messages",
+                method:"POST",
+                json:{msg:"testMessage",topics:["testTopic"]}
+            },function(error,response,body){
+              response.statusCode.should.equal(201)
+              request({
+                  uri:"http://127.0.0.1:8082/topics/testTopic/consumers/testConsumer1/messages",
+                  method:"GET",
+                  headers:{"X-NodeId":"redis1@2"},
+                  json:true
+              },function(error,response,body){
+                response.statusCode.should.equal(200)
+                should.not.exist(response.headers["x-remaining"]);
+                should.not.exist(response.headers["x-nodeid"]);
+                done();
+               });
+             });
+          });
+        });
+
+        it("Should return error if invalid node header", function(done) {
+          request({
+              url:"http://127.0.0.1:8082/messages",
+              method:"POST",
+              json:{msg:"testMessage",topics:["testTopic"]}
+          },function(error,response,body){
+            response.statusCode.should.equal(201)
+            request({
+                url:"http://127.0.0.1:8082/messages",
+                method:"POST",
+                json:{msg:"testMessage",topics:["testTopic"]}
+            },function(error,response,body){
+              response.statusCode.should.equal(201)
+              request({
+                  uri:"http://127.0.0.1:8082/topics/testTopic/consumers/testConsumer1/messages",
+                  method:"GET",
+                  headers:{"X-NodeId":"redis1"},
+                  json:true
+              },function(error,response,body){
+                response.statusCode.should.not.equal(200)
+                done();
+               });
+             });
+          });
+        });
 
         it("should fail if fail writting to unexistent topic",function(done){
            request({

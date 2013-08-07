@@ -715,6 +715,22 @@ describe("Big Queue Cluster",function(){
                 })
            })
         })
+        it("should get node Id",function(done){
+            //because get message using round-robin
+            bqClient.postMessage("testTopic",{msg:"testMessage"},function(err,key){
+                bqClient.postMessage("testTopic",{msg:"testMessage"},function(err,key){
+                    bqClient.postMessage("testTopic",{msg:"testMessage"},function(err,key){
+                        bqClient.getMessage("testTopic","testGroup",undefined,function(err,data){
+                            should.not.exist(err)
+                            should.exist(data)
+                            data.should.have.property("nodeId")
+                            done()
+                        })
+                    })
+                })
+           })
+        })
+
         it("should balance the gets throw all nodes",function(done){
             bqClient.postMessage("testTopic",{msg:"testMessage"},function(err,data){
                 bqClient.postMessage("testTopic",{msg:"testMessage"},function(err,data){
@@ -722,11 +738,13 @@ describe("Big Queue Cluster",function(){
                             should.not.exist(err)
                             should.exist(data)
                             data.should.have.property("uid")
+                            data.should.have.property("nodeId")
                             data.should.have.property("recipientCallback")
                         bqClient.getMessage("testTopic","testGroup",undefined,function(err,data){
                             should.not.exist(err)
                             should.exist(data)
                             data.should.have.property("uid")
+                            data.should.have.property("nodeId")
                             data.should.have.property("recipientCallback")
                             bqClient.getMessage("testTopic","testGroup",undefined,function(err,data){
                                 should.not.exist(err)
@@ -738,6 +756,33 @@ describe("Big Queue Cluster",function(){
                 })
            })
 
+        })
+        it("should enable get message from specific nodes",function(done){
+            bqClient.postMessage("testTopic",{msg:"testMessage"},function(err,data){
+                bqClient.postMessage("testTopic",{msg:"testMessage"},function(err,data){
+                    bqClient.getMessageFromNode("redis1","testTopic","testGroup",undefined,function(err,data){
+                            should.not.exist(err)
+                            should.exist(data)
+                            data.should.have.property("uid")
+                            data.should.have.property("nodeId")
+                            data.nodeId.should.equal("redis1");
+                            data.should.have.property("recipientCallback")
+                        bqClient.getMessageFromNode("redis2","testTopic","testGroup",undefined,function(err,data){
+                            should.not.exist(err)
+                            should.exist(data)
+                            data.should.have.property("uid")
+                            data.should.have.property("nodeId")
+                            data.nodeId.should.equal("redis2");
+                            data.should.have.property("recipientCallback")
+                            bqClient.getMessage("testTopic","testGroup",undefined,function(err,data){
+                                should.not.exist(err)
+                                should.not.exist(data)
+                                done()
+                            })
+                        })
+                    })
+                })
+           })
         })
 
         it("should read messages from read_only nodes",function(done){

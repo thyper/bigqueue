@@ -38,6 +38,11 @@ local function addIdToMessage(msgId,message)
     table.insert(message,msgId)
 end
 
+local function addRemainingMessages(pointer,head,message)
+    table.insert(message,"remaining")
+    table.insert(message,head - pointer)
+end
+
 -- Main Code
 
 ---- Check for expired id's
@@ -61,9 +66,9 @@ if isEmpty(failed) then
     if not msgId then
         return {err="Last pointer for consumer ["..consumerGroup.."] of topic ["..topic.."] not found"}
     end
+    local topicHead = redis.call("get",topicKey..":head")
     message = getMessage(msgId)
     if isEmpty(message) then
-        local topicHead = redis.call("get",topicKey..":head")
         if not topicHead then
            return {}
         end
@@ -77,6 +82,7 @@ if isEmpty(failed) then
         addToProcessing(msgId)
         redis.call("incr",lastPointer)
         addIdToMessage(msgId,message)
+        addRemainingMessages(msgId,topicHead,message)
     end
 else
     -- if a failed message found

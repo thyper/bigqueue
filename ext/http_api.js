@@ -177,7 +177,7 @@ var loadApp = function(app){
                 }else{
                     if(data && data.id){
                         Object.keys(data).forEach(function(val){
-                            if(data[val].match(/\{.*\}/) || data[val].match(/\[.*\]/)){
+                            if(typeof(data[val])=== "string" && (data[val].match(/\{.*\}/) || data[val].match(/\[.*\]/))){
                                 var orig = data[val]
                                 try{
                                     data[val] = JSON.parse(data[val])

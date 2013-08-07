@@ -4,8 +4,9 @@ var express = require('express'),
     keystoneMiddlware = require("../../ext/openstack/keystone_middleware.js"),
     YAML = require('json2yaml');
 
-var loadApp = function(app){
 
+var loadApp = function(app){
+    var cache = app.settings.topicDataCache;
     var authorizeTenant = function(userData,tenantId){
         var authorized = false
         try{
@@ -32,6 +33,16 @@ var loadApp = function(app){
             })
         }
         return found
+    }
+
+    function initializeCache(topic) {
+      cache[topic] = {lastVisit: new Date().getTime()};
+    }
+
+    function updateVisited(topic) {
+      if(cache[topic] && cache[topic].lastVisit) {
+        cache[topic].lastVisit =  new Date().getTime();
+      }
     }
 
     app.get(app.settings.basePath+"/clusters",function(req,res){
@@ -229,23 +240,39 @@ var loadApp = function(app){
     })
     
     app.get(app.settings.basePath+"/topics/:topicId",function(req,res){
-        app.settings.bqAdm.getTopicData(req.params.topicId,function(err,data){
-            if(err){
-              var errMsg = err.msg || ""+err
-              return res.writePretty({"err":errMsg},err.code || 500)
-            }
-            return res.writePretty(data,200)
-        })
+        var topic = req.params.topicId; 
+        if(cache[topic] && cache[topic].data) {
+          updateVisited(topic);
+          res.setHeader("X-Cache-Time",cache[topic].lastRefresh)
+          return res.writePretty(cache[topic].data,200);
+        } else { 
+          app.settings.bqAdm.getTopicData(topic,function(err,data){
+              if(err){
+                var errMsg = err.msg || ""+err
+                return res.writePretty({"err":errMsg},err.code || 500)
+              }
+              initializeCache(topic);              
+              return res.writePretty(data,200)
+          })
+        }
     })
 
     app.get(app.settings.basePath+"/topics/:topicId/consumers",function(req,res){
-        app.settings.bqAdm.getTopicData(req.params.topicId,function(err,data){
-           if(err){
-              var errMsg = err.msg || ""+err
-              return res.writePretty({"err":errMsg},err.code || 500)
-            }
-            return res.writePretty(data.consumers,200)
-        })
+        var topic = req.params.topicId;  
+        if(cache[topic] && cache[topic].data) {
+          updateVisited(topic);
+          res.setHeader("X-Cache-Time",cache[topic].lastRefresh)
+          return res.writePretty(cache[topic].data.consumers,200);
+        } else { 
+          app.settings.bqAdm.getTopicData(topic,function(err,data){
+             if(err){
+                var errMsg = err.msg || ""+err
+                return res.writePretty({"err":errMsg},err.code || 500)
+              }
+              initializeCache(topic);              
+              return res.writePretty(data.consumers,200)
+          });
+        }
     })
     app.post(app.settings.basePath+"/topics/:topicId/consumers",function(req,res){
         if(!req.is("json")){    
@@ -331,16 +358,80 @@ var loadApp = function(app){
         })
     })
     app.get(app.settings.basePath+"/topics/:topicId/consumers/:consumerId",function(req,res){
-        app.settings.bqAdm.getConsumerData(req.params.topicId,req.params.consumerId,function(err,data){
-            if(err){
-              var errMsg = err.msg || ""+err
-              return res.writePretty({"err":errMsg},err.code || 500)
+        var topic = req.params.topicId;
+        var consumer = req.params.consumerId;
+        if(!req.headers["x-newest"] && cache[topic] && cache[topic].data) {
+          updateVisited(topic);
+          res.setHeader("X-Cache-Time",cache[topic].lastRefresh)
+          var consumerData;
+          var topicData = cache[topic].data;
+          for(var i in topicData.consumers) {
+            if(topicData.consumers[i].consumer_id == consumer) {
+              consumerData = topicData.consumers[i];
+              break;
             }
-            return res.writePretty(data,200)
-        })
+          }
+          if(!consumerData) {
+            res.writePretty({"err":"Consumer not found"},400);
+          } else {
+            res.writePretty(consumerData,200);
+          }
+        } else {
+          app.settings.bqAdm.getConsumerData(topic,consumer,function(err,data){
+              if(err){
+                var errMsg = err.msg || ""+err
+                return res.writePretty({"err":errMsg},err.code || 500)
+              }
+              initializeCache(topic);              
+              return res.writePretty(data,200)
+          })
+        }
     })
 
 }
+
+/**
+ * Cache it's a simple object indexed by topic id,
+ * for each id will be abailable
+ * - Data: the data from redis and zookeeper
+ * - lastRefresh: the time from the last refresh
+ * - lastVisit: the time form the last read
+ */
+var loadCacheRefresher = function(cache, app) {
+  var refreshInterval = app.settings.cacheRefreshInterval || 30000;
+  var cacheWhileVisitTime = app.settings.cacheWhileVisitTime || 300000;
+  function updateTopicCache(topic) {
+    app.settings.bqAdm.getTopicData(topic,function(err,data) {
+        if(err) {
+          //On error the cache item will be removed
+          delete cache[topic];
+        } else {
+          cache[topic].data = data;
+          cache[topic].lastRefresh = new Date().getTime();
+        }
+    });
+
+  }
+  function refreshCacheCron() {
+    log.inf("Refreshing topic cache");
+    var keys = Object.keys(cache);
+    for(var i in keys) {
+      var key = keys[i];
+      if(cache[key].lastVisit < (new Date().getTime() - cacheWhileVisitTime)) {
+        delete cache[key];
+      } else {
+        updateTopicCache(key);
+      }
+    }
+    if(app.running) {
+      setTimeout(refreshCacheCron, refreshInterval);
+    } else {
+      cache = {};
+    }
+  }
+
+  refreshCacheCron(); 
+} 
 
 var authFilter = function(config){
 
@@ -378,7 +469,8 @@ exports.startup = function(config){
         log.inf("Using express logger")
         app.use(express.logger(config.loggerConf));
     }
-
+    var topicDataCache = {};
+    
     app.use(writeFilter())
     app.enable("jsonp callback")
         
@@ -395,10 +487,15 @@ exports.startup = function(config){
     app.set("basePath",config.basePath || "")
     app.set("maxTtl",maxTtl)
     app.set("bqAdm",bqAdm.createClustersAdminClient(config.admConfig))
+    app.set("topicDataCache", topicDataCache);
+    app.set("cacheRefreshInterval", config.cacheRefreshInterval || 30000);
+    app.set("cacheWhileVisitTime", config.cacheWhileVisitTime || 300000);
 
     var groupEntity = config.groupEntity || "tenantId"
     app.set("groupEntity",groupEntity )
-    loadApp(app) 
+    loadApp(app)
+    app.running = true;
+    loadCacheRefresher(topicDataCache, app); 
     app.listen(config.port)
     this.app = app
     return this
@@ -408,4 +505,5 @@ exports.shutdown = function(){
     if(this.app.settings.bqAdm)
         this.app.settings.bqAdm.shutdown()
     this.app.close()
+    this.app.running = false;
 }

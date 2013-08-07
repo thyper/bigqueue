@@ -149,11 +149,26 @@ describe("Big Queue Client",function(){
         it("should get a message stored on redis",function(done){
             bqClient.getMessage("testTopic","testConsumer",undefined,function(err,data){
                 should.not.exist(err)
-                data.should.have.keys("msg","id","recipientCallback")
+                data.should.have.keys("msg","id","recipientCallback","remaining")
+                data.remaining.should.equal(0);
                 data.id.should.equal(""+generatedKey)
                 done()
             })    
-        })
+        });
+       it("Remaining should show amount of message remaining",function(done){
+          bqClient.postMessage("testTopic",{msg:"test"},function(err,key){
+            should.not.exist(err)
+            bqClient.getMessage("testTopic","testConsumer",undefined,function(err,data){
+              should.not.exist(err)
+              data.remaining.should.equal(1);
+              bqClient.getMessage("testTopic","testConsumer",undefined,function(err,data){
+                should.not.exist(err)
+                data.remaining.should.equal(0);
+                done()
+              }) 
+            }) 
+          })
+        });
         it("should override visibility window if one is set as param",function(done){
             var tmsExpired = Math.floor(new Date().getTime()/1000)+10
             bqClient.getMessage("testTopic","testConsumer",10,function(err,data){

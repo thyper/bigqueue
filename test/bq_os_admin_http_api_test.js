@@ -791,7 +791,142 @@ describe("openstack admin http api",function(){
             })
         })
     })
-
+    describe("Cache", function() {
+      var httpConfig = {
+        "admConfig":admConfig,
+        "port":8081,
+        "maxTtl":500,
+        "logLevel":"critical",
+        "cacheRefreshInterval":10,
+        "cacheWhileVisitTime":300 
+      }
+      beforeEach(function(){
+        api.shutdown();
+        api = httpApi.startup(httpConfig)
+      })
+      beforeEach(function(done){
+          request({
+              url:"http://127.0.0.1:8081/clusters",
+              method:"POST",
+              json:{"name":"test",
+                    "nodes":[{
+                      "name":"redis1", 
+                      "config":{
+                          "host":"127.0.0.1",
+                          "port":6379,
+                          "status":"UP",
+                          "journals":[]
+                       }
+                    }]}
+          },function(error,response,body){
+              response.statusCode.should.equal(201);
+              done();
+          });
+      });
+      it("Should cache consumer gets", function(done) {
+            request({
+                url:"http://127.0.0.1:8081/topics",
+                method:"POST",
+                json:{"tenantId":"1234","name":"test"}
+            },function(error,response,body){
+                response.statusCode.should.equal(201)
+                request({
+                    url:"http://127.0.0.1:8081/topics/1234-test/consumers",
+                    method:"POST",
+                    json:{"tenantId":"1234","name":"test"}
+                },function(error,response,body){
+                  request({
+                      url:"http://127.0.0.1:8081/topics/1234-test/consumers/1234-test",
+                      method:"GET",
+                      json:true
+                  },function(error,response,body){
+                    var noCached = body;
+                    response.statusCode.should.equal(200);
+                    should.not.exist(response.headers["x-cache-time"])
+                    setTimeout(function() {
+                      request({
+                          url:"http://127.0.0.1:8081/topics/1234-test/consumers/1234-test",
+                          method:"GET",
+                          json:true
+                      },function(error,response,body){
+                        response.statusCode.should.equal(200);
+                        should.exist(response.headers["x-cache-time"])
+                        done();
+                      });
+                    },200);    
+                  });
+                });
+            });
+      })
+      it("Should cache topics request", function(done) {
+          request({
+              url:"http://127.0.0.1:8081/topics",
+              method:"POST",
+              json:{"tenantId":"1234","name":"test"}
+          },function(error,response,body){
+            response.statusCode.should.equal(201);
+            request({
+                url:"http://127.0.0.1:8081/topics/1234-test",
+                method:"GET",
+                json:true
+            },function(error,response,body){
+              var noCached = body;
+              response.statusCode.should.equal(200);
+              should.not.exist(response.headers["x-cache-time"])
+              setTimeout(function() {
+                request({
+                    url:"http://127.0.0.1:8081/topics/1234-test",
+                    method:"GET",
+                    json:true
+                },function(error,response,body){
+                  response.statusCode.should.equal(200);
+                  should.exist(response.headers["x-cache-time"])
+                  done();
+                });
+              },200); 
+          });
+       });
+    });
+    it("Should cache only if it's visisted", function(done) {
+          request({
+              url:"http://127.0.0.1:8081/topics",
+              method:"POST",
+              json:{"tenantId":"1234","name":"test"}
+          },function(error,response,body){
+            response.statusCode.should.equal(201);
+            request({
+                url:"http://127.0.0.1:8081/topics/1234-test",
+                method:"GET",
+                json:true
+            },function(error,response,body){
+              var noCached = body;
+              response.statusCode.should.equal(200);
+              should.not.exist(response.headers["x-cache-time"])
+              setTimeout(function() {
+                request({
+                    url:"http://127.0.0.1:8081/topics/1234-test",
+                    method:"GET",
+                    json:true
+                },function(error,response,body){
+                  response.statusCode.should.equal(200);
+                  should.exist(response.headers["x-cache-time"])
+                   setTimeout(function() {
+                    request({
+                        url:"http://127.0.0.1:8081/topics/1234-test",
+                        method:"GET",
+                        json:true
+                    },function(error,response,body){
+                      response.statusCode.should.equal(200);
+                      should.not.exist(response.headers["x-cache-time"])
+                      done();
+                    });
+                  },400); 
+                });
+              },200); 
+          });
+       });
+    });
+  });
     describe("Keystone authorization", function(){
         var fakekeystone
         before(function(){
