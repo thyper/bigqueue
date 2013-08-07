@@ -263,6 +263,26 @@ describe("Big Queue Client",function(){
                 done()
             })
         })
+        it("should return remaining onfailed",function(done){
+          bqClient.postMessage("testTopic",{msg:"test"},function(err,key){
+              bqClient.getMessage("testTopic","testConsumer",undefined,function(err,msg){
+                  should.not.exist(err)
+                  should.exist(msg)
+                  var id2 = msg.id
+                  bqClient.failMessage("testTopic","testConsumer",id,function(err,data){
+                    bqClient.failMessage("testTopic","testConsumer",id2,function(err,data){
+                      bqClient.getMessage("testTopic","testConsumer",undefined,function(err,msg){
+                        msg.remaining.should.equal(1);
+                        bqClient.getMessage("testTopic","testConsumer",undefined,function(err,msg){
+                          msg.remaining.should.equal(0);
+                          done()
+                        });
+                      });
+                    })
+                 });
+              })
+          })
+       })
     })
 
     describe("#listTopics",function(){
