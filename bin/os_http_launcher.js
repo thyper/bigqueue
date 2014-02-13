@@ -49,7 +49,7 @@ if (cluster.isMaster) {
     cluster.fork();
   }
 
-  cluster.on('death', function(worker) {
+  cluster.on('exit', function(worker) {
     console.log('worker ' + worker.pid + ' died, process restarted');
     setTimeout(function(){
         console.log("restarting fork")

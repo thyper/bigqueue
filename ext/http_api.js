@@ -166,8 +166,10 @@ var loadApp = function(app){
             })
         }
     })
-
+    var counter = 0;
     app.get("/topics/:topic/consumers/:consumer/messages",function(req,res){
+      counter++
+      res.setHeader("X-NodeId",counter)
         var timer = log.startTimer()
         try{
             bqClient.getMessage(req.params.topic,req.params.consumer,req.query.visibilityWindow,function(err,data){
@@ -187,8 +189,11 @@ var loadApp = function(app){
                             }
                         })
                         timer("Getted message througt web-api")
+                    
+console.log("Data",res.headers,req.headers)
                         res.json(data,200)
                     }else{
+console.log("No.Data",res.headers,req.headers)
                         timer("Getted void message throught web-api")
                         res.json({},204)
                     }
