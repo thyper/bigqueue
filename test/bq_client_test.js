@@ -332,6 +332,58 @@ describe("Big Queue Client",function(){
         })
     })
 
+    describe("#getNodeStats",function() {
+      beforeEach(function(done){
+            bqClient.createTopic("testTopic",function(err){
+                bqClient.createConsumerGroup("testTopic","testConsumer",function(err){
+                    should.not.exist(err)
+                    done();
+                });
+            });
+        });
+        it("Should get empty data if no topics", function(done) {
+          redisClient.execute("FLUSHALL",function(data,err){
+            bqClient.getNodeStats(function(err, data) {
+              should.exist(data.sample_date);
+              should.exist(data.topic_stats);
+              Object.keys(data.topic_stats).length.should.equal(0);
+              done();
+            });  
+          });
+        });
+        it("Should get full data of node", function(done){
+            function prepareTest(callback) {
+              bqClient.createTopic("testTopic1",function(err){
+                bqClient.createConsumerGroup("testTopic","testConsumer2",function(err){
+                  bqClient.createConsumerGroup("testTopic1","testConsumer3",function(err){
+                    bqClient.postMessage("testTopic",{msg:"testMessage"},function(err,key){
+                      callback()
+                    });
+                  });
+                });
+              });
+            }
+            prepareTest(function() {
+              bqClient.getNodeStats(function(err, data) {
+                should.exist(data.sample_date);
+                should.exist(data.topic_stats);
+                Object.keys(data.topic_stats).length.should.equal(2);
+                data.topic_stats.testTopic.testConsumer.lag.should.equal(1);
+                data.topic_stats.testTopic.testConsumer.processing.should.equal(0);
+                data.topic_stats.testTopic.testConsumer.fails.should.equal(0);
+                data.topic_stats.testTopic.testConsumer2.lag.should.equal(1);
+                data.topic_stats.testTopic.testConsumer2.processing.should.equal(0);
+                data.topic_stats.testTopic.testConsumer2.fails.should.equal(0);
+                data.topic_stats.testTopic1.testConsumer3.lag.should.equal(0);
+                data.topic_stats.testTopic1.testConsumer3.processing.should.equal(0);
+                data.topic_stats.testTopic1.testConsumer3.fails.should.equal(0);
+
+                done();
+              }); 
+            });
+        });
+    });
+
     describe("#getConsumerGroupStats",function(){
          beforeEach(function(done){
             bqClient.createTopic("testTopic",function(err){
