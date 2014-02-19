@@ -8,7 +8,7 @@
         "bigqueue-http":"./bin/http_launcher.js",
         "bigqueue-orchestrator":"./bin/orchestrator_launcher.js",
         "os-http-admin-api":"./bin/os_http_admin_launcher.js",
-        "os-http-api":"./bin/os_http_launcher.js"
+        "os-http-api":"./bin/os_http_launcher.js",
         "node-stats":"./bin/node_stats.js"
     },
     "main":"lib/index.js",
@@ -24,7 +24,8 @@
         "zookeeper":"3.4.5-2",
         "hiredis":"0.1.16",
         "node-logging":"0.1.x",
-        "json2yaml":"1.0.x"
+        "json2yaml":"1.0.x",
+        "mysql":"2.0.1"
     },
     "devDependencies": {
         "mocha" : "1.8.x"

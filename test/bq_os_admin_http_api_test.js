@@ -8,11 +8,21 @@ var should = require('should'),
     log = require("node-logging"),
     utils = require('../lib/bq_client_utils.js'),
     bj = require('../lib/bq_journal_client_redis.js'),
-    express = require('express')
+    express = require('express'),
+    mysql = require('mysql');
 
 describe("openstack admin http api",function(){
    
     var bqPath = "/bq"
+ 
+     var mysqlConf = {
+        host     : 'localhost',
+        user     : 'root',
+        password : '',
+        database : 'bigqueue'
+    };
+   
+    var mysqlConn = mysql.createConnection(mysqlConf);
     
     var zkConfig = {
         connect: "localhost:2181",
@@ -28,7 +38,8 @@ describe("openstack admin http api",function(){
         "createJournalClientFunction":bj.createJournalClient,
         "logLevel":"error",
         "adminRoleId":3,
-        "defaultCluster":"test"
+        "defaultCluster":"test",
+        "mysqlConf":mysqlConf
     }
     
     var httpConfig = {
@@ -43,6 +54,12 @@ describe("openstack admin http api",function(){
         "adminToken":"admin",
         "foceAuth":false
     }
+
+    before(function(done) {
+      mysqlConn.connect(function(err) {
+        done(err);
+      });
+    });
 
     var zk = new ZK(zkConfig)
 
@@ -1361,4 +1378,44 @@ describe("openstack admin http api",function(){
 
         })
     })
+    describe("Node Stats", function(){
+      beforeEach(function(done) {
+        mysqlConn.query("TRUNCATE stats", function(err) {
+          mysqlConn.commit(done);
+        });
+      });     
+      it("Should receive node stats", function(done) {
+          var time = new Date();
+          request({
+            url:"http://127.0.0.1:8081/clusters/test/nodes/node1/stats",
+            method: "POST",
+            json: { 
+              sample_date: time.getTime(),
+              topic_stats: {
+                topic1: {
+                  consumer1: {
+                    lag:10,
+                    fails:2,
+                    processing:1
+                  }
+                }
+              }
+            }
+          }, function(error, response, body) { 
+            should.not.exist(error);
+            response.statusCode.should.equal(200);
+            mysqlConn.query("SELECT * FROM stats", function(err, data) {
+              console.log(data)
+              data[0].last_update.getTime().should.equal(Math.round(time.getTime()/1000)*1000);
+              data[0].cluster.should.equal("test");
+              data[0].topic.should.equal("topic1");
+              data[0].consumer.should.equal("consumer1");
+              data[0].lag.should.equal(10);
+              data[0].fails.should.equal(2);
+              data[0].processing.should.equal(1);
+              done();
+            });
+        });
+      });
+    });
 })

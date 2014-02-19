@@ -68,6 +68,18 @@ var loadApp = function(app){
         })
     })
 
+    app.post(app.settings.basePath+"/clusters/:cluster/nodes/:node/stats",function(req,res){
+        if(!req.is("json")){    
+            return res.writePretty({err:"Error parsing json"},400)
+        }
+        app.settings.bqAdm.updateNodeMetrics(req.params.cluster, req.params.node,req.body, function(err) {
+          if(err) {
+            return res.writePretty({node: req.params.node, cluster: req.params.node.cluster},500);
+          }
+          return res.writePretty({node: req.params.node, cluster: req.params.node.cluster},200);
+        });
+    });
+
     app.post(app.settings.basePath+"/clusters/:cluster/nodes",function(req,res){
         if(!req.is("json")){    
             return res.writePretty({err:"Error parsing json"},400)
