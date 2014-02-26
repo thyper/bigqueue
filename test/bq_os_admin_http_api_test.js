@@ -1405,7 +1405,6 @@ describe("openstack admin http api",function(){
             should.not.exist(error);
             response.statusCode.should.equal(200);
             mysqlConn.query("SELECT * FROM stats", function(err, data) {
-              console.log(data)
               data[0].last_update.getTime().should.equal(Math.round(time.getTime()/1000)*1000);
               data[0].cluster.should.equal("test");
               data[0].topic.should.equal("topic1");
@@ -1418,4 +1417,4 @@ describe("openstack admin http api",function(){
         });
       });
     });
-})
+});

@@ -622,7 +622,6 @@ describe("Orchestrator",function(){
             })
           })
           orch.on("error",function(err){
-            console.log(err)
             should.exist(err)
             process.nextTick(function(){
                 orch.running.should.not.ok
@@ -637,7 +636,6 @@ describe("Orchestrator",function(){
             })
           })
           orch.on("error",function(err){
-            console.log(err)
             should.exist(err)
             process.nextTick(function(){
                 orch.running.should.not.ok
@@ -652,7 +650,6 @@ describe("Orchestrator",function(){
             })
           })
           orch.on("error",function(err){
-            console.log(err)
             should.exist(err)
             process.nextTick(function(){
                 orch.running.should.not.ok
@@ -667,7 +664,6 @@ describe("Orchestrator",function(){
             })
           })
           orch.on("error",function(err){
-            console.log(err)
             should.exist(err)
             process.nextTick(function(){
                 orch.running.should.not.ok
@@ -682,7 +678,6 @@ describe("Orchestrator",function(){
             })
           })
           orch.on("error",function(err){
-            console.log(err)
             should.exist(err)
             process.nextTick(function(){
                 orch.running.should.not.ok
@@ -697,7 +692,6 @@ describe("Orchestrator",function(){
             })
           })
           orch.on("error",function(err){
-            console.log(err)
             should.exist(err)
             process.nextTick(function(){
                 orch.running.should.not.ok
@@ -714,7 +708,6 @@ describe("Orchestrator",function(){
             })
           })
           orch.on("error",function(err){
-            console.log(err)
             should.exist(err)
             process.nextTick(function(){
                 orch.running.should.not.ok
@@ -729,7 +722,6 @@ describe("Orchestrator",function(){
             })
           })
           orch.on("error",function(err){
-            console.log(err)
             should.exist(err)
             process.nextTick(function(){
                 orch.running.should.not.ok

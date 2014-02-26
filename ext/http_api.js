@@ -190,10 +190,8 @@ var loadApp = function(app){
                         })
                         timer("Getted message througt web-api")
                     
-console.log("Data",res.headers,req.headers)
                         res.json(data,200)
                     }else{
-console.log("No.Data",res.headers,req.headers)
                         timer("Getted void message throught web-api")
                         res.json({},204)
                     }
