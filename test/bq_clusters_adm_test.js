@@ -751,8 +751,6 @@ describe("Clusters administration for multicluster purposes",function(){
         }, function(err) {
           should.not.exist(err);
           mysqlConn.query("SELECT * FROM stats", function(err, data) {
-            data[0].last_update.getTime().should.equal(Math.round(time.getTime()/1000)*1000);
-            
             data[0].cluster.should.equal("test");
             data[0].node.should.equal("node1");
             data[1].cluster.should.equal("test");
