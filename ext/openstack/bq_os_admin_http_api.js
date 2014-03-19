@@ -399,7 +399,9 @@ var loadApp = function(app){
           })
         }
     })
-
+    app.get("/ping", function(req, res) {
+      res.send("pong",200);
+    });
 }
 
 /**
