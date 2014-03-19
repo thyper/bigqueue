@@ -6,8 +6,9 @@ var should = require('should'),
     request = require('request'),
     log = require("node-logging"),
     utils = require('../lib/bq_client_utils.js'),
-    bj = require('../lib/bq_journal_client_redis.js')
-    bqc = require('../lib/bq_cluster_client.js')
+    bj = require('../lib/bq_journal_client_redis.js'),
+    bqc = require('../lib/bq_cluster_client.js'),
+    mysql = require("mysql");
 
 describe("Clusters administration for multicluster purposes",function(){
     
@@ -21,13 +22,24 @@ describe("Clusters administration for multicluster purposes",function(){
         host_order_deterministic: false
     }   
 
+    var mysqlConf = {
+        host     : 'localhost',
+        user     : 'root',
+        password : '',
+        database : 'bigqueue'
+    };
+
+
+    var mysqlConn = mysql.createConnection(mysqlConf);
+
     var admConfig = {
         "zkConfig":zkConfig,
         "zkBqPath":bqPath,
         "createNodeClientFunction":bq.createClient,
         "createJournalClientFunction":bj.createJournalClient,
         "logLevel":"error",
-        "defaultCluster":"test1"
+        "defaultCluster":"test1",
+        "mysqlConf":mysqlConf
     }
    
     var cluster1Config = {
@@ -49,6 +61,11 @@ describe("Clusters administration for multicluster purposes",function(){
     var redisClient1 
     var redisClient2
 
+    before(function(done) {
+      mysqlConn.connect(function(err) {
+        done(err);
+      });
+    });
     before(function(done){
         redisClient1 = redis.createClient(6379,"127.0.0.1")
         redisClient1.on("ready",function(){
@@ -76,6 +93,11 @@ describe("Clusters administration for multicluster purposes",function(){
             })
         })
     })
+    beforeEach(function(done) {
+      mysqlConn.query("TRUNCATE stats", function(err) {
+        mysqlConn.commit(done);
+      });
+    });     
 
     beforeEach(function(done){
         zk.a_create("/bq","",0,function(rc,error,path){
@@ -530,7 +552,6 @@ describe("Clusters administration for multicluster purposes",function(){
         it("should delete consumer from specific cluster",function(done){
             admClient.getTopicData("test",function(err,data){
                 should.not.exist(err)
-                data.consumers.should.have.length(1)
                 admClient.deleteConsumerGroup("test","testConsumer",function(err){
                     should.not.exist(err)
                     admClient.getTopicData("test",function(err,data){
@@ -643,15 +664,12 @@ describe("Clusters administration for multicluster purposes",function(){
                         should.not.exist(err)
                         should.exist(data)
                         data.topic_id.should.equal("test-c2")
+                        data.consumers.should.have.length(1)
                         data.endpoints.should.have.length(2)
                         data.endpoints[0].host.should.equal("127.0.0.1")
                         data.endpoints[0].port.should.equal(8080)
                         data.endpoints[1].host.should.equal("127.0.0.1")
                         data.endpoints[1].port.should.equal(8081)
-                        data.consumers.should.have.length(1)
-                        data.consumers[0].should.have.keys("consumer_id","stats")
-                        data.consumers[0].stats.should.have.keys("lag","processing","fails")
-                        data.consumers[0].consumer_id.should.equal("test")
                         done()
                     })
                 })
@@ -672,6 +690,236 @@ describe("Clusters administration for multicluster purposes",function(){
             })
         })
     })
+ 
+    describe("Node Stats", function() {
+     beforeEach(function(done){
+        admClient.createBigQueueCluster({
+            name:"test1",
+            nodes:[
+                {name:"node1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP","journals":[]}},
+                {name:"node2",config:{"host":"127.0.0.1","port":6380,"errors":0,"status":"UP","journals":[]}}
+            ],
+            journals:[
+                {name:"j1",config:{"host":"127.0.0.1","port":6379,"errors":0,"status":"UP"}},
+            ],
+            endpoints:[
+                {name:"e1",config:{"host":"127.0.0.1","port":8080}},
+                {name:"e2",config:{"host":"127.0.0.1","port":8081}}
+            ]
+       },function(err){
+        admClient.createTopic({"name":"test-c1","group":"test"},"test1",function(err){
+          should.not.exist(err)
+          admClient.createConsumerGroup("test-c1","test",function(err,data){
+           should.not.exist(err);
+           done();
+          });
+        });
+       });
+     });
 
-})
+
+      beforeEach(function(done) {
+        mysqlConn.query("TRUNCATE stats", function(err) {
+          mysqlConn.commit(done);
+        });
+      });     
+      it("Should receive node stats", function(done) {
+        var time = new Date();
+        admClient.updateNodeMetrics("test","node1",{
+          sample_date: time,
+          topic_stats: {
+            topic1: {
+              consumer1: {
+                lag:10,
+                fails:2,
+                processing:1
+              }, 
+              consumer2: {
+                lag: 1,
+                fails: 0,
+                processing: 0
+              }
+            },
+            topic2: {
+              consumer3: {
+                lag:4,
+                fails:3,
+                processing:1
+              }
+            }
+          }
+        }, function(err) {
+          should.not.exist(err);
+          mysqlConn.query("SELECT * FROM stats", function(err, data) {
+            data[0].cluster.should.equal("test");
+            data[0].node.should.equal("node1");
+            data[1].cluster.should.equal("test");
+            data[1].cluster.should.equal("test");
+            data[2].node.should.equal("node1");
+            data[2].node.should.equal("node1");
+
+            data[0].topic.should.equal("topic1");
+            data[0].consumer.should.equal("consumer1");
+            data[0].lag.should.equal(10);
+            data[0].fails.should.equal(2);
+            data[0].processing.should.equal(1);
+            
+            data[1].topic.should.equal("topic1");
+            data[1].consumer.should.equal("consumer2");
+            data[1].lag.should.equal(1);
+            data[1].fails.should.equal(0);
+            data[1].processing.should.equal(0);
+
+            data[2].topic.should.equal("topic2");
+            data[2].consumer.should.equal("consumer3");
+            data[2].lag.should.equal(4);
+            data[2].fails.should.equal(3);
+            data[2].processing.should.equal(1);
+            
+            done();
+          });
+        });
+      });
+      it("Should update value", function(done) {
+        var time = new Date(); 
+        admClient.updateNodeMetrics("test","node1",{
+            sample_date: time,
+            topic_stats: {
+              topic1: {
+                consumer1: {
+                  lag:10,
+                  fails:2,
+                  processing:1
+                }, 
+              }
+            }
+          }, function(err) {
+          admClient.updateNodeMetrics("test","node1",{
+              sample_date: time,
+              topic_stats: {
+                topic1: {
+                  consumer1: {
+                    lag:1,
+                    fails:9,
+                    processing:3
+                  }, 
+                }
+              }
+            }, function(err) {
+              should.not.exist(err);
+              mysqlConn.query("SELECT * FROM stats", function(err, data) {
+
+                data[0].cluster.should.equal("test");
+                data[0].node.should.equal("node1");
+                data[0].topic.should.equal("topic1");
+                data[0].consumer.should.equal("consumer1");
+                data[0].lag.should.equal(1);
+                data[0].fails.should.equal(9);
+                data[0].processing.should.equal(3);
+                done();
+              });
+            });
+          });
+      });
+      it("Should fails if some data is missing", function(done) {
+        admClient.updateNodeMetrics("test","node1",{
+          sample_date: new Date().getTime(),
+          topic_stats: {
+            topic1: {
+              consumer1: {
+                lag:10,
+                fails:2,
+                processing:1
+              }, 
+              consumer2: {
+                lag: 1,
+                processing: 0
+              }
+            }
+          }
+        }, function(err) {
+          should.exist(err); 
+          done()
+      });
+    });
+    it("Should get consolidate data for topic", function(done) {
+      admClient.updateNodeMetrics("test1","node1",{
+          sample_date: new Date().getTime(),
+          topic_stats: {
+            "test-c1": {
+              test: {
+                lag:10,
+                fails:2,
+                processing:1
+              }, 
+            }
+          }
+        }, function(err) {
+          admClient.updateNodeMetrics("test1","node2",{
+            sample_date: new Date().getTime(),
+            topic_stats: {
+              "test-c1": {
+                test: {
+                  lag:2,
+                  fails:3,
+                  processing:4
+                }, 
+              }
+            }
+          }, function(err) {
+            should.not.exist(err);
+            admClient.getTopicData("test-c1", function(err, data) {
+              should.not.exist(err);
+              should.exist(data);
+              data.consumers.length.should.equal(1);
+              data.consumers[0].consumer_id.should.equal("test");
+              data.consumers[0].stats.lag.should.equal(12);
+              data.consumers[0].stats.fails.should.equal(5);
+              data.consumers[0].stats.processing.should.equal(5);
+              done();
+            }); 
+          });
+       });
+    });
+    it("Should get consolidate date for consummer", function(done) {
+      admClient.updateNodeMetrics("test1","node1",{
+          sample_date: new Date().getTime(),
+          topic_stats: {
+            "test-c1": {
+              test: {
+                lag:10,
+                fails:2,
+                processing:1
+              }, 
+            }
+          }
+        }, function(err) {
+          admClient.updateNodeMetrics("test1","node2",{
+            sample_date: new Date().getTime(),
+            topic_stats: {
+              "test-c1": {
+                test: {
+                  lag:2,
+                  fails:3,
+                  processing:4
+                }, 
+              }
+            }
+          }, function(err) {
+            should.not.exist(err);
+            admClient.getConsumerData("test-c1", "test", function(err, data) {
+              should.not.exist(err);
+              should.exist(data);
+              data.consumer_stats.lag.should.equal(12);
+              data.consumer_stats.fails.should.equal(5);
+              data.consumer_stats.processing.should.equal(5);
+              done();
+            }); 
+          });
+       });
+
+    });
+  });
+
+});
 

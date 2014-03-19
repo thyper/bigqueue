@@ -8,7 +8,7 @@ var express = require('express'),
 var loadApp = function(app){
     var cache = app.settings.topicDataCache;
     var authorizeTenant = function(userData,tenantId){
-        var authorized = false
+    var authorized = false
         try{
             var tenant = userData.access.token.tenant
             if(tenant && tenant.id == tenantId){
@@ -67,6 +67,18 @@ var loadApp = function(app){
             return res.writePretty({"cluster":req.body.name},201)
         })
     })
+
+    app.post(app.settings.basePath+"/clusters/:cluster/nodes/:node/stats",function(req,res){
+        if(!req.is("json")){    
+            return res.writePretty({err:"Error parsing json"},400)
+        }
+        app.settings.bqAdm.updateNodeMetrics(req.params.cluster, req.params.node,req.body, function(err) {
+          if(err) {
+            return res.writePretty({node: req.params.node, cluster: req.params.node.cluster},500);
+          }
+          return res.writePretty({node: req.params.node, cluster: req.params.node.cluster},200);
+        });
+    });
 
     app.post(app.settings.basePath+"/clusters/:cluster/nodes",function(req,res){
         if(!req.is("json")){    
@@ -436,9 +448,21 @@ var loadCacheRefresher = function(cache, app) {
 var authFilter = function(config){
 
     return function(req,res,next){
-        //All post should be authenticated
+      //All post should be authenticated
         if((req.method.toUpperCase() === "POST" || req.method.toUpperCase() === "DELETE") && !req.keystone.authorized){
-            res.writePretty({"err":"All post to admin api should be authenticated using a valid X-Auth-Token header"},401)
+            var excluded = false;
+            if(config.authExclusions) {
+              config.authExclusions.forEach(function(e) {
+                if(req.url.match(e)) {
+                  excluded = true;
+                }
+              });
+            }
+            if(excluded) {
+              next();
+            } else {
+              res.writePretty({"err":"All post to admin api should be authenticated using a valid X-Auth-Token header"},401)
+            }
         }else{
             next()
         }
@@ -463,6 +487,7 @@ var writeFilter = function(){
 exports.startup = function(config){
     log.setLevel(config.logLevel || "info")
     //Default 5 days
+    var authFilterConfig = {authExclusions : [/.*\/clusters\/\w+\/nodes\/(\w|\.|-|_)+\/stats$/]}
     var maxTtl = config.maxTtl || 5*24*60*60 
     var app = express.createServer()
         if(config.loggerConf){
@@ -478,7 +503,7 @@ exports.startup = function(config){
 
     if(config.keystoneConfig){
         app.use(keystoneMiddlware.auth(config.keystoneConfig))
-        app.use(authFilter())
+        app.use(authFilter(authFilterConfig))
         app.set("adminRoleId",config.admConfig.adminRoleId || -1)
     }
 
@@ -490,8 +515,7 @@ exports.startup = function(config){
     app.set("topicDataCache", topicDataCache);
     app.set("cacheRefreshInterval", config.cacheRefreshInterval || 30000);
     app.set("cacheWhileVisitTime", config.cacheWhileVisitTime || 300000);
-
-    var groupEntity = config.groupEntity || "tenantId"
+       var groupEntity = config.groupEntity || "tenantId"
     app.set("groupEntity",groupEntity )
     loadApp(app)
     app.running = true;
