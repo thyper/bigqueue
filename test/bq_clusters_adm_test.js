@@ -873,9 +873,9 @@ describe("Clusters administration for multicluster purposes",function(){
               should.exist(data);
               data.consumers.length.should.equal(1);
               data.consumers[0].consumer_id.should.equal("test");
-              data.consumers[0].stats.lag.should.equal(12);
-              data.consumers[0].stats.fails.should.equal(5);
-              data.consumers[0].stats.processing.should.equal(5);
+              data.consumers[0].consumer_stats.lag.should.equal(12);
+              data.consumers[0].consumer_stats.fails.should.equal(5);
+              data.consumers[0].consumer_stats.processing.should.equal(5);
               done();
             }); 
           });
