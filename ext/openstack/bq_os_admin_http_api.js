@@ -1,4 +1,4 @@
-var express = require('express'),
+/ar express = require('express'),
     log = require('node-logging'),
     bqAdm = require('../../lib/bq_clusters_adm.js'),
     keystoneMiddlware = require("../../ext/openstack/keystone_middleware.js"),
@@ -317,7 +317,7 @@ var loadApp = function(app){
               var errMsg = err.msg || ""+err
               return res.writePretty({"err":errMsg},err.code || 500)
             }
-            app.settings.bqAdm.getConsumerData(topic,consumer,function(err,data){
+            app.settings.bqAdm.umetConsumerData(topic,consumer,function(err,data){
                 if(err){
                   var errMsg = err.msg || ""+err
                   return res.writePretty({"err":errMsg},err.code || 500)
@@ -372,32 +372,13 @@ var loadApp = function(app){
     app.get(app.settings.basePath+"/topics/:topicId/consumers/:consumerId",function(req,res){
         var topic = req.params.topicId;
         var consumer = req.params.consumerId;
-        if(!req.headers["x-newest"] && cache[topic] && cache[topic].data) {
-          updateVisited(topic);
-          res.setHeader("X-Cache-Time",cache[topic].lastRefresh)
-          var consumerData;
-          var topicData = cache[topic].data;
-          for(var i in topicData.consumers) {
-            if(topicData.consumers[i].consumer_id == consumer) {
-              consumerData = topicData.consumers[i];
-              break;
+        app.settings.bqAdm.getConsumerData(topic,consumer,function(err,data){
+            if(err){
+              var errMsg = err.msg || ""+err
+              return res.writePretty({"err":errMsg},err.code || 500)
             }
-          }
-          if(!consumerData) {
-            res.writePretty({"err":"Consumer not found"},400);
-          } else {
-            res.writePretty(consumerData,200);
-          }
-        } else {
-          app.settings.bqAdm.getConsumerData(topic,consumer,function(err,data){
-              if(err){
-                var errMsg = err.msg || ""+err
-                return res.writePretty({"err":errMsg},err.code || 500)
-              }
-              initializeCache(topic);              
-              return res.writePretty(data,200)
-          })
-        }
+            return res.writePretty(data,200)
+        })
     })
     app.get("/ping", function(req, res) {
       res.send("pong",200);
