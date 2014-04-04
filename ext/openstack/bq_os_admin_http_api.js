@@ -317,7 +317,7 @@ var loadApp = function(app){
               var errMsg = err.msg || ""+err
               return res.writePretty({"err":errMsg},err.code || 500)
             }
-            app.settings.bqAdm.umetConsumerData(topic,consumer,function(err,data){
+            app.settings.bqAdm.getConsumerData(topic,consumer,function(err,data){
                 if(err){
                   var errMsg = err.msg || ""+err
                   return res.writePretty({"err":errMsg},err.code || 500)
