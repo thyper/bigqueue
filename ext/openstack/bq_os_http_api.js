@@ -15,7 +15,7 @@ var loadApp = function(app){
             return res.json({err:"Message should be json"},400)
         }
         var topics = req.body.topics
-        if(!topics){
+        if(!(topics instanceof Array)){
             return res.json({err:"should be declared the 'topics' property"},400)
         }
         delete req.body["topics"]
@@ -30,7 +30,7 @@ var loadApp = function(app){
         }catch(e){
             return res.json({err:"Error parsing json ["+e+"]"},400)
         }
- 
+
         var errors = []
         var datas = []
         var executed = 0
@@ -60,13 +60,13 @@ var loadApp = function(app){
         var nodeId = req.headers["x-nodeid"]
         var nodeCallCount = 0;
         if(nodeId) {
-          var splitedNode = nodeId.split("@");     
+          var splitedNode = nodeId.split("@");
           if(splitedNode.length != 2) {
             return res.json({"err": "Invalid X-NodeId header"},400);
-          }    
+          }
           nodeId = splitedNode[0];
           try {
-            nodeCallCount = parseInt(splitedNode[1]); 
+            nodeCallCount = parseInt(splitedNode[1]);
           }catch(e) {
             return res.json({"err": "Invalid X-NodeId header"},400);
           }
@@ -83,7 +83,7 @@ var loadApp = function(app){
             }else{
                 if(data && data.id){
                     Object.keys(data).forEach(function(val){
-                        if(typeof(data[val]) === "string" 
+                        if(typeof(data[val]) === "string"
                            && (data[val].match(/\{.*\}/) || data[val].match(/\[.*\]/))){
                             var orig = data[val]
                             try{
@@ -145,7 +145,7 @@ var loadApp = function(app){
 
 exports.startup = function(config){
     log.setLevel(config.logLevel || "info")
-     
+
     var app = express.createServer()
         if(config.loggerConf){
         log.inf("Using express logger")
@@ -159,9 +159,9 @@ exports.startup = function(config){
     app.use(express.bodyParser());
     app.use(express.methodOverride());
 
-    app.use(app.router); 
+    app.use(app.router);
 
-    loadApp(app) 
+    loadApp(app)
 
     app.listen(config.port)
     console.log("http api running on ["+config.port+"]")
