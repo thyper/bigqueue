@@ -23,7 +23,7 @@ var loadApp = function(app){
     })
 
     app.post("/topics",function(req,res){
-        if(!req.is("json")){    
+        if(!req.is("json")){
             return res.json({err:"Error parsing json"},400)
         }
         var topic = req.body
@@ -128,8 +128,8 @@ var loadApp = function(app){
             return res.json({err:"Message should be json"},400)
         }
         var topics = req.body.topics
-        if(!topics){
-            return res.json({err:"should be declared the 'topics' property"},400)
+        if(!(topics instanceof Array)){
+            return res.json({err:"should be declared the array 'topics' property"},400)
         }
         delete req.body["topics"]
         var message
@@ -143,7 +143,7 @@ var loadApp = function(app){
         }catch(e){
             return res.json({err:"Error parsing json ["+e+"]"},400)
         }
- 
+
         var errors = []
         var datas = []
         var executed = 0
@@ -189,7 +189,7 @@ var loadApp = function(app){
                             }
                         })
                         timer("Getted message througt web-api")
-                    
+
                         res.json(data,200)
                     }else{
                         timer("Getted void message throught web-api")
@@ -281,7 +281,7 @@ var loadApp = function(app){
 
 exports.startup = function(config){
     log.setLevel(config.logLevel || "info")
-     
+
     var app = express.createServer()
         if(config.loggerConf){
         log.inf("Using express logger")
@@ -291,9 +291,9 @@ exports.startup = function(config){
     app.use(express.bodyParser());
     app.use(express.methodOverride());
 
-    app.use(app.router); 
+    app.use(app.router);
 
-    loadApp(app) 
+    loadApp(app)
 
     app.listen(config.port)
     bqClient = config.bqClientCreateFunction(config.bqConfig)

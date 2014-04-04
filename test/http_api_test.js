@@ -12,7 +12,7 @@ describe("http api",function(){
 
     var httpApiConf = {
         "port": 8080,
-        "bqConfig": redisConf, 
+        "bqConfig": redisConf,
         "bqClientCreateFunction": bq.createClient,
         "logLevel":"critical"
     }
@@ -79,14 +79,14 @@ describe("http api",function(){
             request({
                 url:"http://127.0.0.1:8080/topics",
                 method:"POST",
-                body:"foo" 
+                body:"foo"
             },function(error,response,body){
                 response.statusCode.should.equal(400)
                 done()
             })
         })
     })
-    
+
     describe("Create Consumer Groups",function(){
         beforeEach(function(done){
             request({
@@ -95,7 +95,7 @@ describe("http api",function(){
                 json:{name:"testTopic"}
             },function(error,response,body){
                 done()
-            }) 
+            })
         })
         it("should enable to create consumer groups and return the create group",function(done){
             request({
@@ -137,7 +137,7 @@ describe("http api",function(){
             request({
                 url:"http://127.0.0.1:8080/topics/testTopic/consumers",
                 method:"POST",
-                body:"foo" 
+                body:"foo"
             },function(error,response,body){
                 response.statusCode.should.equal(400)
                 done()
@@ -191,22 +191,35 @@ describe("http api",function(){
                                 response.statusCode.should.equal(201)
                                 done()
                             })
-                        }) 
+                        })
                     })
                 })
-            }) 
+            })
 
         })
         it("should get an error if a post message receive an invalid json",function(done){
             request({
                 url:"http://127.0.0.1:8080/topics/testTopic/messages",
                 method:"POST",
-                body:"foo" 
+                body:"foo"
             },function(error,response,body){
                 response.statusCode.should.equal(400)
                 done()
             })
         })
+
+
+        it("should fail to post message if topics is not an array",function(done){
+            request({
+                uri:"http://127.0.0.1:8080/messages",
+                method:"POST",
+                json:{msg:"testMessage",topics:"testTopic"}
+            },function(error,response,body){
+                response.statusCode.should.equal(400)
+                done();
+          })
+        })
+
 
         it("should receive posted messages on multi-topic post",function(done){
             request({
@@ -248,7 +261,7 @@ describe("http api",function(){
                         body.should.have.property("msg")
                         body.id.should.equal(""+postId2)
                         body.msg.should.equal("testMessage")
-                        done() 
+                        done()
                     })
                 })
             })
@@ -312,7 +325,7 @@ describe("http api",function(){
                     body.should.have.property("id")
                     body.should.have.property("msg")
                     body.id.should.equal(""+postId)
-                    body.msg.should.have.property("test") 
+                    body.msg.should.have.property("test")
                     body.msg.test.should.equal("message")
                     done()
                 })
@@ -396,7 +409,7 @@ describe("http api",function(){
                         body.should.have.property("msg")
                         body.id.should.equal(""+postId)
                         body.msg.should.equal("testMessage")
-                        done() 
+                        done()
                     })
                 })
             })
@@ -540,7 +553,7 @@ describe("http api",function(){
             },function(err,response,body){
                 response.statusCode.should.equal(200)
                 done()
-            }) 
+            })
         })
     })
 
@@ -601,8 +614,8 @@ describe("http api",function(){
                             done()
                         })
                     })
-                }) 
-            })  
+                })
+            })
         })
     })
 
@@ -630,7 +643,7 @@ describe("http api",function(){
                         done()
                     })
                 })
-            }) 
+            })
 
         })
 
@@ -652,7 +665,7 @@ describe("http api",function(){
                     body.fails.should.equal(0)
                     body.processing.should.equal(0)
                     done()
-                }) 
+                })
             })
         })
         it("should response the topic stats at /topics/topic/consumers/consumer/stats",function(done){
@@ -678,7 +691,7 @@ describe("http api",function(){
                         body[i].stats.processing.should.equal(0)
                     }
                     done()
-                }) 
+                })
             })
         })
 
