@@ -444,6 +444,24 @@ describe("openstack admin http api",function(){
                 })
             })
         })
+        it("should get an error if the topic contains ':'", function(done) {
+           request({
+                  url:"http://127.0.0.1:8081/clusters/test",
+                method:"GET",
+                json:true
+            },function(error,response,body){
+                response.statusCode.should.equal(200)
+                body.topics.should.have.length(0)
+                request({
+                    url:"http://127.0.0.1:8081/topics",
+                    method:"POST",
+                    json:{"tenantId":"1234","name":"test:la"}
+                },function(error,response,body){
+                    response.statusCode.should.equal(400);
+                    done()
+                })
+            })
+        });
         it("should support create topics into any cluster using your tenant id",function(done){
              request({
                 url:"http://127.0.0.1:8081/clusters/test2",
@@ -541,7 +559,6 @@ describe("openstack admin http api",function(){
             })
 
         })
-
         it("should get all topic data on create",function(done){
             request({
                 url:"http://127.0.0.1:8081/topics",
@@ -669,6 +686,31 @@ describe("openstack admin http api",function(){
             })
 
         })
+        it("should get an error if the consumer contains a ':'", function(done) {
+            request({
+                url:"http://127.0.0.1:8081/topics",
+                method:"POST",
+                json:{"tenantId":"1234","name":"test"}
+            },function(error,response,body){
+                response.statusCode.should.equal(201)
+                request({
+                    url:"http://127.0.0.1:8081/topics/1234-test/consumers",
+                    method:"GET",
+                    json:true
+                },function(error,response,body){
+                    response.statusCode.should.equal(200)
+                    body.should.have.length(0)
+                    request({
+                        url:"http://127.0.0.1:8081/topics/1234-test/consumers",
+                        method:"POST",
+                        json:{"tenantId":"456","name":"test:withSemiColon"}
+                    },function(error,response,body){
+                        response.statusCode.should.equal(400);
+                        done();
+                    });
+                });
+            });
+        });
 
         it("should support topic deletes",function(done){
             request({

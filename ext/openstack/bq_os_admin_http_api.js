@@ -197,8 +197,8 @@ var loadApp = function(app){
         if(!group){
             return res.writePretty({"err":"The property ["+app.settings.groupEntity+"] must be set"},400)
         }
-        if(!req.body.name){
-            return res.writePretty({"err":"The property [name] must be set"},400)
+        if(!req.body.name || req.body.name.indexOf(":") != -1){
+            return res.writePretty({"err":"The property [name] must be set and can not contains ':'"},400)
         }
 
         if(req.keystone && req.keystone.authorized && !authorizeTenant(req.keystone.userData, group) && !isAdmin(req.keystone.userData)){
@@ -309,8 +309,8 @@ var loadApp = function(app){
                 return res.writePretty({"err":"Tenant ["+group+"] can't create consumers on ["+topic+"]]"},401)
         }
 
-        if(!req.body.name){
-            return res.writePretty({err:"Consumer should contains a name"},400)
+        if(!req.body.name || req.body.name.indexOf(":") != -1){
+            return res.writePretty({err:"Consumer should contains a name and can not contains ':'"},400)
         }
         app.settings.bqAdm.createConsumerGroup(topic,consumer,function(err){
             if(err){
