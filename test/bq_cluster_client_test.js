@@ -137,17 +137,70 @@ describe("Big Queue Cluster",function(){
     describe("#internals",function(){
         it("should register router on startup")
         it("should get host and port from id if isn't present on json data",function(done){
-            zk.a_create("/bq/clusters/test/nodes/redis2-2020",JSON.stringify({"errors":0,"status":"DOWN"}),0,function(rc, err,stat){
+            zk.a_create("/bq/clusters/test/nodes/redis2-2020",JSON.stringify({"errors":0,"status":"UP"}),0,function(rc, err,stat){
                 rc.should.equal(0)
                 setTimeout(function(){
                     var node = bqClient.getClientById(bqClient.nodes,"redis2-2020")
                     node.host.should.equal("redis2")
                     node.port.should.equal("2020")
                     done()
-                },200)
-            })
-
+                },200);
+            });
         })
+        it("Should not create client if node is down", function(done) {
+           zk.a_create("/bq/clusters/test/nodes/redis2-2020",JSON.stringify({"errors":0,"status":"DOWN"}),0,function(rc, err,stat){
+                rc.should.equal(0)
+                setTimeout(function(){
+                    var node = bqClient.getClientById(bqClient.nodes,"redis2-2020")
+                    should.not.exist(node);
+                    zk.a_set("/bq/clusters/test/nodes/redis2-2020",JSON.stringify({"errors":0,"status":"UP"}),0,function(rc, err,stat){
+                      setTimeout(function() {
+                        var node = bqClient.getClientById(bqClient.nodes,"redis2-2020");
+                        should.exist(node);
+                        done();
+                      },200);
+                    });
+                },200)
+            });
+        });
+        it("Should remove client if it's set to down", function(done) {
+          zk.a_create("/bq/clusters/test/nodes/redis2-2020",JSON.stringify({"errors":0,"status":"UP"}),0,function(rc, err,stat){
+                rc.should.equal(0)
+                setTimeout(function(){
+                    var node = bqClient.getClientById(bqClient.nodes,"redis2-2020")
+                    should.exist(node);
+                    zk.a_set("/bq/clusters/test/nodes/redis2-2020",JSON.stringify({"errors":0,"status":"DOWN"}),0,function(rc, err,stat){
+                      setTimeout(function() {
+                        var node = bqClient.getClientById(bqClient.nodes,"redis2-2020");
+                        should.not.exist(node);
+                        done();
+                      },200);
+                    });
+                },200);
+            });
+        });
+        it("Should re-add node if flap down and up", function(done) {
+          zk.a_create("/bq/clusters/test/nodes/redis2-2020",JSON.stringify({"errors":0,"status":"UP"}),0,function(rc, err,stat){
+                rc.should.equal(0)
+                setTimeout(function(){
+                    var node = bqClient.getClientById(bqClient.nodes,"redis2-2020")
+                    should.exist(node);
+                    zk.a_set("/bq/clusters/test/nodes/redis2-2020",JSON.stringify({"errors":0,"status":"DOWN"}),0,function(rc, err,stat){
+                      setTimeout(function() {
+                        var node = bqClient.getClientById(bqClient.nodes,"redis2-2020");
+                        should.not.exist(node);
+                        zk.a_set("/bq/clusters/test/nodes/redis2-2020",JSON.stringify({"errors":0,"status":"UP"}),-1,function(rc, err,stat){
+                          setTimeout(function() {
+                           var node = bqClient.getClientById(bqClient.nodes,"redis2-2020");
+                           should.exist(node);
+                           done();
+                         }, 200);
+                        });
+                      }, 200);
+                    });
+                }, 200);
+            });
+        });
     })
 
     describe("#createTopic",function(){
@@ -193,7 +246,7 @@ describe("Big Queue Cluster",function(){
             })
         })
         it("should fail if there are any redis with problems",function(done){
-            zk.a_set("/bq/clusters/test/nodes/redis2",JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"DOWN"}),-1,function(rc, err,stat){
+            zk.a_set("/bq/clusters/test/nodes/redis2",JSON.stringify({"host":"127.0.0.1","port":6390,"errors":0,"status":"UP"}),-1,function(rc, err,stat){
                 rc.should.equal(0)
                 var client = bqc.createClusterClient(bqClientConfig)
                 client.once("ready",function(){
@@ -289,7 +342,7 @@ describe("Big Queue Cluster",function(){
             })
         })
         it("should fail if there are any redis with problems",function(done){
-             zk.a_set("/bq/clusters/test/nodes/redis2",JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"DOWN"}),-1,function(rc, err,stat){
+             zk.a_set("/bq/clusters/test/nodes/redis2",JSON.stringify({"host":"127.0.0.1","port":6390,"errors":0,"status":"UP"}),-1,function(rc, err,stat){
                 rc.should.equal(0)
                 var client = bqc.createClusterClient(bqClientConfig)
                 client.once("ready",function(){
@@ -339,7 +392,7 @@ describe("Big Queue Cluster",function(){
             })
         })
         it("should fail if some registered server isn't up",function(done){
-            zk.a_set("/bq/clusters/test/nodes/redis2",JSON.stringify({"host":"127.0.0.1","port":6380,"errors":0,"status":"DOWN"}),-1,function(rc, err,stat){
+            zk.a_set("/bq/clusters/test/nodes/redis2",JSON.stringify({"host":"127.0.0.1","port":6390,"errors":0,"status":"UP"}),-1,function(rc, err,stat){
                 rc.should.equal(0)
                 var client = bqc.createClusterClient(bqClientConfig)
                 client.once("ready",function(){
