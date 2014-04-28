@@ -1,11 +1,9 @@
-#!/usr/local/bin/node 
-
 var bq = require("../lib/bq_client.js"),
     bqj = require("../lib/bq_journal_client_redis.js"),
     sync = require("../lib/bq_sync.js"),
     log = require("node-logging");
 
-var config 
+var config
 if(process.argv.length != 2){
     config = require(process.argv[2]).syncConfig
 }else{
@@ -13,16 +11,12 @@ if(process.argv.length != 2){
   process.exit(1);
 }
 
-
-
-config["createClientFunction"] = bq.createClient;
-config["createJournalFunction"] = bqj.createJournalFunction;
-
 var syncProcess;
+var syncObj = new sync(config);
 if(process.argv[3] == "full") {
-  syncProcess =  new sync(config).fullSync;
+  syncProcess =  syncObj.fullSync;
 } else if (process.argv[3] == "structure") {
-  syncProcess =  new sync(config).fullStructureSync;
+  syncProcess = syncObj.fullStructureSync;
 } else {
   console.log(process.arv[2]+" is not a valid sync type, it should be ('full' or 'structure')")
   process.exit(1);
@@ -30,15 +24,13 @@ if(process.argv[3] == "full") {
 
 console.log("Starting sync");
 
-syncProcess(config, function(err) {
+syncProcess.call(syncObj, function(err) {
   if(err) {
     console.log("Error running sync");
     console.log(err);
     process.exit(101);
-  } 
+  }
   console.log("Sync finished");
   process.exit(0);
 });
-
-
 

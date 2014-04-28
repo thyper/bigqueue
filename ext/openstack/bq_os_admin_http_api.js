@@ -84,9 +84,6 @@ var loadApp = function(app){
         if(!req.is("json")){    
             return res.writePretty({err:"Error parsing json"},400)
         }
-        if(!req.body.name){
-            return res.writePretty({err:"Node should contains name"},400)
-        }
         app.settings.bqAdm.addNodeToCluster(req.params.cluster,req.body,function(err){
             if(err){
                 var errMsg = err.msg || ""+err
@@ -99,9 +96,6 @@ var loadApp = function(app){
     app.post(app.settings.basePath+"/clusters/:cluster/journals",function(req,res){
         if(!req.is("json")){    
             return res.writePretty({err:"Error parsing json"},400)
-        }
-        if(!req.body.name){
-            return res.writePretty({err:"Node should contains name"},400)
         }
         app.settings.bqAdm.addJournalToCluster(req.params.cluster,req.body,function(err){
             if(err){
