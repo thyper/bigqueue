@@ -12,24 +12,24 @@ var should = require('should'),
     mysql = require('mysql');
 
 describe("openstack admin http api",function(){
-   
+
     var bqPath = "/bq"
- 
+
      var mysqlConf = {
         host     : 'localhost',
         user     : 'root',
         password : '',
         database : 'bigqueue'
     };
-   
+
     var mysqlConn = mysql.createConnection(mysqlConf);
-    
+
     var zkConfig = {
         connect: "localhost:2181",
         timeout: 200000,
         debug_level: ZK.ZOO_LOG_LEVEL_WARN,
         host_order_deterministic: false
-    }   
+    }
 
     var admConfig = {
         "zkConfig":zkConfig,
@@ -41,7 +41,7 @@ describe("openstack admin http api",function(){
         "defaultCluster":"test",
         "mysqlConf":mysqlConf
     }
-    
+
     var httpConfig = {
         "admConfig":admConfig,
         "port":8081,
@@ -68,7 +68,7 @@ describe("openstack admin http api",function(){
             if(err){
                 done(err)
             }else{
-                done()  
+                done()
             }
         })
     })
@@ -261,6 +261,59 @@ describe("openstack admin http api",function(){
                 })
             })
         })
+
+        it("should support modify journal",function(done){
+            request({
+                url:"http://127.0.0.1:8081/clusters",
+                method:"POST",
+                json:{"name":"test"}
+            },function(error,response,body){
+                response.statusCode.should.equal(201)
+                request({
+                    url:"http://127.0.0.1:8081/clusters/test",
+                    method:"GET",
+                    json:true
+                },function(err,response,body){
+                    response.statusCode.should.equal(200)
+                    body.nodes.should.have.length(0)
+                    request({
+                        url:"http://127.0.0.1:8081/clusters/test/journals",
+                        method:"POST",
+                        json:{"name":"j1",config:{"host":"127.0.0.1","port":6379,"status":"DOWN"}}
+                    },function(err,response,body){
+                        response.statusCode.should.equal(201)
+                        request({
+                            url:"http://127.0.0.1:8081/clusters/test",
+                            method:"GET",
+                            json:true
+                        },function(err,response,body){
+                            response.statusCode.should.equal(200)
+                            body.journals.should.have.length(1)
+                            body.journals[0].host.should.equal("127.0.0.1")
+                            body.journals[0].port.should.equal(6379)
+                            request({
+                                url:"http://127.0.0.1:8081/clusters/test/journals/j1",
+                                method:"PUT",
+                                json:{config:{"host":"localhost","port":6379}}
+                            },function(err,response,body){
+                                response.statusCode.should.equal(200)
+                                request({
+                                    url:"http://127.0.0.1:8081/clusters/test",
+                                    method:"GET",
+                                    json:true
+                                },function(err,response,body){
+                                    response.statusCode.should.equal(200)
+                                    body.journals.should.have.length(1)
+                                    body.journals[0].host.should.equal("localhost")
+                                    body.journals[0].port.should.equal(6379)
+                                    done()
+                                })
+                            })
+                        })
+                    })
+                })
+            })
+        })
         it("should support add endpoints",function(done){
             request({
                 url:"http://127.0.0.1:8081/clusters",
@@ -381,7 +434,7 @@ describe("openstack admin http api",function(){
         it("should support cluster deletes")
 
     })
-    
+
     describe("Topics and consumers",function(){
         beforeEach(function(done){
             request({
@@ -389,7 +442,7 @@ describe("openstack admin http api",function(){
                 method:"POST",
                 json:{"name":"test",
                       "nodes":[{
-                        "name":"redis1", 
+                        "name":"redis1",
                         "config":{
                             "host":"127.0.0.1",
                             "port":6379,
@@ -404,8 +457,8 @@ describe("openstack admin http api",function(){
                     method:"POST",
                     json:{"name":"test2",
                           "nodes":[{
-                            "name":"redis1", 
-                            "config":{ 
+                            "name":"redis1",
+                            "config":{
                                 "host":"127.0.0.1",
                                 "port":6379,
                                 "status":"UP",
@@ -444,6 +497,24 @@ describe("openstack admin http api",function(){
                 })
             })
         })
+        it("should get an error if the topic contains ':'", function(done) {
+           request({
+                  url:"http://127.0.0.1:8081/clusters/test",
+                method:"GET",
+                json:true
+            },function(error,response,body){
+                response.statusCode.should.equal(200)
+                body.topics.should.have.length(0)
+                request({
+                    url:"http://127.0.0.1:8081/topics",
+                    method:"POST",
+                    json:{"tenantId":"1234","name":"test:la"}
+                },function(error,response,body){
+                    response.statusCode.should.equal(400);
+                    done()
+                })
+            })
+        });
         it("should support create topics into any cluster using your tenant id",function(done){
              request({
                 url:"http://127.0.0.1:8081/clusters/test2",
@@ -541,7 +612,6 @@ describe("openstack admin http api",function(){
             })
 
         })
-        
         it("should get all topic data on create",function(done){
             request({
                 url:"http://127.0.0.1:8081/topics",
@@ -580,7 +650,7 @@ describe("openstack admin http api",function(){
             })
 
         })
-        
+
         it("should get all information about a topic",function(done){
             request({
                 url:"http://127.0.0.1:8081/topics",
@@ -633,7 +703,7 @@ describe("openstack admin http api",function(){
                 })
             })
         })
-        
+
         it("should support list all consumer of a topic",function(done){
             request({
                 url:"http://127.0.0.1:8081/topics",
@@ -669,6 +739,31 @@ describe("openstack admin http api",function(){
             })
 
         })
+        it("should get an error if the consumer contains a ':'", function(done) {
+            request({
+                url:"http://127.0.0.1:8081/topics",
+                method:"POST",
+                json:{"tenantId":"1234","name":"test"}
+            },function(error,response,body){
+                response.statusCode.should.equal(201)
+                request({
+                    url:"http://127.0.0.1:8081/topics/1234-test/consumers",
+                    method:"GET",
+                    json:true
+                },function(error,response,body){
+                    response.statusCode.should.equal(200)
+                    body.should.have.length(0)
+                    request({
+                        url:"http://127.0.0.1:8081/topics/1234-test/consumers",
+                        method:"POST",
+                        json:{"tenantId":"456","name":"test:withSemiColon"}
+                    },function(error,response,body){
+                        response.statusCode.should.equal(400);
+                        done();
+                    });
+                });
+            });
+        });
 
         it("should support topic deletes",function(done){
             request({
@@ -698,7 +793,7 @@ describe("openstack admin http api",function(){
                             response.statusCode.should.equal(200)
                             body.should.have.length(0)
                             done()
-                        }) 
+                        })
                     })
                 })
             })
@@ -735,9 +830,9 @@ describe("openstack admin http api",function(){
                             },function(error,response,body){
                                 body.consumers.length.should.equal(0)
                                 done()
-                            }) 
+                            })
                         })
-                    }) 
+                    })
                 })
             })
         })
@@ -767,7 +862,7 @@ describe("openstack admin http api",function(){
                             response.statusCode.should.equal(200)
                             done()
                         })
-                    }) 
+                    })
                 })
             })
         })
@@ -780,7 +875,7 @@ describe("openstack admin http api",function(){
                     method:"POST",
                     json:{"name":"test",
                     "nodes":[{
-                        "name":"redis1", 
+                        "name":"redis1",
                         "config":{
                             "host":"127.0.0.1",
                             "port":6379,
@@ -815,7 +910,7 @@ describe("openstack admin http api",function(){
         "maxTtl":500,
         "logLevel":"critical",
         "cacheRefreshInterval":10,
-        "cacheWhileVisitTime":300 
+        "cacheWhileVisitTime":300
       }
       beforeEach(function(){
         api.shutdown();
@@ -827,7 +922,7 @@ describe("openstack admin http api",function(){
               method:"POST",
               json:{"name":"test",
                     "nodes":[{
-                      "name":"redis1", 
+                      "name":"redis1",
                       "config":{
                           "host":"127.0.0.1",
                           "port":6379,
@@ -840,6 +935,74 @@ describe("openstack admin http api",function(){
               done();
           });
       });
+      it("Should cache topics request", function(done) {
+          request({
+              url:"http://127.0.0.1:8081/topics",
+              method:"POST",
+              json:{"tenantId":"1234","name":"test"}
+          },function(error,response,body){
+            response.statusCode.should.equal(201);
+            request({
+                url:"http://127.0.0.1:8081/topics/1234-test",
+                method:"GET",
+                json:true
+            },function(error,response,body){
+              var noCached = body;
+              response.statusCode.should.equal(200);
+              should.not.exist(response.headers["x-cache-time"])
+              setTimeout(function() {
+                request({
+                    url:"http://127.0.0.1:8081/topics/1234-test",
+                    method:"GET",
+                    json:true
+                },function(error,response,body){
+                  response.statusCode.should.equal(200);
+                  should.exist(response.headers["x-cache-time"])
+                  done();
+                });
+              },200);
+          });
+       });
+    });
+    it("Should cache only if it's visisted", function(done) {
+          request({
+              url:"http://127.0.0.1:8081/topics",
+              method:"POST",
+              json:{"tenantId":"1234","name":"test"}
+          },function(error,response,body){
+            response.statusCode.should.equal(201);
+            request({
+                url:"http://127.0.0.1:8081/topics/1234-test",
+                method:"GET",
+                json:true
+            },function(error,response,body){
+              var noCached = body;
+              response.statusCode.should.equal(200);
+              should.not.exist(response.headers["x-cache-time"])
+              setTimeout(function() {
+                request({
+                    url:"http://127.0.0.1:8081/topics/1234-test",
+                    method:"GET",
+                    json:true
+                },function(error,response,body){
+                  response.statusCode.should.equal(200);
+                  should.exist(response.headers["x-cache-time"])
+                   setTimeout(function() {
+                    request({
+                        url:"http://127.0.0.1:8081/topics/1234-test",
+                        method:"GET",
+                        json:true
+                    },function(error,response,body){
+                      response.statusCode.should.equal(200);
+                      should.not.exist(response.headers["x-cache-time"])
+                      done();
+                    });
+                  },400);
+                });
+              },200);
+          });
+       });
+    });
   });
     describe("Keystone authorization", function(){
         var fakekeystone
@@ -852,16 +1015,16 @@ describe("openstack admin http api",function(){
                             "token":{
                                 "tenant":
                                      {
-                                         "id": "1", 
+                                         "id": "1",
                                          "name": "1234"
                                      }
-                                
+
                             },
                             "user":{
                                 "roles": [
                                     {
-                                        "id": "3", 
-                                        "name": "Admin", 
+                                        "id": "3",
+                                        "name": "Admin",
                                         "tenantId": "1"
                                     }
                                 ]
@@ -876,15 +1039,15 @@ describe("openstack admin http api",function(){
                             "token":{
                                 "tenant":
                                      {
-                                         "id": "3", 
+                                         "id": "3",
                                          "name": "345"
                                      }
-                                
+
                             },
                             "user":{
                             }
                         }
-                
+
                     },200)
                 }
 
@@ -894,10 +1057,10 @@ describe("openstack admin http api",function(){
                             "token":{
                                 "tenant":
                                      {
-                                         "id": "2", 
+                                         "id": "2",
                                          "name": "someone"
                                      }
-                                
+
                             },
                             "user":{}
                         }
@@ -915,11 +1078,11 @@ describe("openstack admin http api",function(){
                 fakekeystone.close()
             }
         })
-        
+
         beforeEach(function(){
             api.shutdown()
             var intConf = httpConfig
-            intConf["keystoneConfig"] = keystoneConfig 
+            intConf["keystoneConfig"] = keystoneConfig
             api = httpApi.startup(intConf)
         })
 
@@ -957,7 +1120,7 @@ describe("openstack admin http api",function(){
                 method:"POST",
                 json:{"name":"test",
                       "nodes":[{
-                        "name":"redis1", 
+                        "name":"redis1",
                         "config":{
                             "host":"127.0.0.1",
                             "port":6379,
@@ -1000,7 +1163,7 @@ describe("openstack admin http api",function(){
                 method:"POST",
                 json:{"name":"test",
                       "nodes":[{
-                        "name":"redis1", 
+                        "name":"redis1",
                         "config":{
                             "host":"127.0.0.1",
                             "port":6379,
@@ -1046,14 +1209,14 @@ describe("openstack admin http api",function(){
                 })
             })
         })
-        
+
         it("should only create consumer into a topic if these has the same tenant",function(done){
            request({
                 url:"http://127.0.0.1:8081/clusters",
                 method:"POST",
                 json:{"name":"test",
                       "nodes":[{
-                        "name":"redis1", 
+                        "name":"redis1",
                         "config":{
                             "host":"127.0.0.1",
                             "port":6379,
@@ -1096,7 +1259,7 @@ describe("openstack admin http api",function(){
                 method:"POST",
                 json:{"name":"test",
                       "nodes":[{
-                        "name":"redis1", 
+                        "name":"redis1",
                         "config":{
                             "host":"127.0.0.1",
                             "port":6379,
@@ -1133,7 +1296,7 @@ describe("openstack admin http api",function(){
                 method:"POST",
                 json:{"name":"test",
                       "nodes":[{
-                        "name":"redis1", 
+                        "name":"redis1",
                         "config":{
                             "host":"127.0.0.1",
                             "port":6379,
@@ -1176,7 +1339,7 @@ describe("openstack admin http api",function(){
                 method:"POST",
                 json:{"name":"test",
                       "nodes":[{
-                        "name":"redis1", 
+                        "name":"redis1",
                         "config":{
                             "host":"127.0.0.1",
                             "port":6379,
@@ -1224,7 +1387,7 @@ describe("openstack admin http api",function(){
                 method:"POST",
                 json:{"name":"test",
                       "nodes":[{
-                        "name":"redis1", 
+                        "name":"redis1",
                         "config":{
                             "host":"127.0.0.1",
                             "port":6379,
@@ -1280,13 +1443,13 @@ describe("openstack admin http api",function(){
         mysqlConn.query("TRUNCATE stats", function(err) {
           mysqlConn.commit(done);
         });
-      });     
+      });
       it("Should receive node stats", function(done) {
           var time = new Date();
           request({
             url:"http://127.0.0.1:8081/clusters/test/nodes/node1/stats",
             method: "POST",
-            json: { 
+            json: {
               sample_date: time.getTime(),
               topic_stats: {
                 topic1: {
@@ -1298,7 +1461,7 @@ describe("openstack admin http api",function(){
                 }
               }
             }
-          }, function(error, response, body) { 
+          }, function(error, response, body) {
             should.not.exist(error);
             response.statusCode.should.equal(200);
             mysqlConn.query("SELECT * FROM stats", function(err, data) {

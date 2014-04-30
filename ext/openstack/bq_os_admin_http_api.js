@@ -56,7 +56,7 @@ var loadApp = function(app){
     })
 
     app.post(app.settings.basePath+"/clusters",function(req,res){
-        if(!req.is("json")){    
+        if(!req.is("json")){
             return res.writePretty({err:"Error parsing json"},400)
         }
         app.settings.bqAdm.createBigQueueCluster(req.body,function(err){
@@ -69,7 +69,7 @@ var loadApp = function(app){
     })
 
     app.post(app.settings.basePath+"/clusters/:cluster/nodes/:node/stats",function(req,res){
-        if(!req.is("json")){    
+        if(!req.is("json")){
             return res.writePretty({err:"Error parsing json"},400)
         }
         app.settings.bqAdm.updateNodeMetrics(req.params.cluster, req.params.node,req.body, function(err) {
@@ -81,8 +81,11 @@ var loadApp = function(app){
     });
 
     app.post(app.settings.basePath+"/clusters/:cluster/nodes",function(req,res){
-        if(!req.is("json")){    
+        if(!req.is("json")){
             return res.writePretty({err:"Error parsing json"},400)
+        }
+        if(!req.body.name){
+            return res.writePretty({err:"Node should contains name"},400)
         }
         app.settings.bqAdm.addNodeToCluster(req.params.cluster,req.body,function(err){
             if(err){
@@ -94,8 +97,11 @@ var loadApp = function(app){
     })
 
     app.post(app.settings.basePath+"/clusters/:cluster/journals",function(req,res){
-        if(!req.is("json")){    
+        if(!req.is("json")){
             return res.writePretty({err:"Error parsing json"},400)
+        }
+        if(!req.body.name){
+            return res.writePretty({err:"Node should contains name"},400)
         }
         app.settings.bqAdm.addJournalToCluster(req.params.cluster,req.body,function(err){
             if(err){
@@ -107,7 +113,7 @@ var loadApp = function(app){
     })
 
     app.post(app.settings.basePath+"/clusters/:cluster/endpoints",function(req,res){
-        if(!req.is("json")){    
+        if(!req.is("json")){
             return res.writePretty({err:"Error parsing json"},400)
         }
         if(!req.body.name){
@@ -124,11 +130,11 @@ var loadApp = function(app){
 
 
     app.put(app.settings.basePath+"/clusters/:cluster/nodes/:node",function(req,res){
-        if(!req.is("json")){    
+        if(!req.is("json")){
             return res.writePretty({err:"Error parsing json"},400)
         }
         var node = req.body
-        node["name"] = req.params.node 
+        node["name"] = req.params.node
         app.settings.bqAdm.updateNodeData(req.params.cluster,node,function(err){
             if(err){
                 var errMsg = err.msg || ""+err
@@ -137,7 +143,22 @@ var loadApp = function(app){
             return res.writePretty({"cluster":req.body.name},200)
         })
     })
-    
+
+    app.put(app.settings.basePath+"/clusters/:cluster/journals/:node",function(req,res){
+        if(!req.is("json")){
+            return res.writePretty({err:"Error parsing json"},400)
+        }
+        var node = req.body
+        node["name"] = req.params.node
+        app.settings.bqAdm.updateJournalData(req.params.cluster,node,function(err){
+            if(err){
+                var errMsg = err.msg || ""+err
+                return res.writePretty({"err":errMsg},err.code || 500)
+            }
+            return res.writePretty({"cluster":req.body.name},200)
+        })
+    })
+
     app.get(app.settings.basePath+"/clusters/:cluster/nodes/:node",function(req,res){
         app.settings.bqAdm.getNodeData(req.params.cluster,req.params.node,function(err,data){
             if(err){
@@ -147,7 +168,7 @@ var loadApp = function(app){
             return res.writePretty(data,200)
         })
     })
-    
+
     app.get(app.settings.basePath+"/clusters/:cluster/journals/:journal",function(req,res){
         app.settings.bqAdm.getJournalData(req.params.cluster,req.params.journal,function(err,data){
             if(err){
@@ -183,7 +204,7 @@ var loadApp = function(app){
     })
 
     app.post(app.settings.basePath+"/topics",function(req,res){
-        if(!req.is("json")){    
+        if(!req.is("json")){
             return res.writePretty({err:"Error parsing json"},400)
         }
         var group = req.body[app.settings.groupEntity]
@@ -191,8 +212,8 @@ var loadApp = function(app){
         if(!group){
             return res.writePretty({"err":"The property ["+app.settings.groupEntity+"] must be set"},400)
         }
-        if(!req.body.name){
-            return res.writePretty({"err":"The property [name] must be set"},400)
+        if(!req.body.name || req.body.name.indexOf(":") != -1){
+            return res.writePretty({"err":"The property [name] must be set and can not contains ':'"},400)
         }
 
         if(req.keystone && req.keystone.authorized && !authorizeTenant(req.keystone.userData, group) && !isAdmin(req.keystone.userData)){
@@ -222,14 +243,14 @@ var loadApp = function(app){
 
         })
     })
-   
+
     app.delete(app.settings.basePath+"/topics/:topicId",function(req,res){
         app.settings.bqAdm.getTopicGroup(req.params.topicId,function(err,group){
             if(err){
                var errMsg = err.msg || ""+err
                return res.writePretty({"err":errMsg},err.code || 500)
             }
-        
+
             if(req.keystone && req.keystone.authorized && !authorizeTenant(req.keystone.userData, group) && !isAdmin(req.keystone.userData)){
                 return res.writePretty({"err":"Invalid token for tenant ["+group+"]"},401)
             }
@@ -244,44 +265,44 @@ var loadApp = function(app){
             })
         })
     })
-    
+
     app.get(app.settings.basePath+"/topics/:topicId",function(req,res){
-        var topic = req.params.topicId; 
+        var topic = req.params.topicId;
         if(cache[topic] && cache[topic].data) {
           updateVisited(topic);
           res.setHeader("X-Cache-Time",cache[topic].lastRefresh)
           return res.writePretty(cache[topic].data,200);
-        } else { 
+        } else {
           app.settings.bqAdm.getTopicData(topic,function(err,data){
               if(err){
                 var errMsg = err.msg || ""+err
                 return res.writePretty({"err":errMsg},err.code || 500)
               }
-              initializeCache(topic);              
+              initializeCache(topic);
               return res.writePretty(data,200)
           })
         }
     })
 
     app.get(app.settings.basePath+"/topics/:topicId/consumers",function(req,res){
-        var topic = req.params.topicId;  
+        var topic = req.params.topicId;
         if(cache[topic] && cache[topic].data) {
           updateVisited(topic);
           res.setHeader("X-Cache-Time",cache[topic].lastRefresh)
           return res.writePretty(cache[topic].data.consumers,200);
-        } else { 
+        } else {
           app.settings.bqAdm.getTopicData(topic,function(err,data){
              if(err){
                 var errMsg = err.msg || ""+err
                 return res.writePretty({"err":errMsg},err.code || 500)
               }
-              initializeCache(topic);              
+              initializeCache(topic);
               return res.writePretty(data.consumers,200)
           });
         }
     })
     app.post(app.settings.basePath+"/topics/:topicId/consumers",function(req,res){
-        if(!req.is("json")){    
+        if(!req.is("json")){
             return res.writePretty({err:"Error parsing json"},400)
         }
 
@@ -293,18 +314,18 @@ var loadApp = function(app){
             res.writePretty({"err":"The property ["+app.settings.groupEntity+"] must be set"},400)
         }
 
-       
+
         if(req.keystone && req.keystone.authorized && !isAdmin(req.keystone.userData)){
             if(!authorizeTenant(req.keystone.userData, group))
                 return res.writePretty({"err":"Invalid token for tenant ["+group+"]"},401)
-                
-            //Consumers can be only created if these belongs to the same tenant or the user has the admin role     
+
+            //Consumers can be only created if these belongs to the same tenant or the user has the admin role
             if(topic.lastIndexOf(group,0) != 0)
-                return res.writePretty({"err":"Tenant ["+group+"] can't create consumers on ["+topic+"]]"},401)    
+                return res.writePretty({"err":"Tenant ["+group+"] can't create consumers on ["+topic+"]]"},401)
         }
 
-        if(!req.body.name){
-            return res.writePretty({err:"Consumer should contains a name"},400)
+        if(!req.body.name || req.body.name.indexOf(":") != -1){
+            return res.writePretty({err:"Consumer should contains a name and can not contains ':'"},400)
         }
         app.settings.bqAdm.createConsumerGroup(topic,consumer,function(err){
             if(err){
@@ -327,7 +348,7 @@ var loadApp = function(app){
                 var errMsg = err.msg || ""+err
                 return res.writePretty({"err":errMsg},err.code || 500)
             }
-        
+
             if(req.keystone && req.keystone.authorized && !authorizeTenant(req.keystone.userData, group) && !isAdmin(req.keystone.userData)){
                 return res.writePretty({"err":"Invalid token for tenant ["+group+"]"},401)
             }
@@ -349,7 +370,7 @@ var loadApp = function(app){
                 var errMsg = err.msg || ""+err
                 return res.writePretty({"err":errMsg},err.code || 500)
             }
-        
+
             if(req.keystone && req.keystone.authorized && !authorizeTenant(req.keystone.userData, group) && !isAdmin(req.keystone.userData)){
                 return res.writePretty({"err":"Invalid token for tenant ["+group+"]"},401)
             }
@@ -419,8 +440,8 @@ var loadCacheRefresher = function(cache, app) {
     }
   }
 
-  refreshCacheCron(); 
-} 
+  refreshCacheCron();
+}
 
 var authFilter = function(config){
 
@@ -464,18 +485,18 @@ var writeFilter = function(){
 exports.startup = function(config){
     log.setLevel(config.logLevel || "info")
     //Default 5 days
-    var authFilterConfig = {authExclusions : [/.*\/clusters\/\w+\/nodes+/,/.*\/clusters\/\w+\/journals+/]}
-    var maxTtl = config.maxTtl || 5*24*60*60 
+    var authFilterConfig = {authExclusions : [/.*\/clusters\/\w+\/nodes\/(\w|\.|-|_)+\/stats$/]}
+    var maxTtl = config.maxTtl || 5*24*60*60
     var app = express.createServer()
         if(config.loggerConf){
         log.inf("Using express logger")
         app.use(express.logger(config.loggerConf));
     }
     var topicDataCache = {};
-    
+
     app.use(writeFilter())
     app.enable("jsonp callback")
-        
+
     app.use(express.bodyParser());
 
     if(config.keystoneConfig){
@@ -484,7 +505,7 @@ exports.startup = function(config){
         app.set("adminRoleId",config.admConfig.adminRoleId || -1)
     }
 
-    app.use(app.router); 
+    app.use(app.router);
 
     app.set("basePath",config.basePath || "")
     app.set("maxTtl",maxTtl)
@@ -496,7 +517,7 @@ exports.startup = function(config){
     app.set("groupEntity",groupEntity )
     loadApp(app)
     app.running = true;
-    loadCacheRefresher(topicDataCache, app); 
+    loadCacheRefresher(topicDataCache, app);
     app.listen(config.port)
     this.app = app
     return this
