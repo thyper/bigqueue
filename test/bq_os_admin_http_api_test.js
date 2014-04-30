@@ -491,7 +491,7 @@ describe("openstack admin http api",function(){
                         json:true
                     },function(error,response,body){
                         response.statusCode.should.equal(200)
-                        body.topics.should.have.length(1)
+body.topics.should.have.length(1)
                         done()
                     })
                 })
