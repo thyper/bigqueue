@@ -12,11 +12,12 @@ if(process.argv.length != 2){
 }
 
 var syncProcess;
+var full;
 var syncObj = new sync(config);
 if(process.argv[3] == "full") {
-  syncProcess =  syncObj.fullSync;
+  full = true;
 } else if (process.argv[3] == "structure") {
-  syncProcess = syncObj.fullStructureSync;
+  full = false;
 } else {
   console.log(process.arv[2]+" is not a valid sync type, it should be ('full' or 'structure')")
   process.exit(1);
@@ -24,7 +25,7 @@ if(process.argv[3] == "full") {
 
 console.log("Starting sync");
 
-syncProcess.call(syncObj, function(err) {
+syncObj.syncProcess(full, function(err) {
   if(err) {
     console.log("Error running sync");
     console.log(err);

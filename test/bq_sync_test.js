@@ -231,7 +231,7 @@ describe("Sync tests", function() {
     });
     
     it("Should sync structure using api", function(done) {
-      new bqSync(syncConfig).fullSync(function(err) {
+      new bqSync(syncConfig).syncProcess(true,function(err) {
         should.not.exist(err);
         nodeClient.listTopics(function(data) {
           data.should.include("topic1");
@@ -263,7 +263,7 @@ describe("Sync tests", function() {
         }
       ], function(err) {
         should.not.exist(err);
-        new bqSync(syncConfig).fullStructureSync(function(err) {
+        new bqSync(syncConfig).syncProcess(false,function(err) {
           should.not.exist(err);
           nodeClient.getHeads(function(err, heads) {
             should.not.exist(err);
@@ -291,7 +291,7 @@ describe("Sync tests", function() {
         }
       ], function(err) {
         should.not.exist(err);
-        new bqSync(syncConfig).fullSync(function(err) {
+        new bqSync(syncConfig).syncProcess(true,function(err) {
           should.not.exist(err);
           nodeClient.getHeads(function(err, heads) {
             should.not.exist(err);
@@ -308,7 +308,7 @@ describe("Sync tests", function() {
         .get("/clusters/test")
         .reply(404);
 
-      new bqSync(syncConfig).fullSync(function(err) {
+      new bqSync(syncConfig).syncProcess(true,function(err) {
           should.exist(err);
           done();
       });
