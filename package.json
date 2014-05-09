@@ -21,7 +21,6 @@
         "redis": "0.10.1",
        	"should" : "0.6.x",
         "request" : "2.9.x",
-        "zookeeper":"3.4.5-2",
         "hiredis":"0.1.16",
         "node-logging":"0.1.x",
         "json2yaml":"1.0.x",
