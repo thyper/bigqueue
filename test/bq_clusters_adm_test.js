@@ -2,13 +2,21 @@ var should = require('should'),
     request = require('request'),
     log = require("node-logging"),
     utils = require('../lib/bq_client_utils.js'),
-    mysql = require("mysql")
-    async;
+    bqadm = require("../lib/bq_clusters_adm.js"),
+    mysql = require("mysql"),
+    async = require("async");
 
 describe("Clusters administration for multicluster purposes",function(){
-    
+    var mysqlConf = {
+     host     : 'localhost',
+     user     : 'root',
+     password : '',
+     database : 'bigqueue'
+    };
+    var admClient;
     var mysqlConn = mysql.createConnection(mysqlConf);
 
+    
     var admConfig = {
         "logLevel":"error",
         "mysqlConf":mysqlConf
@@ -24,56 +32,41 @@ describe("Clusters administration for multicluster purposes",function(){
     beforeEach(function(done) {
       async.parallel([
         function(d) {
-          mysqlConn.query("TRUNCATE stats", function(err) {
-            mysqlConn.commit(d);
-          });
+          mysqlConn.query("TRUNCATE stats", d);
         },
         function(d) {
-          mysqlConn.query("TRUNCATE clusters", function(err) {
-            mysqlConn.commit(d);
-          });
+          mysqlConn.query("TRUNCATE clusters", d);
         },
         function(d) {
-          mysqlConn.query("TRUNCATE data_nodes", function(err) {
-            mysqlConn.commit(d);
-          });
+          mysqlConn.query("TRUNCATE data_nodes", d);
         },
         function(d) {
-          mysqlConn.query("TRUNCATE endpoints", function(err) {
-            mysqlConn.commit(d);
-          });
+          mysqlConn.query("TRUNCATE endpoints",d);
         },
         function(d) {
-          mysqlConn.query("TRUNCATE topics", function(err) {
-            mysqlConn.commit(d);
-          });
+          mysqlConn.query("TRUNCATE topics",d);
         },
         function(d) {
-          mysqlConn.query("TRUNCATE consumers", function(err) {
-            mysqlConn.commit(d);
-          });
+          mysqlConn.query("TRUNCATE consumers",d);
+        },
+        function(d) {
+          mysqlConn.query("TRUNCATE node_journals",d);
         }
-      ], function(err) { done(err) });
+      ], function(err) { 
+        done(err) 
+      });
     });     
-
     beforeEach(function(done){
         admClient = bqadm.createClustersAdminClient(admConfig)
         admClient.on("ready",function(){
-            done()
+          done()
         })
     })
 
     afterEach(function(done){
         admClient.shutdown()
         process.nextTick(function(){
-            done()
-        })
-    })
-
-    after(function(done){
-        zk.close()
-        process.nextTick(function(){
-            done()
+          done()
         })
     })
 
@@ -85,7 +78,7 @@ describe("Clusters administration for multicluster purposes",function(){
              should.not.exist(err);
              data.length.should.equal(1);
              data[0].name.should.equal("test1");
-             data    
+             done(); 
            });
          });
         });
@@ -93,8 +86,8 @@ describe("Clusters administration for multicluster purposes",function(){
             admClient.createBigQueueCluster({name:"test1"},function(err){
                should.not.exist(err)
                 admClient.createBigQueueCluster({name:"test1"},function(err){
-                    should.exist(err)
-                    done()
+                  should.exist(err)
+                  done();
                 })
             })
 
@@ -114,13 +107,13 @@ describe("Clusters administration for multicluster purposes",function(){
               should.not.exist(err);
               data.length.should.equal(2);
               data[0].id.should.equal("journal1");
-              data[0].host.should.equal("jounrnal1");
+              data[0].host.should.equal("journal1");
               data[0].port.should.equal(123);
               data[0].status.should.equal("DOWN");
-              data[0].options.should.equal('{"status":true}');
+              data[0].options.should.equal('{"test":true}');
               data[0].cluster.should.equal("test1");
               data[1].id.should.equal("journal2");
-              data[1].host.should.equal("jounrnal2");
+              data[1].host.should.equal("journal2");
               data[1].port.should.equal(123);
               data[1].status.should.equal("DOWN");
               data[1].options.should.equal('{}');
@@ -147,7 +140,7 @@ describe("Clusters administration for multicluster purposes",function(){
               data[0].host.should.equal("node1");
               data[0].port.should.equal(123);
               data[0].status.should.equal("DOWN");
-              data[0].options.should.equal('{"status":true}');
+              data[0].options.should.equal('{"test":true}');
               data[0].cluster.should.equal("test1");
               data[1].id.should.equal("node2");
               data[1].host.should.equal("node2");
@@ -187,7 +180,7 @@ describe("Clusters administration for multicluster purposes",function(){
             var clusterData={
               name:"test1",
               nodes:[
-                  {id:"node1",host:"node1","port":123,"status":"DOWN","journals":[], options:{"test":true}}
+                  {id:"node1",host:"node1","port":123,"status":"DOWN","journals":["j1"], options:{"test":true}}
               ],
               journals: [
                   {id:"j1",host:"node1","port":123,"status":"DOWN"}
@@ -195,12 +188,11 @@ describe("Clusters administration for multicluster purposes",function(){
             }
             admClient.createBigQueueCluster(clusterData,function(err){
               should.not.exist(err);
-              mysqlConn.query("SELECT * FROM node_journals ORDER BY host", function(err, data) {
+              mysqlConn.query("SELECT * FROM node_journals", function(err, data) {
                 data[0].journal_id.should.equal("j1");
                 done();
               });
             });
-
         });
     })
 
@@ -216,18 +208,18 @@ describe("Clusters administration for multicluster purposes",function(){
                     {id:"j1",host:"127.0.0.1",port:6379,status:"UP"}
                 ]
             },function(err){
-                should.not.exist(err)
-                done()
+              should.not.exist(err)
+              done()
             })
-        })
-        it("should support add nodes",function(done){
-            admClient.addNodeToCluster("test1",{id:"node1",host:"127.0.0.1",port:6381},function(err){
+        });
+        it("should support add nodes to existing cluster",function(done){
+          admClient.addNodeToCluster("test1",{id:"node1",host:"127.0.0.1",port:6381},function(err){
                 should.exist(err)
                 admClient.addNodeToCluster("test1",{id:"node3"},function(err){
-                    should.exist(err)
+                  should.exist(err)
                     admClient.addNodeToCluster("test1",{id:"node3",host:"127.0.0.1",port:6381,status:"DOWN",journals:[]},function(err){
-                        should.not.exist(err)
-                        mysqlConnquery.query("SELECT * FROM data_nodes WHERE id=?", ["node3"], function(err,data) {
+                      should.not.exist(err)
+                        mysqlConn.query("SELECT * FROM data_nodes WHERE id=?", ["node3"], function(err,data) {
                           data[0].id.should.equal("node3");
                           data[0].host.should.equal("127.0.0.1");
                           data[0].port.should.equal(6381);
@@ -241,40 +233,34 @@ describe("Clusters administration for multicluster purposes",function(){
             });
         });
 
-        it("should support node modify",function(done){
-          async.seq(
+        it("should support node modify on existing cluster",function(done){
+          async.series([
             function(cb) {
-              admClient.updateNodeData("test1",{id:"node3",port:6382},function(err){
-                  should.exist(err)
-                  cb();
-              });
-            },
-            function(cb) {
-              admClient.updateNodeData("test1",{id:"node2",port:6382,status:"DOWN","journals":[]},function(err){
+              admClient.updateNodeData("test1",{id:"node2",status:"DOWN","journals":[]},function(err){
                 should.not.exist(err)
-                mysqlConn.query("SELECT port FROM data_nodes WHERE id=?",["node2"], function(err, data) {
-                  data[0].port.should.equal(6382);
+                mysqlConn.query("SELECT status FROM data_nodes WHERE id=?",["node2"], function(err, data) {
+                  data[0].status.should.equal("DOWN");
                   cb();
                 });
               });
             },
             function(cb) {
-              admClient.updateNodeData("test1",{id:"node2",port:6383,host:"1234"},function(err){
+              admClient.updateNodeData("test1",{id:"node2",journals:["j1","j2"]},function(err){
                 should.not.exist(err)
-                mysqlConn.query("SELECT port FROM data_nodes WHERE id=?",["node2"], function(err, data) {
-                  data[0].port.should.equal(6383);
-                  data[0].host.should.equal("1234");
+                mysqlConn.query("SELECT * FROM node_journals WHERE node_id=?",["node2"], function(err, data) {
+                  data.length.should.equal(2);
                   cb();
                 });
               })
-            },
+            }],
             done);
         })
 
-        it("should support add journals",function(done){
-          async.seq(
+        it("should support add journals on existing cluster",function(done){
+          async.series([
             function(cb) {
-              admClient.addJournalToCluster("test1",{id:"j1",host:"127.0.0.1",port:6381,errors:0},function(err){
+              //Journal exists
+              admClient.addJournalToCluster("test1",{id:"j1",host:"127.0.0.1",port:6381},function(err){
                   should.exist(err);
                   cb();
               })
@@ -282,53 +268,54 @@ describe("Clusters administration for multicluster purposes",function(){
             function(cb) {
                 admClient.addJournalToCluster("test1",{id:"j2",host:"127.0.0.1",port:6381},function(err){
                   should.not.exist(err)
-                  mysqlConn.query("SELECT port FROM data_nodes WHERE id=?",["j2"], function(err, data) {
+                  mysqlConn.query("SELECT host, port FROM data_nodes WHERE id=?",["j2"], function(err, data) {
                     data[0].port.should.equal(6381);
                     data[0].host.should.equal("127.0.0.1");
                     cb();
                   });
                 });
-            }, done);
+            }], done);
         });
         it("should support journal modify",function(done){
-          admClient.updateJournalData("test1",{id:"j1",port:6383,host:"1234"},function(err){
+          admClient.updateJournalData("test1",{id:"j1",status:"DOWN"},function(err){
             should.not.exist(err)
-            mysqlConn.query("SELECT port FROM data_nodes WHERE id=?",["j2"], function(err, data) {
-              data[0].port.should.equal(6383);
-              data[0].host.should.equal("1234");
+            mysqlConn.query("SELECT status FROM data_nodes WHERE id=?",["j1"], function(err, data) {
+              data[0].status.should.equal("DOWN");
               done();
             });
         });
+      })
+      it("Should create tasks for create topics and consumers fo the added node");
+      it("Should create tasks in order (first topics then consumers)");
+      it("should support remove journals");
+      it("should validate before journal remove that the journal is unused")
 
-        it("should support remove journals")
-        it("should validate before journal remove that the journal is unused")
-    })
-
-    describe("Create topics and groups",function(){
-        beforeEach(function(done){
-          async.parallel([
-            function(cb) { 
-              admClient.createBigQueueCluster({
-                    name:"test1",
-                    nodes:[
-                        {id:"node1","host":"127.0.0.1","port":6379,"errors":0,"status":"UP","journals":[]},
-                        {id:"node2","host":"127.0.0.1","port":6380,"errors":0,"status":"UP","journals":[]}
-                    ]
-               },cb);
-            },
-            function(cb) {
-               admClient.createBigQueueCluster({
-                    name:"test2",
-                    nodes:[
-                        {id:"node1","host":"127.0.0.1","port":6379,"errors":0,"status":"UP","journals":[]},
-                        {id:"node2","host":"127.0.0.1","port":6380,"errors":0,"status":"UP","journals":[]}
-                    ]
-               },cb);
-            }],
-            function(cb) {
-              mysqlConn.query("UPDATE clusters SET default=? WHERE name=?",["Y","test1"], cb);
-            }, done);
-        }); 
+  });
+  describe("Create topics and groups",function(){
+      beforeEach(function(done){
+        async.series([
+          function(cb) { 
+            admClient.createBigQueueCluster({
+                  name:"test1",
+                  nodes:[
+                      {id:"node1-1","host":"127.0.0.1","port":6379,"errors":0,"status":"UP","journals":[]},
+                      {id:"node2-1","host":"127.0.0.1","port":6380,"errors":0,"status":"UP","journals":[]}
+                  ]
+             },cb);
+          },
+          function(cb) {
+             admClient.createBigQueueCluster({
+                  name:"test2",
+                  nodes:[
+                      {id:"node1-2","host":"127.0.0.1","port":6379,"errors":0,"status":"UP","journals":[]},
+                      {id:"node2-2","host":"127.0.0.1","port":6380,"errors":0,"status":"UP","journals":[]}
+                  ]
+             },cb);
+          },
+          function(cb) {
+            mysqlConn.query("UPDATE clusters SET `default`=? WHERE name=?",["Y","test1"], cb);
+          }], done);
+      }); 
 
         it("should enable to create topics into the default clusters",function(done){
           admClient.createTopic({"name":"test","tenant_id":"1234","tenant_name":"456"},function(err){
@@ -391,14 +378,14 @@ describe("Clusters administration for multicluster purposes",function(){
           });
        });
        it("Should enable create consumer", function(done) {
-        async.sec([
+        async.series([
           function(cb) {
             admClient.createTopic({name:"test",tenant_id:"1234",tenant_name:"456", cluster:"test2"},cb);
           },
           function(cb) {
             admClient.createConsumerGroup({name:"test-consumer",tenant_id:"tenant_test",tenant_name:"tenant_name",topic_id:"1234-456-test"},function(err){
               mysqlConn.query("SELECT * FROM consumers", function(err, data) {
-                data[0].id.should.equal("tenant_test-tenant_name-test-consumer");
+                data[0].consumer_id.should.equal("tenant_test-tenant_name-test-consumer");
                 data[0].consumer_name.should.equal("test-consumer");
                 data[0].tenant_id.should.equal("tenant_test");
                 data[0].tenant_name.should.equal("tenant_name");
@@ -416,28 +403,36 @@ describe("Clusters administration for multicluster purposes",function(){
           });
        });
        it("Should fail if tenant_id or tenant_name are not set", function(done) {
-        async.sec([
+        async.series([
           function(cb) {
             admClient.createTopic({name:"test",tenant_id:"1234",tenant_name:"456", cluster:"test2"},cb);
           },
           function(cb) {
             admClient.createConsumerGroup({name:"test-consumer",tenant_name:"tenant_name",topic_id:"1234-456-test"},function(err){
               should.exist(err);
+              cb();
             });
           },
           function(cb) {
             admClient.createConsumerGroup({name:"test-consumer",tenant_id:"tenant_test",topic_id:"1234-456-test"},function(err){
               should.exist(err);
+              cb();
             });
           }
         ], done);
        });
 
+       it("Should create tasks for created topic");
+       it("Should create tasks for created consumer");
+       it("Should show creation of topic");
+       it("Should show creation of consumer");
+       it("Should change topic status to created if all nodes has changed the satus to completed");
+       it("Should change consumer status to created if all nodes has changed the satus to completed");
     });
 
     describe("Delete topics",function(done){
         beforeEach(function(done){
-          async.seq([
+          async.series([
             function(cb) {
               admClient.createBigQueueCluster({
                 name:"test1",
@@ -451,8 +446,8 @@ describe("Clusters administration for multicluster purposes",function(){
              admClient.createBigQueueCluster({
                 name:"test2",
                 nodes:[
-                    {name:"node1",host:"127.0.0.1",port:6379,status:"UP","journals":[]},
-                    {name:"node2",host:"127.0.0.1",port:6380,status:"UP","journals":[]}
+                    {id:"node3",host:"127.0.0.1",port:6379,status:"UP",journals:[]},
+                    {id:"node4",host:"127.0.0.1",port:6380,status:"UP",journals:[]}
                 ]
              },cb);
             },
@@ -465,7 +460,7 @@ describe("Clusters administration for multicluster purposes",function(){
         it("should delete topic from specific clusters",function(done){
            admClient.deleteTopic("test-test-test",function(err){
               should.not.exist(err)
-              mysqlConn.query("SELECT * FROM topics WHERE id=?",["test-test-test"], function(err, data) {
+              mysqlConn.query("SELECT * FROM topics WHERE topic_id=?",["test-test-test"], function(err, data) {
                 data.length.should.equal(0);
                 done();
               });
@@ -477,6 +472,15 @@ describe("Clusters administration for multicluster purposes",function(){
                  done()
              })
         })
+        it("Should fail if exists a consumer asociated to this topic", function(done) {
+          admClient.createConsumerGroup({name:"test-consumer",tenant_id:"tenant_test",tenant_name:"tenant_name",topic_id:"test-test-test"},function(err){
+            should.not.exist(err);
+             admClient.deleteTopic("test-test-test",function(err){
+                should.exist(err)
+                done();
+             });
+          });
+        });
     })
 
     describe("Delete consumers",function(done){
@@ -652,20 +656,20 @@ describe("Clusters administration for multicluster purposes",function(){
         admClient.createBigQueueCluster({
             name:"test1",
             nodes:[
-                {name:"node1","host":"127.0.0.1","port":6379,"errors":0,"status":"UP","journals":[]},
-                {name:"node2","host":"127.0.0.1","port":6380,"errors":0,"status":"UP","journals":[]}
+                {id:"node1","host":"127.0.0.1","port":6379,"errors":0,"status":"UP","journals":[]},
+                {id:"node2","host":"127.0.0.1","port":6380,"errors":0,"status":"UP","journals":[]}
             ],
             journals:[
-                {name:"j1","host":"127.0.0.1","port":6379,"errors":0,"status":"UP"},
+                {id:"j1","host":"127.0.0.1","port":6379,"errors":0,"status":"UP"},
             ],
             endpoints:[
                 {name:"e1","host":"127.0.0.1","port":8080},
                 {name:"e2","host":"127.0.0.1","port":8081}
             ]
        },function(err){
-        admClient.createTopic({"name":"test-c1","group":"test"},"test1",function(err){
+        admClient.createTopic({tenant_id:"test",tenant_name:"test", name:"t1", cluster:"test1"},function(err){
           should.not.exist(err)
-          admClient.createConsumerGroup("test-c1","test",function(err,data){
+          admClient.createConsumerGroup({topic_id:"test-test-t1", tenant_id:"test",tenant_name:"test", name:"c1"},function(err,data){
            should.not.exist(err);
            done();
           });
@@ -802,8 +806,8 @@ describe("Clusters administration for multicluster purposes",function(){
       admClient.updateNodeMetrics("test1","node1",{
           sample_date: new Date().getTime(),
           topic_stats: {
-            "test-c1": {
-              test: {
+            "test-test-t1": {
+              "test-test-c1": {
                 lag:10,
                 fails:2,
                 processing:1
@@ -814,8 +818,8 @@ describe("Clusters administration for multicluster purposes",function(){
           admClient.updateNodeMetrics("test1","node2",{
             sample_date: new Date().getTime(),
             topic_stats: {
-              "test-c1": {
-                test: {
+              "test-test-t1": {
+               "test-test-c1": {
                   lag:2,
                   fails:3,
                   processing:4
@@ -824,11 +828,11 @@ describe("Clusters administration for multicluster purposes",function(){
             }
           }, function(err) {
             should.not.exist(err);
-            admClient.getTopicData("test-c1", function(err, data) {
+            admClient.getTopicData("test-test-t1", function(err, data) {
               should.not.exist(err);
               should.exist(data);
               data.consumers.length.should.equal(1);
-              data.consumers[0].consumer_id.should.equal("test");
+              data.consumers[0].consumer_id.should.equal("test-test-c1");
               data.consumers[0].stats.lag.should.equal(12);
               data.consumers[0].stats.fails.should.equal(5);
               data.consumers[0].stats.processing.should.equal(5);
@@ -876,6 +880,5 @@ describe("Clusters administration for multicluster purposes",function(){
 
     });
   });
-
 });
 

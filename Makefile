@@ -22,11 +22,7 @@ test:
 	echo "$$REDIS1_CONF" | /usr/local/bin/redis-server -
 	echo "$$REDIS2_CONF" | /usr/local/bin/redis-server -
 
-	test/resources/zookeeper-3.4.3/bin/zkServer.sh start ${ZOOCFG}
-#	sleep 10 
-	./node_modules/.bin/_mocha --globals myThis,myHolder,myCallee,State_myThis --reporter spec -t 5000 -s 3000 ${REGEX} ${TESTFILE}
-
-	test/resources/zookeeper-3.4.3/bin/zkServer.sh stop ${ZOOCFG}
+	./node_modules/.bin/_mocha --globals myThis,myHolder,myCallee,State_myThis --reporter spec -t 3000 -s 2000 ${REGEX} ${TESTFILE}
 
 	kill `cat /tmp/redis1.pid`
 	kill `cat /tmp/redis1.pid`
