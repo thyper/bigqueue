@@ -25,11 +25,11 @@
         "node-logging":"0.1.x",
         "json2yaml":"1.0.x",
         "mysql":"2.0.1",
-        "nock":"0.27.2",
-        "needle":"0.6.6",
-        "async":"0.7.0"
+        "async":"0.7.0",
+        "needle":"0.7.1"
     },
     "devDependencies": {
-        "mocha" : "1.8.x"
+        "mocha" : "1.8.x",
+        "nock": "0.31.1"
     }
 }

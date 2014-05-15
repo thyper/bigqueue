@@ -481,11 +481,12 @@ describe("Clusters administration for multicluster purposes",function(){
              });
           });
         });
+        it("Should create the tasks to delete the topic")
     })
 
     describe("Delete consumers",function(done){
          beforeEach(function(done){
-          async.seq([
+          async.series([
             function(cb) {
               admClient.createBigQueueCluster({
                 name:"test1",
@@ -499,8 +500,8 @@ describe("Clusters administration for multicluster purposes",function(){
              admClient.createBigQueueCluster({
                 name:"test2",
                 nodes:[
-                    {id:"node1",host:"127.0.0.1",port:6379,status:"UP","journals":[]},
-                    {id:"node2",host:"127.0.0.1",port:6380,status:"UP","journals":[]}
+                    {id:"node3",host:"127.0.0.1",port:6379,status:"UP","journals":[]},
+                    {id:"node4",host:"127.0.0.1",port:6380,status:"UP","journals":[]}
                 ]
              },cb);
             },
@@ -508,15 +509,15 @@ describe("Clusters administration for multicluster purposes",function(){
               admClient.createTopic({name:"test",tenant_id:"test",tenant_name:"test",cluster:"test2"},cb);
             },
             function(cb) {
-              admClient.createConsumerGroup({name:"3",tenant_id:"1",tenant_name:"2e",topic_id:"test-test-test"}, cb);
+              admClient.createConsumerGroup({name:"3",tenant_id:"1",tenant_name:"2",topic_id:"test-test-test"}, cb);
             }
           ], done);
         })
   
         it("should delete consumer from specific cluster",function(done){
-          admClient.deleteConsumerGroup("1-2-3","testConsumer",function(err){
+          admClient.deleteConsumerGroup("test-test-test","1-2-3",function(err){
             should.not.exist(err)
-            mysqlConn.query("SELECT * FROM consumers WHERE id=?",["1-2-3"], function(err, data) {
+            mysqlConn.query("SELECT * FROM consumers WHERE consumer_id=?",["1-2-3"], function(err, data) {
               data.length.should.equal(0);
               done();
             });
@@ -529,57 +530,54 @@ describe("Clusters administration for multicluster purposes",function(){
                 done()
             })
         })
+        it("Should create the tasks for delete consumer")
     })
 
     describe("Retrieve information",function(){
          beforeEach(function(done){
-            admClient.createBigQueueCluster({
+           async.series([
+            function(cb) {
+              admClient.createBigQueueCluster({
                 name:"test1",
                 nodes:[
-                    {id:"node1","host":"127.0.0.1","port":6379,"errors":0,"status":"UP","journals":[]},
-                    {id:"node2","host":"127.0.0.1","port":6380,"errors":0,"status":"UP","journals":[]}
+                  {id:"node1",host:"127.0.0.1",port:6379,status:"UP",journals:[]},
+                  {id:"node2",host:"127.0.0.1",port:6380,status:"UP",journals:[]}
                 ],
                 journals:[
-                    {id:"j1","host":"127.0.0.1","port":6379,"errors":0,"status":"UP"},
-                ],
-                endpoints:[
-                    {name:"e1","host":"127.0.0.1","port":8080},
-                    {name:"e2","host":"127.0.0.1","port":8081}
+                  {id:"j1",host:"127.0.0.1",port:6379,status:"UP"}
                 ]
-
-           },function(err){
-               should.not.exist(err)
-               admClient.createBigQueueCluster({
-                    name:"test2",
-                    nodes:[
-                        {name:"node1",host:"127.0.0.1",port:6379,status:"UP",journals:[]},
-                        {name:"node2",host:"127.0.0.1",port:6380,status:"UP",journals:[]}
-                    ],
-                    endpoints:[
-                        {name:"e1","host":"127.0.0.1","port":8080},
-                        {name:"e2","host":"127.0.0.1","port":8081}
-                    ]
-               },function(err){
-                   should.not.exist(err)
-                   admClient.createTopic({"name":"test-c1","group":"test","cluster":"test1"},function(err){
-                       should.not.exist(err)
-                       admClient.createTopic({"name":"test-c2","group":"test","cluster":"test2"},function(err){
-                           should.not.exist(err)
-                           done()
-                       })
-                   })
-               })
-           })
-        })
+             },cb);
+            },
+            function(cb) {
+             admClient.createBigQueueCluster({
+                name:"test2",
+                nodes:[
+                    {id:"node3",host:"127.0.0.1",port:6379,status:"UP",journals:[]},
+                    {id:"node4",host:"127.0.0.1",port:6380,status:"UP",journals:[]}
+                ],
+                endpoints: [
+                  {name:"t1",host:"127.0.0.1",port:"8080"},
+                  {name:"t1",host:"127.0.0.1",port:"8081"}
+                ]
+             },cb);
+            },
+            function(cb) {
+              admClient.createTopic({name:"test",tenant_id:"test",tenant_name:"test",cluster:"test2"},cb);
+            }, function(cb) {
+              admClient.createConsumerGroup({name:"c1",tenant_id:"test",tenant_name:"test",topic_id:"test-test-test"},cb)
+            }, function(cb) {
+              admClient.createConsumerGroup({name:"c2",tenant_id:"test",tenant_name:"test",topic_id:"test-test-test"},cb)
+            }
+          ], done);
+        });
 
         it("should return information for an existent node",function(done){
             admClient.getNodeData("test1","node1",function(err,data){
-                data.host.should.equal("127.0.0.1")
-                data.port.should.equal(6379)
-                data.errors.should.equal(0)
-                data.status.should.equal("UP")
-                should.not.exist(err)
-                done()
+              data.host.should.equal("127.0.0.1")
+              data.port.should.equal(6379)
+              data.status.should.equal("UP")
+              should.not.exist(err)
+              done()
             })
         })
         it("should return error for an inexistent node",function(done){
@@ -590,12 +588,11 @@ describe("Clusters administration for multicluster purposes",function(){
         })
         it("should return information for an existent journal",function(done){
             admClient.getJournalData("test1","j1",function(err,data){
-                data.host.should.equal("127.0.0.1")
-                data.port.should.equal(6379)
-                data.errors.should.equal(0)
-                data.status.should.equal("UP")
-                should.not.exist(err)
-                done()
+              data.host.should.equal("127.0.0.1")
+              data.port.should.equal(6379)
+              data.status.should.equal("UP")
+              should.not.exist(err)
+              done()
             })
         })
         it("should return error for an inexistent Journal",function(done){
@@ -607,46 +604,30 @@ describe("Clusters administration for multicluster purposes",function(){
 
 
         it("should get the entry points for a topic",function(done){
-            admClient.getTopicData("test-c1",function(err,data){
-                should.not.exist(err)
-                should.exist(data)
-                data.topic_id.should.equal("test-c1")
-                should.exist(data.ttl)
-                data.endpoints.should.have.length(2)
-                data.endpoints[0].host.should.equal("127.0.0.1")
-                data.endpoints[0].port.should.equal(8080)
-                data.endpoints[1].host.should.equal("127.0.0.1")
-                data.endpoints[1].port.should.equal(8081)
-                data.consumers.should.have.length(0)
-                admClient.createConsumerGroup("test-c2","test",function(err,data){
-                    should.not.exist(err)
-                    admClient.getTopicData("test-c2",function(err,data){
-                        should.not.exist(err)
-                        should.exist(data)
-                        data.topic_id.should.equal("test-c2")
-                        data.consumers.should.have.length(1)
-                        data.endpoints.should.have.length(2)
-                        data.endpoints[0].host.should.equal("127.0.0.1")
-                        data.endpoints[0].port.should.equal(8080)
-                        data.endpoints[1].host.should.equal("127.0.0.1")
-                        data.endpoints[1].port.should.equal(8081)
-                        done()
-                    })
-                })
-            })
+          admClient.getTopicData("test-test-test",function(err,data){
+              should.not.exist(err)
+              should.exist(data)
+              data.topic_id.should.equal("test-test-test")
+              should.exist(data.ttl)
+              data.endpoints[0].host.should.equal("127.0.0.1")
+              data.endpoints[0].port.should.equal(8080)
+              data.endpoints[1].host.should.equal("127.0.0.1")
+              data.endpoints[1].port.should.equal(8081)
+              done()
+          })
         })
         it("should get data about cluster",function(done){
             admClient.getClusterData("test1",function(err,data){
-                data.should.have.keys("cluster","topics","nodes","endpoints","journals")
+              data.should.have.keys("cluster","topics","nodes","endpoints","journals")
                 done()
             })
         })
         it("should get all topics for a group",function(done){
-            admClient.getGroupTopics("test",function(err,data){
-                data.should.have.length(2)
-                data.should.include("test-c1")
-                data.should.include("test-c2")
-                done()
+            admClient.getGroupTopics("test-test-test",function(err,data){
+              data.should.have.length(2)
+              data[0].consumer_id.should.match(/test-test-(c1|c2)/)
+              data[1].consumer_id.should.match(/test-test-(c1|c2)/)
+              done()
             })
         })
     })
@@ -833,9 +814,9 @@ describe("Clusters administration for multicluster purposes",function(){
               should.exist(data);
               data.consumers.length.should.equal(1);
               data.consumers[0].consumer_id.should.equal("test-test-c1");
-              data.consumers[0].stats.lag.should.equal(12);
-              data.consumers[0].stats.fails.should.equal(5);
-              data.consumers[0].stats.processing.should.equal(5);
+              data.consumers[0].consumer_stats.lag.should.equal(12);
+              data.consumers[0].consumer_stats.fails.should.equal(5);
+              data.consumers[0].consumer_stats.processing.should.equal(5);
               done();
             }); 
           });
@@ -845,8 +826,8 @@ describe("Clusters administration for multicluster purposes",function(){
       admClient.updateNodeMetrics("test1","node1",{
           sample_date: new Date().getTime(),
           topic_stats: {
-            "test-c1": {
-              test: {
+            "test-test-t1": {
+              "test-test-c1": {
                 lag:10,
                 fails:2,
                 processing:1
@@ -857,8 +838,8 @@ describe("Clusters administration for multicluster purposes",function(){
           admClient.updateNodeMetrics("test1","node2",{
             sample_date: new Date().getTime(),
             topic_stats: {
-              "test-c1": {
-                test: {
+              "test-test-t1": {
+                "test-test-c1": {
                   lag:2,
                   fails:3,
                   processing:4
@@ -867,7 +848,7 @@ describe("Clusters administration for multicluster purposes",function(){
             }
           }, function(err) {
             should.not.exist(err);
-            admClient.getConsumerData("test-c1", "test", function(err, data) {
+            admClient.getConsumerData("test-test-t1", "test-test-c1", function(err, data) {
               should.not.exist(err);
               should.exist(data);
               data.consumer_stats.lag.should.equal(12);
