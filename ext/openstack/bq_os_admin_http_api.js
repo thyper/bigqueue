@@ -6,7 +6,6 @@ var express = require('express'),
 
 
 var loadApp = function(app){
-    var cache = app.settings.topicDataCache;
     var authorizeTenant = function(userData,tenantId){
     var authorized = false
         try{
@@ -35,16 +34,42 @@ var loadApp = function(app){
         return found
     }
 
-    function initializeCache(topic) {
-      cache[topic] = {lastVisit: new Date().getTime()};
-    }
-
-    function updateVisited(topic) {
-      if(cache[topic] && cache[topic].lastVisit) {
-        cache[topic].lastVisit =  new Date().getTime();
+    function getTenantId(req) {
+      if(req.keystone && 
+         req.keystone.userData && 
+         req.keystone.userData.access && 
+         req.keystone.userData.access.token && 
+         req.keystone.userData.access.token.tenant) {
+        return req.keystone.userData.access.token.tenant.id
       }
+      return req.body && req.body.tenant_id;
     }
 
+    function getTenantName(req) {
+
+      if(req.keystone && 
+         req.keystone.userData && 
+         req.keystone.userData.access && 
+         req.keystone.userData.access.token && 
+         req.keystone.userData.access.token.tenant) {
+        return req.keystone.userData.access.token.tenant.name
+      }
+      return req.body && req.body.tenant_name;
+
+    }
+
+    function getFilterCriteria(req) {
+      var criteria = {};
+
+      Object.keys(req.params).forEach(function(e) {
+        criteria[e] = req.params[e];
+      });
+      var tenant_id = getTenantId(req);
+      if(tenant_id) {
+        criteria["tenant_id"] = tenant_id;
+      }
+      return criteria;
+    }
     app.get(app.settings.basePath+"/clusters",function(req,res){
         app.settings.bqAdm.listClusters(function(err,clusters){
             if(err){
@@ -84,9 +109,6 @@ var loadApp = function(app){
         if(!req.is("json")){
             return res.writePretty({err:"Error parsing json"},400)
         }
-        if(!req.body.name){
-            return res.writePretty({err:"Node should contains name"},400)
-        }
         app.settings.bqAdm.addNodeToCluster(req.params.cluster,req.body,function(err){
             if(err){
                 var errMsg = err.msg || ""+err
@@ -99,9 +121,6 @@ var loadApp = function(app){
     app.post(app.settings.basePath+"/clusters/:cluster/journals",function(req,res){
         if(!req.is("json")){
             return res.writePretty({err:"Error parsing json"},400)
-        }
-        if(!req.body.name){
-            return res.writePretty({err:"Node should contains name"},400)
         }
         app.settings.bqAdm.addJournalToCluster(req.params.cluster,req.body,function(err){
             if(err){
@@ -116,10 +135,7 @@ var loadApp = function(app){
         if(!req.is("json")){
             return res.writePretty({err:"Error parsing json"},400)
         }
-        if(!req.body.name){
-            return res.writePretty({err:"Node should contains name"},400)
-        }
-        app.settings.bqAdm.addEntrypointToCluster(req.params.cluster,req.body,function(err){
+        app.settings.bqAdm.addEndpointToCluster(req.params.cluster,req.body,function(err){
             if(err){
                 var errMsg = err.msg || ""+err
                 return res.writePretty({"err":errMsg},err.code || 500)
@@ -134,7 +150,7 @@ var loadApp = function(app){
             return res.writePretty({err:"Error parsing json"},400)
         }
         var node = req.body
-        node["name"] = req.params.node
+        node["id"] = req.params.node
         app.settings.bqAdm.updateNodeData(req.params.cluster,node,function(err){
             if(err){
                 var errMsg = err.msg || ""+err
@@ -149,7 +165,7 @@ var loadApp = function(app){
             return res.writePretty({err:"Error parsing json"},400)
         }
         var node = req.body
-        node["name"] = req.params.node
+        node["id"] = req.params.node
         app.settings.bqAdm.updateJournalData(req.params.cluster,node,function(err){
             if(err){
                 var errMsg = err.msg || ""+err
@@ -191,15 +207,19 @@ var loadApp = function(app){
 
     app.get(app.settings.basePath+"/topics",function(req,res){
         var group = req.query[app.settings.groupEntity]
-        if(!group){
+        if(!req.query.tenant_id){
             return res.writePretty({err:"The parameter ["+app.settings.groupEntity+"] must be set"},400)
         }
-        app.settings.bqAdm.getGroupTopics(group,function(err,data){
+        app.settings.bqAdm.getTopicDataByCriteria({tenant_id:req.query.tenant_id},function(err,data){
            if(err){
                 var errMsg = err.msg || ""+err
                 return res.writePretty({"err":errMsg},err.code || 500)
            }
-            return res.writePretty(data,200)
+           var topics = [];
+           data.forEach(function(e) {
+            topics.push(e.topic_id);
+           });
+           return res.writePretty(topics,200)
         })
     })
 
@@ -207,153 +227,119 @@ var loadApp = function(app){
         if(!req.is("json")){
             return res.writePretty({err:"Error parsing json"},400)
         }
-        var group = req.body[app.settings.groupEntity]
-
-        if(!group){
-            return res.writePretty({"err":"The property ["+app.settings.groupEntity+"] must be set"},400)
-        }
+        
         if(!req.body.name || req.body.name.indexOf(":") != -1){
             return res.writePretty({"err":"The property [name] must be set and can not contains ':'"},400)
         }
-
-        if(req.keystone && req.keystone.authorized && !authorizeTenant(req.keystone.userData, group) && !isAdmin(req.keystone.userData)){
-            return res.writePretty({"err":"Invalid token for tenant ["+group+"]"},401)
+        if(req.keystone && (!req.keystone.authorized && !isAdmin(req.keystone.userData)) ){
+          return res.writePretty({"err":"Invalid token for tenant "},401)
         }
         if(!req.body.name){
             return res.writePretty({err:"Topics should contains a name"},400)
         }
-        var topic = group+"-"+req.body.name
-        var ttl = req.body.ttl
+        var topic_data = req.body;
+        var ttl = req.body.ttl || app.settings.maxTtl;
         if(ttl && ttl > app.settings.maxTtl){
             return res.writePretty({"err":"Max ttl exceeded, max ttl possible: "+app.settings.maxTtl},406)
         }
-        app.settings.bqAdm.createTopic({"name":topic,"group":group,"ttl":ttl},req.body.cluster,function(err){
+        topic_data["ttl"] = ttl;
+        topic_data["tenant_id"] = getTenantId(req);
+        topic_data["tenant_name"] = getTenantName(req);
+        app.settings.bqAdm.createTopic(topic_data, function(err, topicData){
             if(err){
               var errMsg = err.msg || ""+err
               return res.writePretty({"err":errMsg},err.code || 500)
             }else{
-                app.settings.bqAdm.getTopicData(topic,function(err,data){
-                    if(err){
-                      var errMsg = err.msg || ""+err
-                      return res.writePretty({"err":errMsg},err.code || 500)
-                    }
-                    return res.writePretty(data,201)
-                })
+              return res.writePretty(topicData,201)
             }
+        });
+    });
+
+    app.delete(app.settings.basePath+"/topics/:topic_id",function(req,res){
+      var criteria = getFilterCriteria(req);
+      app.settings.bqAdm.getTopicDataByCriteria(criteria,function(err,data){
+        if(err){
+           var errMsg = err.msg || ""+err
+           return res.writePretty({"err":errMsg},err.code || 500)
+        }
+        if(data.length != 1) {
+           return res.writePretty({"err":"Topic not found or you are not authorized to delete with this token"}, 404)
+        }
+        app.settings.bqAdm.deleteTopic(req.params.topic_id,function(err,data){
+           if(err){
+              var errMsg = err.msg || ""+err
+              return res.writePretty({"err":errMsg},err.code || 500)
+            }
+            return res.writePretty(undefined,204)
 
         })
-    })
-
-    app.delete(app.settings.basePath+"/topics/:topicId",function(req,res){
-        app.settings.bqAdm.getTopicGroup(req.params.topicId,function(err,group){
-            if(err){
-               var errMsg = err.msg || ""+err
-               return res.writePretty({"err":errMsg},err.code || 500)
-            }
-
-            if(req.keystone && req.keystone.authorized && !authorizeTenant(req.keystone.userData, group) && !isAdmin(req.keystone.userData)){
-                return res.writePretty({"err":"Invalid token for tenant ["+group+"]"},401)
-            }
-
-            app.settings.bqAdm.deleteTopic(req.params.topicId,function(err,data){
-               if(err){
-                  var errMsg = err.msg || ""+err
-                  return res.writePretty({"err":errMsg},err.code || 500)
-                }
-                return res.writePretty(undefined,204)
-
-            })
-        })
+      })
     })
 
     app.get(app.settings.basePath+"/topics/:topicId",function(req,res){
         var topic = req.params.topicId;
-        if(cache[topic] && cache[topic].data) {
-          updateVisited(topic);
-          res.setHeader("X-Cache-Time",cache[topic].lastRefresh)
-          return res.writePretty(cache[topic].data,200);
-        } else {
-          app.settings.bqAdm.getTopicData(topic,function(err,data){
-              if(err){
-                var errMsg = err.msg || ""+err
-                return res.writePretty({"err":errMsg},err.code || 500)
-              }
-              initializeCache(topic);
-              return res.writePretty(data,200)
-          })
-        }
+        app.settings.bqAdm.getTopicData(topic,function(err,data){
+            if(err){
+              var errMsg = err.msg || ""+err
+              return res.writePretty({"err":errMsg},err.code || 500)
+            }
+            return res.writePretty(data,200)
+        })
     })
 
     app.get(app.settings.basePath+"/topics/:topicId/consumers",function(req,res){
         var topic = req.params.topicId;
-        if(cache[topic] && cache[topic].data) {
-          updateVisited(topic);
-          res.setHeader("X-Cache-Time",cache[topic].lastRefresh)
-          return res.writePretty(cache[topic].data.consumers,200);
-        } else {
-          app.settings.bqAdm.getTopicData(topic,function(err,data){
-             if(err){
-                var errMsg = err.msg || ""+err
-                return res.writePretty({"err":errMsg},err.code || 500)
-              }
-              initializeCache(topic);
-              return res.writePretty(data.consumers,200)
-          });
-        }
+        app.settings.bqAdm.getTopicData(topic,function(err,data){
+           if(err){
+              var errMsg = err.msg || ""+err
+              return res.writePretty({"err":errMsg},err.code || 500)
+            }
+            return res.writePretty(data.consumers,200)
+        });
     })
     app.post(app.settings.basePath+"/topics/:topicId/consumers",function(req,res){
         if(!req.is("json")){
             return res.writePretty({err:"Error parsing json"},400)
         }
-
-        var group = req.body[app.settings.groupEntity]
-        var topic = req.params.topicId
-        var consumer = group+"-"+req.body.name
-
-        if(!group){
-            res.writePretty({"err":"The property ["+app.settings.groupEntity+"] must be set"},400)
-        }
-
-
-        if(req.keystone && req.keystone.authorized && !isAdmin(req.keystone.userData)){
-            if(!authorizeTenant(req.keystone.userData, group))
-                return res.writePretty({"err":"Invalid token for tenant ["+group+"]"},401)
-
-            //Consumers can be only created if these belongs to the same tenant or the user has the admin role
-            if(topic.lastIndexOf(group,0) != 0)
-                return res.writePretty({"err":"Tenant ["+group+"] can't create consumers on ["+topic+"]]"},401)
-        }
-
+        
         if(!req.body.name || req.body.name.indexOf(":") != -1){
-            return res.writePretty({err:"Consumer should contains a name and can not contains ':'"},400)
+            return res.writePretty({"err":"The property [name] must be set and can not contains ':'"},400)
         }
-        app.settings.bqAdm.createConsumerGroup(topic,consumer,function(err){
-            if(err){
+
+        if(req.keystone && (!req.keystone.authorized && !isAdmin(req.keystone.userData)) ){
+            return res.writePretty({"err":"Invalid token for tenant "},401)
+        }
+        if(!req.body.name){
+            return res.writePretty({err:"Consumer should contains a name"},400)
+        }
+        var consumer_data = req.body;
+        consumer_data["tenant_id"] = getTenantId(req);
+        consumer_data["tenant_name"] = getTenantName(req);
+        consumer_data["topic_id"] = req.params.topicId;
+        app.settings.bqAdm.createConsumerGroup(consumer_data, function(err, consumerData){
+          if(err){
               var errMsg = err.msg || ""+err
               return res.writePretty({"err":errMsg},err.code || 500)
+            }else{
+              return res.writePretty(consumerData,201)
             }
-            app.settings.bqAdm.getConsumerData(topic,consumer,function(err,data){
-                if(err){
-                  var errMsg = err.msg || ""+err
-                  return res.writePretty({"err":errMsg},err.code || 500)
-                }
-                return res.writePretty(data,201)
-            })
         })
+
     })
 
-    app.delete(app.settings.basePath+"/topics/:topicId/consumers/:consumerId",function(req,res){
-        app.settings.bqAdm.getTopicGroup(req.params.topicId,function(err,group){
+    app.delete(app.settings.basePath+"/topics/:topic_id/consumers/:consumer_id",function(req,res){
+        var criteria = getFilterCriteria(req); 
+        app.settings.bqAdm.getConsumerByCriteria(criteria,function(err,data){
             if(err){
-                var errMsg = err.msg || ""+err
+              var errMsg = err.msg || ""+err
                 return res.writePretty({"err":errMsg},err.code || 500)
             }
-
-            if(req.keystone && req.keystone.authorized && !authorizeTenant(req.keystone.userData, group) && !isAdmin(req.keystone.userData)){
-                return res.writePretty({"err":"Invalid token for tenant ["+group+"]"},401)
+            
+            if(data.length != 1) {
+               return res.writePretty({"err":"Consumer not found or you are not authorized to delete with this token"}, 404)
             }
 
-            app.settings.bqAdm.deleteConsumerGroup(req.params.topicId,req.params.consumerId,function(err,data){
+            app.settings.bqAdm.deleteConsumerGroup(req.params.topic_id,req.params.consumer_id,function(err,data){
                 if(err){
                   var errMsg = err.msg || ""+err
                   return res.writePretty({"err":errMsg},err.code || 500)
@@ -364,26 +350,28 @@ var loadApp = function(app){
     })
 
     //Reset on put
-    app.put(app.settings.basePath+"/topics/:topicId/consumers/:consumerId",function(req,res){
-        app.settings.bqAdm.getTopicGroup(req.params.topicId,function(err,group){
+    app.put(app.settings.basePath+"/topics/:topic_id/consumers/:consumer_id",function(req,res){
+        var criteria = getFilterCriteria(req); 
+        app.settings.bqAdm.getConsumerByCriteria(criteria,function(err,data){
             if(err){
-                var errMsg = err.msg || ""+err
+              var errMsg = err.msg || ""+err
                 return res.writePretty({"err":errMsg},err.code || 500)
             }
-
-            if(req.keystone && req.keystone.authorized && !authorizeTenant(req.keystone.userData, group) && !isAdmin(req.keystone.userData)){
-                return res.writePretty({"err":"Invalid token for tenant ["+group+"]"},401)
+            
+            if(data.length != 1) {
+               return res.writePretty({"err":"Consumer not found or you are not authorized to delete with this token"}, 404)
             }
 
-            app.settings.bqAdm.resetConsumerGroup(req.params.topicId,req.params.consumerId,function(err,data){
+            app.settings.bqAdm.resetConsumer(req.params.topic_id,req.params.consumer_id,function(err,data){
                 if(err){
                   var errMsg = err.msg || ""+err
                   return res.writePretty({"err":errMsg},err.code || 500)
                 }
-                return res.writePretty({"msg":"Consumer ["+req.params.consumerId+"] of topic ["+req.params.topicId+"] have been reset"},200)
+                return res.writePretty(undefined,204)
             })
         })
-    })
+
+    });
     app.get(app.settings.basePath+"/topics/:topicId/consumers/:consumerId",function(req,res){
         var topic = req.params.topicId;
         var consumer = req.params.consumerId;
@@ -398,49 +386,6 @@ var loadApp = function(app){
     app.get("/ping", function(req, res) {
       res.send("pong",200);
     });
-}
-
-/**
- * Cache it's a simple object indexed by topic id,
- * for each id will be abailable
- * - Data: the data from redis and zookeeper
- * - lastRefresh: the time from the last refresh
- * - lastVisit: the time form the last read
- */
-var loadCacheRefresher = function(cache, app) {
-  var refreshInterval = app.settings.cacheRefreshInterval || 30000;
-  var cacheWhileVisitTime = app.settings.cacheWhileVisitTime || 300000;
-  function updateTopicCache(topic) {
-    app.settings.bqAdm.getTopicData(topic,function(err,data) {
-        if(err) {
-          //On error the cache item will be removed
-          delete cache[topic];
-        } else {
-          cache[topic].data = data;
-          cache[topic].lastRefresh = new Date().getTime();
-        }
-    });
-
-  }
-  function refreshCacheCron() {
-    log.inf("Refreshing topic cache");
-    var keys = Object.keys(cache);
-    for(var i in keys) {
-      var key = keys[i];
-      if(cache[key].lastVisit < (new Date().getTime() - cacheWhileVisitTime)) {
-        delete cache[key];
-      } else {
-        updateTopicCache(key);
-      }
-    }
-    if(app.running) {
-      setTimeout(refreshCacheCron, refreshInterval);
-    } else {
-      cache = {};
-    }
-  }
-
-  refreshCacheCron();
 }
 
 var authFilter = function(config){
@@ -511,13 +456,8 @@ exports.startup = function(config){
     app.set("maxTtl",maxTtl)
     app.set("bqAdm",bqAdm.createClustersAdminClient(config.admConfig))
     app.set("topicDataCache", topicDataCache);
-    app.set("cacheRefreshInterval", config.cacheRefreshInterval || 30000);
-    app.set("cacheWhileVisitTime", config.cacheWhileVisitTime || 300000);
-       var groupEntity = config.groupEntity || "tenantId"
-    app.set("groupEntity",groupEntity )
     loadApp(app)
     app.running = true;
-    loadCacheRefresher(topicDataCache, app);
     app.listen(config.port)
     this.app = app
     return this

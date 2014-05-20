@@ -24,6 +24,8 @@ describe("Big Queue Cluster",function(){
     var bqClient
     var redisClient1
     var redisClient2
+    var nodeClient1;
+    var nodeClient2;
     var journalClient1
     var journalClient2
     var clusterData;
@@ -36,7 +38,7 @@ describe("Big Queue Cluster",function(){
           ],
           journals:[
               {id:"j1","host":"127.0.0.1","port":6379,"status":"UP"},
-              {id:"j1","host":"127.0.0.1","port":6380,"status":"UP"}
+              {id:"j2","host":"127.0.0.1","port":6380,"status":"UP"}
           ],
           endpoints:[
               {name:"e1","host":"127.0.0.1","port":8080},
@@ -83,11 +85,19 @@ describe("Big Queue Cluster",function(){
     before(function(done){
       async.parallel([
         function(cb) {
-          journalClient1 = bj.createJournalClient({host:"127.0.0.1",port:6379})
+          nodeClient1 = bq.createClient({host:"127.0.0.1",port:6379});
+          nodeClient1.on("ready", cb);
+        },
+        function(cb) {
+          nodeClient2 = bq.createClient({host:"127.0.0.1",port:6380});
+          nodeClient2.on("ready", cb);
+        },
+        function(cb) {
+          journalClient1 = bj.createJournalClient({host:"127.0.0.1",port:6379});
           journalClient1.on("ready", cb);
         },
         function(cb) {
-          journalClient2 = bj.createJournalClient({host:"127.0.0.1",port:6380})
+          journalClient2 = bj.createJournalClient({host:"127.0.0.1",port:6380});
           journalClient2.on("ready", cb);
         }
       ],done);
@@ -202,9 +212,17 @@ describe("Big Queue Cluster",function(){
 
     describe("#postMessage",function(){
       beforeEach(function(done){
-        //TODO: make testTopic create
-        done();
-      })
+        async.series([
+          function(cb) {
+            nodeClient1.createTopic("testTopic",cb);
+          },
+          function(cb) {
+            nodeClient2.createTopic("testTopic",cb);
+          }
+        ], done);
+
+      });
+
       it("should balance the writes",function(done) {
         async.series([
           function(cb) {
@@ -303,7 +321,10 @@ describe("Big Queue Cluster",function(){
           setTimeout(cb, 20);
         },
         function(cb) {
-          bqClient.postMessage("testTopic",{msg:"test1"},cb);
+          bqClient.postMessage("testTopic",{msg:"test1"},function(err) {
+            should.exist(err);
+            cb();
+          });
         }
        ],done);
      });
@@ -311,7 +332,7 @@ describe("Big Queue Cluster",function(){
      it("should ignore force down status",function(done){
        async.series([
         function(cb) {
-          clusterData[1].status="FORCEDOWN";
+          clusterData.nodes[1].status="FORCEDOWN";
           setTimeout(cb, 20);
         },
         function(cb) {
@@ -339,7 +360,7 @@ describe("Big Queue Cluster",function(){
      it("should ignore read_only status",function(done){
       async.series([
           function(cb) {
-            clusterData[1].status="READONLY";
+            clusterData.nodes[1].status="READONLY";
             setTimeout(cb, 20);
           },
           function(cb) {
@@ -367,8 +388,21 @@ describe("Big Queue Cluster",function(){
     })
     describe("#getMessage",function(){
         beforeEach(function(done){
-          //TODO; create testTopic and testGroup
-          done();
+          async.series([
+            function(cb) {
+              nodeClient1.createTopic("testTopic",cb);
+            },
+            function(cb) {
+              nodeClient2.createTopic("testTopic",cb);
+            },
+           function(cb) {
+              nodeClient1.createConsumerGroup("testTopic","testGroup",cb);
+            },
+            function(cb) {
+              nodeClient2.createConsumerGroup("testTopic","testGroup",cb);
+            }
+          ], done);
+
         });
 
         it("should generate and add a recipientCallback to the returned message",function(done){
@@ -394,6 +428,22 @@ describe("Big Queue Cluster",function(){
               }
             ], done);
         });
+        it("should fail if consumer or topic doesnt exists", function(done) {
+          async.series([
+             function(cb) {
+              bqClient.getMessage("fakeTopic","testGroup",undefined,function(err, data) {
+                should.exist(err);
+                cb();
+              });
+            },
+            function(cb) {
+              bqClient.getMessage("testTopic","fakeGroup",undefined,function(err, data) {
+                should.exist(err);
+                cb();
+              });
+            },
+          ],done);
+        })
         it("should get node Id",function(done){
           //because get message using round-robin
           async.series([
@@ -463,23 +513,23 @@ describe("Big Queue Cluster",function(){
                 bqClient.postMessage("testTopic",{msg:"testMessage"},cb);
               },
               function(cb) {
-                bqClient.getMessageFromNode("redis1","testTopic","testGroup",undefined,function(err,data){
+                bqClient.getMessageFromNode("node1","testTopic","testGroup",undefined,function(err,data){
                   should.not.exist(err)
                   should.exist(data)
                   data.should.have.property("uid")
                   data.should.have.property("nodeId")
-                  data.nodeId.should.equal("redis1");
+                  data.nodeId.should.equal("node1");
                   data.should.have.property("recipientCallback")
                   cb();
                 });
               },
               function(cb) {
-                bqClient.getMessageFromNode("redis2","testTopic","testGroup",undefined,function(err,data){
+                bqClient.getMessageFromNode("node2","testTopic","testGroup",undefined,function(err,data){
                   should.not.exist(err)
                   should.exist(data)
                   data.should.have.property("uid")
                   data.should.have.property("nodeId")
-                  data.nodeId.should.equal("redis2");
+                  data.nodeId.should.equal("node2");
                   data.should.have.property("recipientCallback")
                   cb();
                 });
@@ -569,7 +619,7 @@ describe("Big Queue Cluster",function(){
            function(cb) {
             clusterData.nodes[0].status="DOWN";
             clusterData.nodes[1].status="DOWN";
-            setTimeout(20, cb);
+            setTimeout(cb, 20);
            },
            function(cb) {
              bqClient.getMessage("testTopic","testGroup",undefined,function(err,data){
@@ -598,16 +648,16 @@ describe("Big Queue Cluster",function(){
             function(cb) {
               bqClient.getMessage("testTopic","testGroup",undefined,function(err,data){
                 should.not.exist(err)
-                should.not.exist(data)
-                uids.should.contain(data.uid);
+                should.exist(data)
+                uids.should.include(data.uid);
                 cb();    
               })
             },
             function(cb) {
               bqClient.getMessage("testTopic","testGroup",undefined,function(err,data){
                 should.not.exist(err)
-                should.not.exist(data)
-                uids.should.contain(data.uid);
+                should.exist(data)
+                uids.should.include(data.uid);
                 cb();    
               })
             }
@@ -687,10 +737,23 @@ describe("Big Queue Cluster",function(){
         });
     });
 
-    describe("ack",function(){
+    describe("#ackMessages",function(){
       beforeEach(function(done){
-        //TODO; create testTopic and testGroup
-        done();
+        async.series([
+          function(cb) {
+            nodeClient1.createTopic("testTopic",cb);
+          },
+          function(cb) {
+            nodeClient2.createTopic("testTopic",cb);
+          },
+         function(cb) {
+            nodeClient1.createConsumerGroup("testTopic","testGroup",cb);
+          },
+          function(cb) {
+            nodeClient2.createConsumerGroup("testTopic","testGroup",cb);
+          }
+        ], done);
+
       });
 
       it("should receive the recipientCallback ack the message",function(done){
@@ -755,10 +818,10 @@ describe("Big Queue Cluster",function(){
              });
            },
            function(cb) {
-            if(clusterData[0].id == recipientData.nodeId) {
-              clusterData[0].status = "DOWN";
+             if(clusterData.nodes[0].id == recipientData.nodeId) {
+              clusterData.nodes[0].status = "DOWN";
             } else {
-              clusterData[1].status = "DOWN";
+              clusterData.nodes[1].status = "DOWN";
             }
             cb();
            },
@@ -772,15 +835,27 @@ describe("Big Queue Cluster",function(){
       });
   })
 
-  describe("fail",function(){
+  describe("#fail",function(){
       beforeEach(function(done){
-        //TODO: create topic and consumer
-        done();
+        async.series([
+          function(cb) {
+            nodeClient1.createTopic("testTopic",cb);
+          },
+          function(cb) {
+            nodeClient2.createTopic("testTopic",cb);
+          },
+         function(cb) {
+            nodeClient1.createConsumerGroup("testTopic","testGroup",cb);
+          },
+          function(cb) {
+            nodeClient2.createConsumerGroup("testTopic","testGroup",cb);
+          }
+        ], done);
       });
 
       it("should fail the message using the recipientCallback",function(done){
-        var recipientCallback = data.recipientCallback
-        var recipientData = bqClient.decodeRecipientCallback(recipientCallback)
+        var recipientCallback;
+        var recipientData;
         var client
         async.series([
           function(cb) {
@@ -794,7 +869,7 @@ describe("Big Queue Cluster",function(){
               should.not.exist(err)
               recipientCallback = data.recipientCallback
               recipientData = bqClient.decodeRecipientCallback(recipientCallback)
-              if(recipientData.nodeId == "redis1"){
+              if(recipientData.nodeId == "node1"){
                   client = redisClient1
               }else{
                   client = redisClient2
@@ -825,8 +900,8 @@ describe("Big Queue Cluster",function(){
       });
 
       it("should fail if the target node is down",function(done){
-        var recipientCallback = data.recipientCallback
-        var recipientData = bqClient.decodeRecipientCallback(recipientCallback)
+        var recipientCallback;
+        var recipientData;
         async.series([
           function(cb) {
             bqClient.postMessage("testTopic",{msg:"testMessage"},cb);
@@ -861,16 +936,36 @@ describe("Big Queue Cluster",function(){
    })
  
  describe("background",function(){
+    beforeEach(function(done){
+        async.series([
+          function(cb) {
+            nodeClient1.createTopic("testTopic",cb);
+          },
+          function(cb) {
+            nodeClient2.createTopic("testTopic",cb);
+          },
+         function(cb) {
+            nodeClient1.createConsumerGroup("testTopic","testGroup",cb);
+          },
+          function(cb) {
+            nodeClient2.createConsumerGroup("testTopic","testGroup",cb);
+          }
+        ], done);
+      });
+
      it("should collect stats in file",function(done){
          bqClient.shutdown() 
-         var bqClientConfig = {
-             "refreshTime":500,
-             "zkClusterPath":clusterPath,
-             "createJournalClientFunction":bj.createJournalClient,
-             "createNodeClientFunction":bq.createClient,
+    
+          var bqClientConfig = {
+            "refreshInterval":10,
+            "cluster": "test",
+            "adminApiUrl":"http://adminapi.bigqueue.com",
+            "createJournalClientFunction":bj.createJournalClient,
+            "createNodeClientFunction":bq.createClient,
              "statsInterval":50,
              "statsFile":"/tmp/bigqueueStats.log"
           }
+
 
           var dirs = fs.readdirSync("/tmp")
           if(dirs.lastIndexOf("bigqueueStats.log") != -1){
@@ -878,21 +973,31 @@ describe("Big Queue Cluster",function(){
           }
           bqc.statsInit = false
           bqClient = bqc.createClusterClient(bqClientConfig)
-          bqClient.on("ready",function(){
-             bqClient.postMessage("testTopic",{msg:"test1"},function(err,key){
-                  bqClient.postMessage("testTopic",{msg:"test2"},function(err,key){
-                      bqClient.postMessage("testTopic",{msg:"test3"},function(err,key){
-                          bqClient.postMessage("testTopic",{msg:"test4"},function(err,key){
-                              setTimeout(function(){
-                                  var dirs = fs.readdirSync("/tmp")
-                                  dirs.lastIndexOf("bigqueueStats.log").should.not.equal(-1)
-                                  done()
-                              },210)
-                          })
-                      })
-                  })
-             })
-          })
+          async.series([
+            function(cb) {
+              setTimeout(cb, 300);
+            },
+            function(cb) {
+              bqClient.postMessage("testTopic",{msg:"test1"},cb);
+            },
+            function(cb) {
+              bqClient.postMessage("testTopic",{msg:"test2"},cb);
+            },
+            function(cb) {
+              bqClient.postMessage("testTopic",{msg:"test3"},cb);
+            },
+            function(cb) {
+              bqClient.postMessage("testTopic",{msg:"test4"},cb);
+            },
+            function(cb) {
+              setTimeout(cb, 210);
+            }, 
+            function(cb) {
+              var dirs = fs.readdirSync("/tmp")
+              dirs.lastIndexOf("bigqueueStats.log").should.not.equal(-1)
+              cb();
+            }
+          ],done);
      })
   })
 })

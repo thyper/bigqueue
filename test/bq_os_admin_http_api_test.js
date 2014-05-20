@@ -1,5 +1,4 @@
 var should = require('should'),
-    ZK = require("zookeeper"),
     http = require('http'),
     redis = require("redis"),
     bq = require('../lib/bq_client.js'),
@@ -9,33 +8,25 @@ var should = require('should'),
     utils = require('../lib/bq_client_utils.js'),
     bj = require('../lib/bq_journal_client_redis.js'),
     express = require('express'),
-    mysql = require('mysql');
+    mysql = require('mysql'),
+    async = require("async");
 
 describe("openstack admin http api",function(){
 
-    var bqPath = "/bq"
 
      var mysqlConf = {
         host     : 'localhost',
         user     : 'root',
         password : '',
-        database : 'bigqueue'
+        database : 'bigqueue',
+        connectionLimit: 10,
+        waitForConnections: false
     };
 
     var mysqlConn = mysql.createConnection(mysqlConf);
 
-    var zkConfig = {
-        connect: "localhost:2181",
-        timeout: 200000,
-        debug_level: ZK.ZOO_LOG_LEVEL_WARN,
-        host_order_deterministic: false
-    }
 
     var admConfig = {
-        "zkConfig":zkConfig,
-        "zkBqPath":bqPath,
-        "createNodeClientFunction":bq.createClient,
-        "createJournalClientFunction":bj.createJournalClient,
         "logLevel":"error",
         "adminRoleId":3,
         "defaultCluster":"test",
@@ -61,17 +52,6 @@ describe("openstack admin http api",function(){
       });
     });
 
-    var zk = new ZK(zkConfig)
-
-    before(function(done){
-        zk.connect(function(err){
-            if(err){
-                done(err)
-            }else{
-                done()
-            }
-        })
-    })
 
     beforeEach(function(done){
     var redisCli =  redis.createClient(6379,"127.0.0.1",{"return_buffers":false})
@@ -84,32 +64,6 @@ describe("openstack admin http api",function(){
         })
     })
 
-    beforeEach(function(done){
-        zk.a_create("/bq","",0,function(rc,error,path){
-            utils.deleteZkRecursive(zk,"/bq/clusters",function(){
-                utils.deleteZkRecursive(zk,"/bq/admin",function(){
-                    zk.a_create("/bq/clusters","",0,function(rc,error,path){
-                        zk.a_create("/bq/admin","",0,function(rc,error,path){
-                            zk.a_create("/bq/admin/indexes","",0,function(rc,error,path){
-                                zk.a_create("/bq/admin/indexes/topics","",0,function(rc,error,path){
-                                    zk.a_create("/bq/admin/indexes/groups","",0,function(rc,error,path){
-                                        done()
-                                    })
-                                })
-                            })
-                        })
-                    })
-                })
-            })
-        })
-    })
-
-    after(function(done){
-        zk.close()
-        process.nextTick(function(){
-            done()
-        })
-    })
 
     var api
 
@@ -123,35 +77,70 @@ describe("openstack admin http api",function(){
         })
    })
 
-
+    beforeEach(function(done) {
+      async.parallel([
+        function(d) {
+          mysqlConn.query("TRUNCATE stats", d);
+        },
+        function(d) {
+          mysqlConn.query("TRUNCATE clusters", d);
+        },
+        function(d) {
+          mysqlConn.query("TRUNCATE data_nodes", d);
+        },
+        function(d) {
+          mysqlConn.query("TRUNCATE endpoints",d);
+        },
+        function(d) {
+          mysqlConn.query("TRUNCATE topics",d);
+        },
+        function(d) {
+          mysqlConn.query("TRUNCATE consumers",d);
+        },
+        function(d) {
+          mysqlConn.query("TRUNCATE node_journals",d);
+        }
+      ], function(err) { 
+        done(err) 
+      });
+    });  
     describe("Cluster Admin",function(){
-        it("should enable to create new clusters",function(done){
+      it("should enable to create new clusters",function(done){
+        async.series([
+          function(cb) {    
+            request({
+              url:"http://127.0.0.1:8081/clusters",
+              method:"GET",
+              json:true
+            },function(error,response,body){
+              should.not.exist(error)
+              response.statusCode.should.equal(200)
+              body.should.have.length(0)
+              cb();
+            })
+          },
+          function(cb) {
+            request({
+              url:"http://127.0.0.1:8081/clusters",
+              method:"POST",
+              json:{"name":"test"}
+            },function(error,response,body){
+              response.statusCode.should.equal(201)
+              cb();
+            })
+          },
+          function(cb) {
             request({
                 url:"http://127.0.0.1:8081/clusters",
                 method:"GET",
                 json:true
             },function(error,response,body){
-                should.not.exist(error)
-                response.statusCode.should.equal(200)
-                body.should.have.length(0)
-                request({
-                    url:"http://127.0.0.1:8081/clusters",
-                    method:"POST",
-                    json:{"name":"test"}
-                },function(error,response,body){
-                    response.statusCode.should.equal(201)
-                    request({
-                        url:"http://127.0.0.1:8081/clusters",
-                        method:"GET",
-                        json:true
-                    },function(error,response,body){
-                        response.statusCode.should.equal(200)
-                        body.should.have.length(1)
-                        body[0].should.equal("test")
-                        done()
-                    })
-                })
+              response.statusCode.should.equal(200)
+              body.should.have.length(1)
+              body[0].should.equal("test")
+              cb();
             })
+          }], done);
         })
         it("Should get the cluster information",function(done){
             request({
@@ -173,42 +162,54 @@ describe("openstack admin http api",function(){
         })
 
         it("should support add nodes",function(done){
-            request({
+          async.series( [
+            function(cb) {  
+              request({
                 url:"http://127.0.0.1:8081/clusters",
                 method:"POST",
                 json:{"name":"test"}
-            },function(error,response,body){
+              },function(error,response,body){
                 response.statusCode.should.equal(201)
-                request({
-                    url:"http://127.0.0.1:8081/clusters/test",
-                    method:"GET",
-                    json:true
-                },function(err,response,body){
-                    response.statusCode.should.equal(200)
-                    body.nodes.should.have.length(0)
-                    request({
-                        url:"http://127.0.0.1:8081/clusters/test/nodes",
-                        method:"POST",
-                        json:{"name":"test1",config:{"host":"127.0.0.1","port":6379,"status":"DOWN","journals":[]}}
-                    },function(err,response,body){
-                        response.statusCode.should.equal(201)
-                        request({
-                            url:"http://127.0.0.1:8081/clusters/test",
-                            method:"GET",
-                            json:true
-                        },function(err,response,body){
-                            response.statusCode.should.equal(200)
-                            body.nodes.should.have.length(1)
-                            body.nodes[0].host.should.equal("127.0.0.1")
-                            body.nodes[0].port.should.equal(6379)
-                            body.nodes[0].host.should.equal("127.0.0.1")
-                            done()
-                        })
-                    })
-
-                })
-            })
-        })
+                cb();
+              });
+            },
+            function(cb) {
+              request({
+                url:"http://127.0.0.1:8081/clusters/test",
+                method:"GET",
+                json:true
+              },function(err,response,body){
+                response.statusCode.should.equal(200)
+                body.nodes.should.have.length(0)
+                cb();
+              });
+            },
+            function(cb) {
+              request({
+                url:"http://127.0.0.1:8081/clusters/test/nodes",
+                method:"POST",
+                json:{"id":"test1","host":"127.0.0.1","port":6379,"status":"DOWN","journals":[]}
+              },function(err,response,body){
+                
+                response.statusCode.should.equal(201)
+                cb();
+              })
+            },
+            function(cb) {
+              request({
+                url:"http://127.0.0.1:8081/clusters/test",
+                method:"GET",
+                json:true
+              },function(err,response,body){
+                response.statusCode.should.equal(200)
+                body.nodes.should.have.length(1)
+                body.nodes[0].host.should.equal("127.0.0.1")
+                body.nodes[0].port.should.equal(6379)
+                body.nodes[0].host.should.equal("127.0.0.1")
+                done()
+              });
+            }], done);
+        });
         it("should support modify nodes",function(done){
             request({
                 url:"http://127.0.0.1:8081/clusters",
@@ -226,7 +227,7 @@ describe("openstack admin http api",function(){
                     request({
                         url:"http://127.0.0.1:8081/clusters/test/nodes",
                         method:"POST",
-                        json:{"name":"test1",config:{"host":"127.0.0.1","port":6379,"journals":[],"status":"DOWN"}}
+                        json:{"id":"test1","host":"127.0.0.1","port":6379,"journals":[],"status":"DOWN"}
                     },function(err,response,body){
                         response.statusCode.should.equal(201)
                         request({
@@ -241,7 +242,7 @@ describe("openstack admin http api",function(){
                             request({
                                 url:"http://127.0.0.1:8081/clusters/test/nodes/test1",
                                 method:"PUT",
-                                json:{config:{"host":"localhost","port":6379}}
+                                json:{status:"UP"}
                             },function(err,response,body){
                                 response.statusCode.should.equal(200)
                                 request({
@@ -251,8 +252,9 @@ describe("openstack admin http api",function(){
                                 },function(err,response,body){
                                     response.statusCode.should.equal(200)
                                     body.nodes.should.have.length(1)
-                                    body.nodes[0].host.should.equal("localhost")
+                                    body.nodes[0].host.should.equal("127.0.0.1")
                                     body.nodes[0].port.should.equal(6379)
+                                    body.nodes[0].status.should.equal("UP")
                                     done()
                                 })
                             })
@@ -279,9 +281,9 @@ describe("openstack admin http api",function(){
                     request({
                         url:"http://127.0.0.1:8081/clusters/test/journals",
                         method:"POST",
-                        json:{"name":"j1",config:{"host":"127.0.0.1","port":6379,"status":"DOWN"}}
+                        json:{"id":"j1","host":"127.0.0.1","port":6379,"status":"DOWN"}
                     },function(err,response,body){
-                        response.statusCode.should.equal(201)
+                      response.statusCode.should.equal(201)
                         request({
                             url:"http://127.0.0.1:8081/clusters/test",
                             method:"GET",
@@ -294,7 +296,7 @@ describe("openstack admin http api",function(){
                             request({
                                 url:"http://127.0.0.1:8081/clusters/test/journals/j1",
                                 method:"PUT",
-                                json:{config:{"host":"localhost","port":6379}}
+                                json:{status:"UP"}
                             },function(err,response,body){
                                 response.statusCode.should.equal(200)
                                 request({
@@ -304,8 +306,9 @@ describe("openstack admin http api",function(){
                                 },function(err,response,body){
                                     response.statusCode.should.equal(200)
                                     body.journals.should.have.length(1)
-                                    body.journals[0].host.should.equal("localhost")
+                                    body.journals[0].host.should.equal("127.0.0.1")
                                     body.journals[0].port.should.equal(6379)
+                                    body.journals[0].status.should.equal("UP")
                                     done()
                                 })
                             })
@@ -331,9 +334,9 @@ describe("openstack admin http api",function(){
                     request({
                         url:"http://127.0.0.1:8081/clusters/test/endpoints",
                         method:"POST",
-                        json:{"name":"test1",config:{"host":"127.0.0.1","port":6379}}
+                        json:{"name":"test1","host":"127.0.0.1","port":6379}
                     },function(err,response,body){
-                        response.statusCode.should.equal(201)
+                    response.statusCode.should.equal(201)
                         request({
                             url:"http://127.0.0.1:8081/clusters/test",
                             method:"GET",
@@ -360,13 +363,13 @@ describe("openstack admin http api",function(){
                     request({
                         url:"http://127.0.0.1:8081/clusters/test/nodes",
                         method:"POST",
-                        json:{"id":"test1","name":"test1",config:{"host":"127.0.0.1","port":6379,"journals":[],"status":"DOWN"}}
+                        json:{"id":"test1","name":"test1","host":"127.0.0.1","port":6379,"journals":[],"status":"DOWN"}
                     },function(err,response,body){
                         response.statusCode.should.equal(201)
                         request({
                             url:"http://127.0.0.1:8081/clusters/test/journals",
                             method:"POST",
-                            json:{"id":"j1","name":"j1",config:{"host":"127.0.0.1","port":6379,"journals":[],"status":"DOWN"}}
+                            json:{"id":"j1","name":"j1","host":"127.0.0.1","port":6379,"journals":[],"status":"DOWN"}
                         },function(err,response,body){
                             response.statusCode.should.equal(201)
                             request({
@@ -412,7 +415,7 @@ describe("openstack admin http api",function(){
                     request({
                         url:"http://127.0.0.1:8081/clusters/test/journals",
                         method:"POST",
-                        json:{"name":"test1",config:{"host":"127.0.0.1","port":6379}}
+                        json:{"id":"test1","host":"127.0.0.1","port":6379}
                     },function(err,response,body){
                         response.statusCode.should.equal(201)
                         request({
@@ -437,39 +440,46 @@ describe("openstack admin http api",function(){
 
     describe("Topics and consumers",function(){
         beforeEach(function(done){
-            request({
-                url:"http://127.0.0.1:8081/clusters",
-                method:"POST",
-                json:{"name":"test",
-                      "nodes":[{
-                        "name":"redis1",
-                        "config":{
-                            "host":"127.0.0.1",
-                            "port":6379,
-                            "status":"UP",
-                            "journals":[]
-                         }
-                      }]}
-            },function(error,response,body){
-                response.statusCode.should.equal(201)
+          async.series([
+            function(cb) {  
+              request({
+                  url:"http://127.0.0.1:8081/clusters",
+                  method:"POST",
+                  json:{"name":"test",
+                        "nodes":[{
+                            "id":"redis1",
+                              "host":"127.0.0.1",
+                              "port":6379,
+                              "status":"UP"
+                          }],
+                          "journals":[]
+                        }
+              },function(error,response,body){
+                  response.statusCode.should.equal(201)
+                  cb();
+              })
+            },
+            function(cb) {
                 request({
                     url:"http://127.0.0.1:8081/clusters",
                     method:"POST",
                     json:{"name":"test2",
                           "nodes":[{
-                            "name":"redis1",
-                            "config":{
+                            "id":"redis2",
                                 "host":"127.0.0.1",
                                 "port":6379,
                                 "status":"UP",
-                                "journals":[]
-                            }
-                         }]}
+                            }],
+                            "journals":[]
+                    }
                 },function(error,response,body){
-                    response.statusCode.should.equal(201)
-                    done()
+                  response.statusCode.should.equal(201)
+                    cb()
                 })
-            })
+            },
+            function(cb) {
+              mysqlConn.query("UPDATE clusters SET `default`=? WHERE name = ?",["Y","test"],cb);
+            }], done);
         })
         it("should support create topics into the default cluster using your tenant id",function(done){
             request({
@@ -482,7 +492,7 @@ describe("openstack admin http api",function(){
                 request({
                     url:"http://127.0.0.1:8081/topics",
                     method:"POST",
-                    json:{"tenantId":"1234","name":"test"}
+                    json:{"tenant_id":"1234","tenant_name":"test","name":"test"}
                 },function(error,response,body){
                     response.statusCode.should.equal(201)
                     request({
@@ -490,8 +500,8 @@ describe("openstack admin http api",function(){
                         method:"GET",
                         json:true
                     },function(error,response,body){
-                        response.statusCode.should.equal(200)
-body.topics.should.have.length(1)
+                      response.statusCode.should.equal(200)
+                        body.topics.should.have.length(1)
                         done()
                     })
                 })
@@ -526,7 +536,7 @@ body.topics.should.have.length(1)
                 request({
                     url:"http://127.0.0.1:8081/topics",
                     method:"POST",
-                    json:{"tenantId":"1234","name":"test","cluster":"test2"}
+                    json:{"tenant_id":"1234","name":"test","cluster":"test2", "tenant_name":"test"}
                 },function(error,response,body){
                     response.statusCode.should.equal(201)
                     request({
@@ -542,84 +552,108 @@ body.topics.should.have.length(1)
             })
         })
         it("should support create consumers in any topic using your tenant id",function(done){
+          async.series([
+            function(cb) {
             request({
                 url:"http://127.0.0.1:8081/topics",
                 method:"POST",
-                json:{"tenantId":"1234","name":"test"}
+                json:{"tenant_id":"1234", "tenant_name":"test","name":"test"}
             },function(error,response,body){
-                response.statusCode.should.equal(201)
-                request({
-                    url:"http://127.0.0.1:8081/topics/1234-test",
-                    method:"GET",
-                    json:true
-                },function(error,response,body){
-                    response.statusCode.should.equal(200)
-                    body.consumers.should.have.length(0)
-                    request({
-                        url:"http://127.0.0.1:8081/topics/1234-test/consumers",
-                        method:"POST",
-                        json:{"tenantId":"456","name":"test-consumer"}
-                    },function(error,response,body){
-                        response.statusCode.should.equal(201)
-                        request({
-                            url:"http://127.0.0.1:8081/topics/1234-test",
-                            method:"GET",
-                            json:true
-                        },function(error,response,body){
-                            response.statusCode.should.equal(200)
-                            body.consumers.should.have.length(1)
-                            body.consumers[0].consumer_id.should.equal("456-test-consumer")
-                            done()
-                        })
-                    })
-                })
+                response.statusCode.should.equal(201);
+                cb();
             })
+          },
+          function(cb) {
+              request({
+                  url:"http://127.0.0.1:8081/topics/1234-test-test",
+                  method:"GET",
+                  json:true
+              },function(error,response,body){
+                  response.statusCode.should.equal(200)
+                  body.consumers.should.have.length(0)
+                  cb();
+              });
+          },
+          function(cb){
+            request({
+                url:"http://127.0.0.1:8081/topics/1234-test-test/consumers",
+                method:"POST",
+                json:{"tenant_id":"456","tenant_name":"test", "name":"test-consumer"}
+            },function(error,response,body){
+              response.statusCode.should.equal(201)
+              cb();
+            });
+          },
+          function(cb) {
+            request({
+                url:"http://127.0.0.1:8081/topics/1234-test-test",
+                method:"GET",
+                json:true
+            },function(error,response,body){
+                response.statusCode.should.equal(200)
+                body.consumers.should.have.length(1)
+                body.consumers[0].consumer_id.should.equal("456-test-test-consumer")
+                cb();
+            })
+          }], done);
         })
         it("should support list all topics of a tenantId",function(done){
-            request({
-                url:"http://127.0.0.1:8081/topics",
-                method:"POST",
-                json:{"tenantId":"1234","name":"test"}
-            },function(error,response,body){
-                response.statusCode.should.equal(201)
+          async.series([
+            function(cb) {
+              request({
+                  url:"http://127.0.0.1:8081/topics",
+                  method:"POST",
+                  json:{"tenant_id":"1234", "tenant_name":"test","name":"test"}
+              },function(error,response,body){
+                  response.statusCode.should.equal(201);
+                  cb();
+              })
+            },
+            function(cb) {
+    
                 request({
-                    url:"http://127.0.0.1:8081/topics?tenantId=1234",
+                    url:"http://127.0.0.1:8081/topics?tenant_id=1234",
                     method:"GET",
                     json:true
                 },function(error,response,body){
                     response.statusCode.should.equal(200)
                     body.should.have.length(1)
-                    body.should.include("1234-test")
-                     request({
-                        url:"http://127.0.0.1:8081/topics",
-                        method:"POST",
-                        json:{"tenantId":"1234","name":"test1"}
-                    },function(error,response,body){
-                        response.statusCode.should.equal(201)
-                        request({
-                            url:"http://127.0.0.1:8081/topics?tenantId=1234",
-                            method:"GET",
-                            json:true
-                        },function(error,response,body){
-                            response.statusCode.should.equal(200)
-                            body.should.have.length(2)
-                            body.should.include("1234-test")
-                            body.should.include("1234-test1")
-                            done()
-                        })
-                    })
-                })
-            })
-
+                    body.should.include("1234-test-test")
+                    cb();
+                });
+            },
+            function(cb) {
+              request({
+                  url:"http://127.0.0.1:8081/topics",
+                  method:"POST",
+                  json:{"tenant_id":"1234", "tenant_name":"test","name":"test2"}
+              },function(error,response,body){
+                  response.statusCode.should.equal(201);
+                  cb();
+              })
+            },
+            function(cb) {
+              request({
+                  url:"http://127.0.0.1:8081/topics?tenant_id=1234",
+                  method:"GET",
+                  json:true
+              },function(error,response,body){
+                  response.statusCode.should.equal(200)
+                  body.should.have.length(2)
+                  body.should.include("1234-test-test")
+                  body.should.include("1234-test-test2")
+                  cb()
+              })
+            }], done);
         })
         it("should get all topic data on create",function(done){
             request({
                 url:"http://127.0.0.1:8081/topics",
                 method:"POST",
-                json:{"tenantId":"1234","name":"test"}
+                json:{"tenant_id":"1234", "tenant_name":"test","name":"test"}
             },function(error,response,body){
                 response.statusCode.should.equal(201)
-                body.should.have.property("topic_id","1234-test")
+                body.should.have.property("topic_id","1234-test-test")
                 body.should.have.property("ttl")
                 body.should.have.property("cluster")
                 body.should.have.property("endpoints")
@@ -629,42 +663,59 @@ body.topics.should.have.length(1)
 
         })
         it("should get all consumer data on create",function(done){
+          async.series([
+            function(cb) {
             request({
                 url:"http://127.0.0.1:8081/topics",
                 method:"POST",
-                json:{"tenantId":"1234","name":"test"}
+                json:{"tenant_id":"1234", "tenant_name":"test","name":"test"}
             },function(error,response,body){
-                request({
-                    url:"http://127.0.0.1:8081/topics/1234-test/consumers",
-                    method:"POST",
-                    json:{"tenantId":"456","name":"test1"}
-                },function(error,response,body){
-                    response.statusCode.should.equal(201)
-                    body.should.have.property("topic_id","1234-test")
-                    body.should.have.property("consumer_id","456-test1")
-                    body.should.have.property("ttl")
-                    body.should.have.property("cluster")
-                    body.should.have.property("endpoints")
-                    done()
-                })
+                response.statusCode.should.equal(201);
+                cb();
             })
-
+          },
+          function(cb) {
+              request({
+                  url:"http://127.0.0.1:8081/topics/1234-test-test",
+                  method:"GET",
+                  json:true
+              },function(error,response,body){
+                  response.statusCode.should.equal(200)
+                  body.consumers.should.have.length(0)
+                  cb();
+              });
+          },
+          function(cb){
+            request({
+                url:"http://127.0.0.1:8081/topics/1234-test-test/consumers",
+                method:"POST",
+                json:{"tenant_id":"456","tenant_name":"test", "name":"test-consumer"}
+            },function(error,response,body){
+                response.statusCode.should.equal(201)
+                body.should.have.property("topic_id","1234-test-test")
+                body.should.have.property("consumer_id","456-test-test-consumer")
+                body.should.have.property("ttl")
+                body.should.have.property("cluster")
+                body.should.have.property("endpoints")
+                cb();
+            });
+          }], done);
         })
 
         it("should get all information about a topic",function(done){
             request({
                 url:"http://127.0.0.1:8081/topics",
                 method:"POST",
-                json:{"tenantId":"1234","name":"test"}
+                json:{"tenant_id":"1234", "tenant_name":"test","name":"test"}
             },function(error,response,body){
                 response.statusCode.should.equal(201)
                 request({
-                    url:"http://127.0.0.1:8081/topics/1234-test",
+                    url:"http://127.0.0.1:8081/topics/1234-test-test",
                     method:"GET",
                     json:true
                 },function(error,response,body){
                     response.statusCode.should.equal(200)
-                    body.should.have.property("topic_id","1234-test")
+                    body.should.have.property("topic_id","1234-test-test")
                     body.should.have.property("ttl")
                     body.should.have.property("cluster")
                     body.should.have.property("endpoints")
@@ -678,23 +729,23 @@ body.topics.should.have.length(1)
             request({
                 url:"http://127.0.0.1:8081/topics",
                 method:"POST",
-                json:{"tenantId":"1234","name":"test"}
+                json:{"tenant_id":"1234", "tenant_name":"test","name":"test"}
             },function(error,response,body){
                 response.statusCode.should.equal(201)
                 request({
-                    url:"http://127.0.0.1:8081/topics/1234-test/consumers",
+                    url:"http://127.0.0.1:8081/topics/1234-test-test/consumers",
                     method:"POST",
-                    json:{"tenantId":"456","name":"test1"}
+                    json:{"tenant_id":"456","tenant_name":"test","name":"test1"}
                 },function(error,response,body){
                     response.statusCode.should.equal(201)
                     request({
-                        url:"http://127.0.0.1:8081/topics/1234-test/consumers/456-test1",
+                        url:"http://127.0.0.1:8081/topics/1234-test-test/consumers/456-test-test1",
                         method:"GET",
                         json:true
                     },function(error,response,body){
                         response.statusCode.should.equal(200)
-                        body.should.have.property("topic_id","1234-test")
-                        body.should.have.property("consumer_id","456-test1")
+                        body.should.have.property("topic_id","1234-test-test")
+                        body.should.have.property("consumer_id","456-test-test1")
                         body.should.have.property("ttl")
                         body.should.have.property("cluster")
                         body.should.have.property("endpoints")
@@ -708,30 +759,30 @@ body.topics.should.have.length(1)
             request({
                 url:"http://127.0.0.1:8081/topics",
                 method:"POST",
-                json:{"tenantId":"1234","name":"test"}
+                json:{"tenant_id":"1234", "tenant_name":"test","name":"test"}
             },function(error,response,body){
                 response.statusCode.should.equal(201)
                 request({
-                    url:"http://127.0.0.1:8081/topics/1234-test/consumers",
+                    url:"http://127.0.0.1:8081/topics/1234-test-test/consumers",
                     method:"GET",
                     json:true
                 },function(error,response,body){
                     response.statusCode.should.equal(200)
                     body.should.have.length(0)
                     request({
-                        url:"http://127.0.0.1:8081/topics/1234-test/consumers",
+                        url:"http://127.0.0.1:8081/topics/1234-test-test/consumers",
                         method:"POST",
-                        json:{"tenantId":"456","name":"test"}
+                        json:{"tenant_id":"456","tenant_name":"test","name":"test1"}
                     },function(error,response,body){
                         response.statusCode.should.equal(201)
                         request({
-                            url:"http://127.0.0.1:8081/topics/1234-test/consumers",
+                            url:"http://127.0.0.1:8081/topics/1234-test-test/consumers",
                             method:"GET",
                             json:true
                         },function(error,response,body){
                             response.statusCode.should.equal(200)
                             body.should.have.length(1)
-                            body[0].consumer_id.should.equal("456-test")
+                            body[0].consumer_id.should.equal("456-test-test1")
                             done()
                         })
                     })
@@ -743,20 +794,20 @@ body.topics.should.have.length(1)
             request({
                 url:"http://127.0.0.1:8081/topics",
                 method:"POST",
-                json:{"tenantId":"1234","name":"test"}
+                json:{"tenant_id":"1234", "tenant_name":"test","name":"test"}
             },function(error,response,body){
                 response.statusCode.should.equal(201)
                 request({
-                    url:"http://127.0.0.1:8081/topics/1234-test/consumers",
+                    url:"http://127.0.0.1:8081/topics/1234-test-test/consumers",
                     method:"GET",
                     json:true
                 },function(error,response,body){
                     response.statusCode.should.equal(200)
                     body.should.have.length(0)
                     request({
-                        url:"http://127.0.0.1:8081/topics/1234-test/consumers",
+                        url:"http://127.0.0.1:8081/topics/1234-test-test/consumers",
                         method:"POST",
-                        json:{"tenantId":"456","name":"test:withSemiColon"}
+                        json:{"tenant_id":"456","tenant_name":"test","name":"test:withSemiColon"}
                     },function(error,response,body){
                         response.statusCode.should.equal(400);
                         done();
@@ -769,24 +820,23 @@ body.topics.should.have.length(1)
             request({
                 url:"http://127.0.0.1:8081/topics",
                 method:"POST",
-                json:{"tenantId":"1234","name":"test"}
+                json:{"tenant_id":"1234", "tenant_name":"test","name":"test"}
             },function(error,response,body){
                 response.statusCode.should.equal(201)
                 request({
-                    url:"http://127.0.0.1:8081/topics?tenantId=1234",
+                    url:"http://127.0.0.1:8081/topics?tenant_id=1234",
                     method:"GET",
                     json:true
                 },function(error,response,body){
                     response.statusCode.should.equal(200)
                     body.should.have.length(1)
-                    body.should.include("1234-test")
                     request({
-                        url:"http://127.0.0.1:8081/topics/1234-test",
+                        url:"http://127.0.0.1:8081/topics/1234-test-test",
                         method:"DELETE",
                     },function(error,response,body){
                         response.statusCode.should.equal(204)
                         request({
-                            url:"http://127.0.0.1:8081/topics?tenantId=1234",
+                            url:"http://127.0.0.1:8081/topics?tenant_id=1234",
                             method:"GET",
                             json:true
                         },function(error,response,body){
@@ -803,28 +853,28 @@ body.topics.should.have.length(1)
             request({
                 url:"http://127.0.0.1:8081/topics",
                 method:"POST",
-                json:{"tenantId":"1234","name":"test"}
+                json:{"tenant_id":"1234", "tenant_name":"test","name":"test"}
             },function(error,response,body){
                 response.statusCode.should.equal(201)
                 request({
-                    url:"http://127.0.0.1:8081/topics/1234-test/consumers",
+                    url:"http://127.0.0.1:8081/topics/1234-test-test/consumers",
                     method:"POST",
-                    json:{"tenantId":"1234","name":"test"}
+                    json:{"tenant_id":"456","tenant_name":"test","name":"test1"}
                 },function(error,response,body){
                     response.statusCode.should.equal(201)
                     request({
-                        url:"http://127.0.0.1:8081/topics/1234-test",
+                        url:"http://127.0.0.1:8081/topics/1234-test-test",
                         method:"GET",
                         json:true
                     },function(error,response,body){
                         body.consumers.length.should.equal(1)
                         request({
-                            url:"http://127.0.0.1:8081/topics/1234-test/consumers/1234-test",
+                            url:"http://127.0.0.1:8081/topics/1234-test-test/consumers/456-test-test1",
                             method:"DELETE",
                         },function(error,response,body){
                             response.statusCode.should.equal(204)
                             request({
-                                url:"http://127.0.0.1:8081/topics/1234-test",
+                                url:"http://127.0.0.1:8081/topics/1234-test-test",
                                 method:"GET",
                                 json:true
                             },function(error,response,body){
@@ -836,174 +886,96 @@ body.topics.should.have.length(1)
                 })
             })
         })
-        it("should support consumers reset",function(done){
-            request({
+        it("should support consumers reset", function(done) {
+          async.series([
+            function(cb) {
+              request({
                 url:"http://127.0.0.1:8081/topics",
                 method:"POST",
-                json:{"tenantId":"1234","name":"test"}
-            },function(error,response,body){
-                response.statusCode.should.equal(201)
-                request({
-                    url:"http://127.0.0.1:8081/topics/1234-test/consumers",
-                    method:"POST",
-                    json:{"tenantId":"1234","name":"test"}
-                },function(error,response,body){
-                    response.statusCode.should.equal(201)
-                    request({
-                        url:"http://127.0.0.1:8081/topics/1234-test",
-                        method:"GET",
-                        json:true
-                    },function(error,response,body){
-                        body.consumers.length.should.equal(1)
-                        request({
-                            url:"http://127.0.0.1:8081/topics/1234-test/consumers/1234-test",
-                            method:"PUT",
-                        },function(error,response,body){
-                            response.statusCode.should.equal(200)
-                            done()
-                        })
-                    })
-                })
-            })
-        })
+                json:{"tenant_id":"1234", "tenant_name":"test","name":"test"}
+              },function(error,response,body){
+                response.statusCode.should.equal(201);
+                cb();
+              }); 
+            },
+            function(cb) {
+              request({
+                url:"http://127.0.0.1:8081/topics/1234-test-test/consumers",
+                method:"POST",
+                json:{"tenant_id":"456","tenant_name":"test","name":"test1"}
+              },function(error,response,body){
+                response.statusCode.should.equal(201);
+                cb();
+              }); 
+            },
+            function(cb) {
+              request({
+                  url:"http://127.0.0.1:8081/topics/1234-test-test/consumers/456-test-other",
+                  method:"PUT",
+              },function(error,response,body){
+                  response.statusCode.should.equal(404);
+                  cb();
+              });
+            },
+            function(cb) {
+              request({
+                  url:"http://127.0.0.1:8081/topics/1234-test-test/consumers/456-test-test1",
+                  method:"PUT",
+              },function(error,response,body){
+                  response.statusCode.should.equal(204);
+                  cb();
+              });
+            }
+          ],done);
+        });
     })
 
     describe("Limits",function(done){
         it("should limit the ttl time to the default ttl",function(done){
-            request({
-                    url:"http://127.0.0.1:8081/clusters",
-                    method:"POST",
-                    json:{"name":"test",
-                    "nodes":[{
-                        "name":"redis1",
-                        "config":{
-                            "host":"127.0.0.1",
-                            "port":6379,
-                            "status":"UP",
-                            "journals":[]
-                         }
-                    }]}
-            },function(error,response,body){
-                response.statusCode.should.equal(201)
+          async.series([
+            function(cb) {
+              request({
+                      url:"http://127.0.0.1:8081/clusters",
+                      method:"POST",
+                      json:{"name":"test",
+                      "nodes":[{
+                          "id":"redis1",
+                              "host":"127.0.0.1",
+                              "port":6379,
+                              "status":"UP",
+                              "journals":[]
+                            }]
+                      }
+              },function(error,response,body){
+                  response.statusCode.should.equal(201)
+                  cb();
+              })
+            },
+            function(cb) {
+              mysqlConn.query("UPDATE clusters SET `default`=? WHERE name = ?",["Y","test"],cb);
+            },
+            function(cb) {
                 request({
                     url:"http://127.0.0.1:8081/topics",
                     method:"POST",
-                    json:{"tenantId":"1234","name":"test","ttl":500}
+                    json:{"tenant_id":"1234","tenant_name":"test","name":"test","ttl":500}
                 },function(error,response,body){
                     response.statusCode.should.equal(201)
-                    request({
-                        url:"http://127.0.0.1:8081/topics",
-                        method:"POST",
-                        json:{"tenantId":"1234","name":"test","ttl":501}
-                    },function(error,response,body){
-                        response.statusCode.should.equal(406)
-                        done()
-                    })
+                    cb();
                 })
-            })
+            },
+            function(cb) {
+                request({
+                    url:"http://127.0.0.1:8081/topics",
+                    method:"POST",
+                    json:{"tenant_id":"1234","tenant_name":"test","name":"test2","ttl":501}
+                },function(error,response,body){
+                    response.statusCode.should.equal(406)
+                    cb()
+                });
+            }], done);
         })
     })
-    describe("Cache", function() {
-      var httpConfig = {
-        "admConfig":admConfig,
-        "port":8081,
-        "maxTtl":500,
-        "logLevel":"critical",
-        "cacheRefreshInterval":10,
-        "cacheWhileVisitTime":300
-      }
-      beforeEach(function(){
-        api.shutdown();
-        api = httpApi.startup(httpConfig)
-      })
-      beforeEach(function(done){
-          request({
-              url:"http://127.0.0.1:8081/clusters",
-              method:"POST",
-              json:{"name":"test",
-                    "nodes":[{
-                      "name":"redis1",
-                      "config":{
-                          "host":"127.0.0.1",
-                          "port":6379,
-                          "status":"UP",
-                          "journals":[]
-                       }
-                    }]}
-          },function(error,response,body){
-              response.statusCode.should.equal(201);
-              done();
-          });
-      });
-      it("Should cache topics request", function(done) {
-          request({
-              url:"http://127.0.0.1:8081/topics",
-              method:"POST",
-              json:{"tenantId":"1234","name":"test"}
-          },function(error,response,body){
-            response.statusCode.should.equal(201);
-            request({
-                url:"http://127.0.0.1:8081/topics/1234-test",
-                method:"GET",
-                json:true
-            },function(error,response,body){
-              var noCached = body;
-              response.statusCode.should.equal(200);
-              should.not.exist(response.headers["x-cache-time"])
-              setTimeout(function() {
-                request({
-                    url:"http://127.0.0.1:8081/topics/1234-test",
-                    method:"GET",
-                    json:true
-                },function(error,response,body){
-                  response.statusCode.should.equal(200);
-                  should.exist(response.headers["x-cache-time"])
-                  done();
-                });
-              },200);
-          });
-       });
-    });
-    it("Should cache only if it's visisted", function(done) {
-          request({
-              url:"http://127.0.0.1:8081/topics",
-              method:"POST",
-              json:{"tenantId":"1234","name":"test"}
-          },function(error,response,body){
-            response.statusCode.should.equal(201);
-            request({
-                url:"http://127.0.0.1:8081/topics/1234-test",
-                method:"GET",
-                json:true
-            },function(error,response,body){
-              var noCached = body;
-              response.statusCode.should.equal(200);
-              should.not.exist(response.headers["x-cache-time"])
-              setTimeout(function() {
-                request({
-                    url:"http://127.0.0.1:8081/topics/1234-test",
-                    method:"GET",
-                    json:true
-                },function(error,response,body){
-                  response.statusCode.should.equal(200);
-                  should.exist(response.headers["x-cache-time"])
-                   setTimeout(function() {
-                    request({
-                        url:"http://127.0.0.1:8081/topics/1234-test",
-                        method:"GET",
-                        json:true
-                    },function(error,response,body){
-                      response.statusCode.should.equal(200);
-                      should.not.exist(response.headers["x-cache-time"])
-                      done();
-                    });
-                  },400);
-                });
-              },200);
-          });
-       });
-    });
-  });
     describe("Keystone authorization", function(){
         var fakekeystone
         before(function(){
@@ -1115,328 +1087,294 @@ body.topics.should.have.length(1)
         })
 
         it("Should validate tenant on topic creation",function(done){
-            request({
-                url:"http://127.0.0.1:8081/clusters",
-                method:"POST",
-                json:{"name":"test",
-                      "nodes":[{
-                        "name":"redis1",
-                        "config":{
-                            "host":"127.0.0.1",
-                            "port":6379,
-                            "status":"UP",
-                            "journals":[]
-                         }
-                    }]},
-                headers:{"X-Auth-Token":"user123"}
-            },function(error,response,body){
+          async.series([
+            function(cb) {
+              request({
+                  url:"http://127.0.0.1:8081/clusters",
+                  method:"POST",
+                  json:{"name":"test",
+                        "nodes":[{
+                          "id":"redis1",
+                              "host":"127.0.0.1",
+                              "port":6379,
+                              "status":"UP",
+                              "journals":[]
+                           }]
+                      },
+                  headers:{"X-Auth-Token":"user123"}
+              },function(error,response,body){
+                  response.statusCode.should.equal(201);
+                  cb();
+              })
+            },
+            function(cb) {
+              mysqlConn.query("UPDATE clusters SET `default`=? WHERE name = ?",["Y","test"],cb);
+            },
+            function(cb) {
+              request({
+                  url:"http://127.0.0.1:8081/topics",
+                  method:"POST",
+                  json:{"name":"test"}
+              },function(error,response,body){
+                  response.statusCode.should.equal(401)
+                  cb();
+              })
+            },
+            function(cb) {
+              request({
+                  url:"http://127.0.0.1:8081/topics",
+                  method:"POST",
+                  json:{"name":"test"},
+                  headers:{"X-Auth-Token":"lala"}
+              },function(error,response,body){
+                  response.statusCode.should.equal(401);
+                  cb();
+              });
+            },
+            function(cb) {
+              request({
+                  url:"http://127.0.0.1:8081/topics",
+                  method:"POST",
+                  json:{"name":"test"},
+                  headers:{"X-Auth-Token":"user123"}
+              },function(error,response,body){
                 response.statusCode.should.equal(201)
-                request({
-                    url:"http://127.0.0.1:8081/topics",
-                    method:"POST",
-                    json:{"tenantId":"1","name":"test"}
-                },function(error,response,body){
-                    response.statusCode.should.equal(401)
-                    request({
-                        url:"http://127.0.0.1:8081/topics",
-                        method:"POST",
-                        json:{"tenantId":"1","name":"test"},
-                        headers:{"X-Auth-Token":"someone"}
-                    },function(error,response,body){
-                        response.statusCode.should.equal(401)
-                        request({
-                            url:"http://127.0.0.1:8081/topics",
-                            method:"POST",
-                            json:{"tenantId":"1","name":"test"},
-                            headers:{"X-Auth-Token":"user123"}
-                        },function(error,response,body){
-                            response.statusCode.should.equal(201)
-                            done()
-                        })
-                    })
-                })
-            })
+                body.topic_id.should.equal("1-1234-test");
+                cb();
+              })
+            }], done);
         })
         it("Should validate tenant on consumer creation",function(done){
-            request({
-                url:"http://127.0.0.1:8081/clusters",
-                method:"POST",
-                json:{"name":"test",
-                      "nodes":[{
-                        "name":"redis1",
-                        "config":{
-                            "host":"127.0.0.1",
-                            "port":6379,
-                            "status":"UP",
-                            "journals":[]
-                            }
-                        }]
-                    },
-                headers:{"X-Auth-Token":"user123"}
-            },function(error,response,body){
+          async.series([
+            function(cb) {
+              request({
+                  url:"http://127.0.0.1:8081/clusters",
+                  method:"POST",
+                  json:{"name":"test",
+                        "nodes":[{
+                          "id":"redis1",
+                              "host":"127.0.0.1",
+                              "port":6379,
+                              "status":"UP",
+                              "journals":[]
+                           }]
+                      },
+                  headers:{"X-Auth-Token":"user123"}
+              },function(error,response,body){
+                  response.statusCode.should.equal(201);
+                  cb();
+              })
+            },
+            function(cb) {
+              mysqlConn.query("UPDATE clusters SET `default`=? WHERE name = ?",["Y","test"],cb);
+            },
+            function(cb) {
+              request({
+                  url:"http://127.0.0.1:8081/topics",
+                  method:"POST",
+                  json:{"name":"test"},
+                  headers:{"X-Auth-Token":"user123"}
+              },function(error,response,body){
                 response.statusCode.should.equal(201)
-                request({
-                    url:"http://127.0.0.1:8081/topics",
-                    method:"POST",
-                    json:{"tenantId":"2","name":"test"},
-                    headers:{"X-Auth-Token":"someone"}
-                },function(error,response,body){
-                    response.statusCode.should.equal(201)
-                    request({
-                        url:"http://127.0.0.1:8081/topics/2-test/consumers",
-                        method:"POST",
-                        json:{"tenantId":"1234","name":"test"},
-                    },function(error,response,body){
-                        response.statusCode.should.equal(401)
-                        request({
-                            url:"http://127.0.0.1:8081/topics/2-test/consumers",
-                            method:"POST",
-                            json:{"tenantId":"1","name":"test"},
-                            headers:{"X-Auth-Token":"someone"}
-                        },function(error,response,body){
-                            response.statusCode.should.equal(401)
-                            request({
-                                url:"http://127.0.0.1:8081/topics/2-test/consumers",
-                                method:"POST",
-                                json:{"tenantId":"2","name":"test"},
-                                headers:{"X-Auth-Token":"someone"}
-                            },function(error,response,body){
-                                response.statusCode.should.equal(201)
-                                done()
-                            })
-                        })
-                    })
-                })
-            })
-        })
+                body.topic_id.should.equal("1-1234-test");
+                cb();
+              })
+            },
+            function(cb) {
+              request({
+                  url:"http://127.0.0.1:8081/topics",
+                  method:"POST",
+                  json:{"name":"test", topic_id:"1-1234-test"},
+              },function(error,response,body){
+                response.statusCode.should.equal(401)
+                cb();
+              })
+            },
+            function(cb) {
+              request({
+                  url:"http://127.0.0.1:8081/topics/1-1234-test/consumers",
+                  method:"POST",
+                  json:{"name":"test"},
+                  headers:{"X-Auth-Token":"sometoken"}
+              },function(error,response,body){
+                response.statusCode.should.equal(401)
+                cb();
+              })
+            },
+            function(cb) {
+              request({
+                  url:"http://127.0.0.1:8081/topics/1-1234-test/consumers",
+                  method:"POST",
+                  json:{"name":"test-consumer", topic_id:"1-1234-test"},
+                  headers:{"X-Auth-Token":"user123"}
+              },function(error,response,body){
+                response.statusCode.should.equal(201)
+                body.topic_id.should.equal("1-1234-test");
+                body.consumer_id.should.equal("1-1234-test-consumer");
+                cb();
+              })
+            }
 
-        it("should only create consumer into a topic if these has the same tenant",function(done){
-           request({
-                url:"http://127.0.0.1:8081/clusters",
-                method:"POST",
-                json:{"name":"test",
-                      "nodes":[{
-                        "name":"redis1",
-                        "config":{
-                            "host":"127.0.0.1",
-                            "port":6379,
-                            "status":"UP",
-                            "journals":[]
-                        }
-                    }]},
-                headers:{"X-Auth-Token":"user123"}
-            },function(error,response,body){
-               request({
-                    url:"http://127.0.0.1:8081/topics",
-                    method:"POST",
-                    json:{"tenantId":"2","name":"test"},
-                    headers:{"X-Auth-Token":"someone"}
-                },function(error,response,body){
-                    request({
-                        url:"http://127.0.0.1:8081/topics/2-test/consumers",
-                        method:"POST",
-                        json:{"tenantId":"3","name":"test"},
-                        headers:{"X-Auth-Token":"user345"}
-                    },function(error,response,body){
-                        response.statusCode.should.equal(401)
-                        request({
-                            url:"http://127.0.0.1:8081/topics/2-test/consumers",
-                            method:"POST",
-                            json:{"tenantId":"2","name":"test"},
-                            headers:{"X-Auth-Token":"someone"}
-                        },function(error,response,body){
-                            response.statusCode.should.equal(201)
-                            done()
-                        })
-                    })
-                })
-            })
-        })
+          ], done);
+        });
 
-        it("should only create topic without the specific tenant if the user is admin",function(done){
-            request({
-                url:"http://127.0.0.1:8081/clusters",
-                method:"POST",
-                json:{"name":"test",
-                      "nodes":[{
-                        "name":"redis1",
-                        "config":{
-                            "host":"127.0.0.1",
-                            "port":6379,
-                            "status":"UP",
-                            "journals":[]
-                         }
-                    }]},
-                headers:{"X-Auth-Token":"user123"}
-            },function(error,response,body){
-               request({
-                    url:"http://127.0.0.1:8081/topics",
-                    method:"POST",
-                    json:{"tenantId":"user345","name":"test"},
-                    headers:{"X-Auth-Token":"someone"}
-                },function(error,response,body){
-                   response.statusCode.should.equal(401)
-                   request({
-                        url:"http://127.0.0.1:8081/topics",
-                        method:"POST",
-                        json:{"tenantId":"user345","name":"test"},
-                        headers:{"X-Auth-Token":"user123"}
-                    },function(error,response,body){
-                        response.statusCode.should.equal(201)
-                        done()
-                    })
-                })
-            })
-
-        })
-
-        it("should only create consumer into a topic if is not the has the tenant, if the user  has the admin role",function(done){
-           request({
-                url:"http://127.0.0.1:8081/clusters",
-                method:"POST",
-                json:{"name":"test",
-                      "nodes":[{
-                        "name":"redis1",
-                        "config":{
-                            "host":"127.0.0.1",
-                            "port":6379,
-                            "status":"UP",
-                            "journals":[]
-                         }
-                    }]},
-                headers:{"X-Auth-Token":"user123"}
-            },function(error,response,body){
-               request({
-                    url:"http://127.0.0.1:8081/topics",
-                    method:"POST",
-                    json:{"tenantId":"2","name":"test"},
-                    headers:{"X-Auth-Token":"someone"}
-                },function(error,response,body){
-                    request({
-                        url:"http://127.0.0.1:8081/topics/2-test/consumers",
-                        method:"POST",
-                        json:{"tenantId":"3","name":"test"},
-                        headers:{"X-Auth-Token":"user345"}
-                    },function(error,response,body){
-                        response.statusCode.should.equal(401)
-                        request({
-                            url:"http://127.0.0.1:8081/topics/2-test/consumers",
-                            method:"POST",
-                            json:{"tenantId":"1","name":"test"},
-                            headers:{"X-Auth-Token":"user123"}
-                        },function(error,response,body){
-                            response.statusCode.should.equal(201)
-                            done()
-                        })
-                    })
-                })
-            })
-
-        })
         it("should check topic owner before delete topic",function(done){
-           request({
-                url:"http://127.0.0.1:8081/clusters",
-                method:"POST",
-                json:{"name":"test",
-                      "nodes":[{
-                        "name":"redis1",
-                        "config":{
-                            "host":"127.0.0.1",
-                            "port":6379,
-                            "status":"UP",
-                            "journals":[]
-                         }
-                    }]},
-                headers:{"X-Auth-Token":"user123"}
-            },function(error,response,body){
-                request({
-                    url:"http://127.0.0.1:8081/topics",
-                    method:"POST",
-                    json:{"tenantId":"1","name":"test"},
-                    headers:{"X-Auth-Token":"user123"}
-                },function(error,response,body){
-                    response.statusCode.should.equal(201)
-                    request({
-                        url:"http://127.0.0.1:8081/topics/1-test",
-                        method:"DELETE",
-                    },function(error,response,body){
-                        response.statusCode.should.equal(401)
-                        request({
-                            url:"http://127.0.0.1:8081/topics/1-test",
-                            method:"DELETE",
-                            headers:{"X-Auth-Token":"someone"}
-                        },function(error,response,body){
-                            response.statusCode.should.equal(401)
-                            request({
-                                url:"http://127.0.0.1:8081/topics/1-test",
-                                method:"DELETE",
-                                headers:{"X-Auth-Token":"user123"}
-                            },function(error,response,body){
-                                response.statusCode.should.equal(204)
-                                done()
-                            })
-                        })
-                    })
-                })
-            })
-
-        })
+           
+          async.series([
+            function(cb) {
+              request({
+                  url:"http://127.0.0.1:8081/clusters",
+                  method:"POST",
+                  json:{"name":"test",
+                        "nodes":[{
+                          "id":"redis1",
+                              "host":"127.0.0.1",
+                              "port":6379,
+                              "status":"UP",
+                              "journals":[]
+                           }]
+                      },
+                  headers:{"X-Auth-Token":"user123"}
+              },function(error,response,body){
+                  response.statusCode.should.equal(201);
+                  cb();
+              })
+            },
+            function(cb) {
+              mysqlConn.query("UPDATE clusters SET `default`=? WHERE name = ?",["Y","test"],cb);
+            },
+            function(cb) {
+              request({
+                  url:"http://127.0.0.1:8081/topics",
+                  method:"POST",
+                  json:{"name":"test"},
+                  headers:{"X-Auth-Token":"user123"}
+              },function(error,response,body){
+                response.statusCode.should.equal(201)
+                body.topic_id.should.equal("1-1234-test");
+                cb();
+              })
+            },
+            function(cb) {
+              request({
+                  url:"http://127.0.0.1:8081/topics/1-1234-test", 
+                  method: "DELETE"
+              }, function(error, response, body) {
+                response.statusCode.should.equal(401);
+                cb();
+              });
+            },
+            function(cb) {
+              request({
+                  url:"http://127.0.0.1:8081/topics/1-1234-test", 
+                  method: "DELETE",
+                  headers:{"X-Auth-Token":"someone"}
+              }, function(error, response, body) {
+                response.statusCode.should.equal(404);
+                cb();
+              });
+            },
+            function(cb) {
+              request({
+                  url:"http://127.0.0.1:8081/topics/1-1234-test", 
+                  method: "DELETE",
+                  headers:{"X-Auth-Token":"user345"}
+              }, function(error, response, body) {
+                response.statusCode.should.equal(404);
+                cb();
+              });
+            },
+            function(cb) {
+              request({
+                  url:"http://127.0.0.1:8081/topics/1-1234-test", 
+                  method: "DELETE",
+                  headers:{"X-Auth-Token":"user123"}
+              }, function(error, response, body) {
+                response.statusCode.should.equal(204);
+                cb();
+              });
+            }
+          ], done);
+        });
         it("should check consumer owner before delete",function(done){
-            request({
-                url:"http://127.0.0.1:8081/clusters",
-                method:"POST",
-                json:{"name":"test",
-                      "nodes":[{
-                        "name":"redis1",
-                        "config":{
-                            "host":"127.0.0.1",
-                            "port":6379,
-                            "status":"UP",
-                            "journals":[]
-                         }
-                    }]},
-                headers:{"X-Auth-Token":"user123"}
-            },function(error,response,body){
-                request({
-                    url:"http://127.0.0.1:8081/topics",
-                    method:"POST",
-                    json:{"tenantId":"1","name":"test"},
-                    headers:{"X-Auth-Token":"user123"}
-                },function(error,response,body){
-                    response.statusCode.should.equal(201)
-                    request({
-                        url:"http://127.0.0.1:8081/topics/1-test/consumers",
-                        method:"POST",
-                        json:{"tenantId":"1","name":"test"},
-                        headers:{"X-Auth-Token":"user123"}
-                    },function(error,response,body){
-                        response.statusCode.should.equal(201)
-                        request({
-                            url:"http://127.0.0.1:8081/topics/1-test/consumers/1-test",
-                            method:"DELETE",
-                        },function(error,response,body){
-                            response.statusCode.should.equal(401)
-                            request({
-                                url:"http://127.0.0.1:8081/topics/1-test/consumers/1-test",
-                                method:"DELETE",
-                                headers:{"X-Auth-Token":"someone"}
-                            },function(error,response,body){
-                                response.statusCode.should.equal(401)
-                                request({
-                                    url:"http://127.0.0.1:8081/topics/1-test/consumers/1-test",
-                                    method:"DELETE",
-                                    headers:{"X-Auth-Token":"user123"}
-                                },function(error,response,body){
-                                    response.statusCode.should.equal(204)
-                                    done()
-                                })
-                            })
-                        })
-                    })
-                })
-            })
-
-        })
+          async.series([
+            function(cb) {
+              request({
+                  url:"http://127.0.0.1:8081/clusters",
+                  method:"POST",
+                  json:{"name":"test",
+                        "nodes":[{
+                          "id":"redis1",
+                              "host":"127.0.0.1",
+                              "port":6379,
+                              "status":"UP",
+                              "journals":[]
+                           }]
+                      },
+                  headers:{"X-Auth-Token":"user123"}
+              },function(error,response,body){
+                  response.statusCode.should.equal(201);
+                  cb();
+              })
+            },
+            function(cb) {
+              mysqlConn.query("UPDATE clusters SET `default`=? WHERE name = ?",["Y","test"],cb);
+            },
+            function(cb) {
+              request({
+                  url:"http://127.0.0.1:8081/topics",
+                  method:"POST",
+                  json:{"name":"test"},
+                  headers:{"X-Auth-Token":"user123"}
+              },function(error,response,body){
+                response.statusCode.should.equal(201)
+                body.topic_id.should.equal("1-1234-test");
+                cb();
+              })
+            },
+            function(cb) {
+              request({
+                  url:"http://127.0.0.1:8081/topics/1-1234-test/consumers",
+                  method:"POST",
+                  json:{"name":"test_consumer"},
+                  headers:{"X-Auth-Token":"user345"}
+              },function(error,response,body){
+                response.statusCode.should.equal(201)
+                body.consumer_id.should.equal("3-345-test_consumer");
+                cb();
+              })
+            },
+            function(cb) {
+              request({
+                  url:"http://127.0.0.1:8081/topics/1-1234-test/consumers/3-345-test_consumer", 
+                  method: "DELETE",
+              }, function(error, response, body) {
+                response.statusCode.should.equal(401);
+                cb();
+              });
+            },
+            function(cb) {
+              request({
+                  url:"http://127.0.0.1:8081/topics/1-1234-test/consumers/3-345-test_consumer", 
+                  method: "DELETE",
+                  headers:{"X-Auth-Token":"someone"}
+              }, function(error, response, body) {
+                response.statusCode.should.equal(404);
+                cb();
+              });
+            },
+            function(cb) {
+              request({
+                  url:"http://127.0.0.1:8081/topics/1-1234-test/consumers/3-345-test_consumer", 
+                  method: "DELETE",
+                  headers:{"X-Auth-Token":"user345"}
+              }, function(error, response, body) {
+                response.statusCode.should.equal(204);
+                cb();
+              });
+            }
+          ], done);
+        });
     })
     describe("Node Stats", function(){
       beforeEach(function(done) {

@@ -11,7 +11,9 @@ describe("Clusters administration for multicluster purposes",function(){
      host     : 'localhost',
      user     : 'root',
      password : '',
-     database : 'bigqueue'
+     database : 'bigqueue',
+     connectionLimit: 10,
+     waitForConnections: false
     };
     var admClient;
     var mysqlConn = mysql.createConnection(mysqlConf);
@@ -51,6 +53,9 @@ describe("Clusters administration for multicluster purposes",function(){
         },
         function(d) {
           mysqlConn.query("TRUNCATE node_journals",d);
+        },
+        function(d) {
+          mysqlConn.query("TRUNCATE tasks",d);
         }
       ], function(err) { 
         done(err) 
@@ -285,10 +290,36 @@ describe("Clusters administration for multicluster purposes",function(){
             });
         });
       })
-      it("Should create tasks for create topics and consumers fo the added node");
-      it("Should create tasks in order (first topics then consumers)");
-      it("should support remove journals");
-      it("should validate before journal remove that the journal is unused")
+      it("Should create tasks for create topics and consumers on the added node", function(done) {
+        async.series([
+          function(cb) {
+            admClient.createTopic({tenant_id:"test",tenant_name:"test", name:"t1", cluster:"test1", ttl:10},cb);
+          },
+          function(cb) {
+              admClient.createConsumerGroup({topic_id:"test-test-t1", tenant_id:"test",tenant_name:"test", name:"c1"},cb);
+          },
+          function(cb) {
+              admClient.createConsumerGroup({topic_id:"test-test-t1", tenant_id:"test",tenant_name:"test", name:"c2"},cb);
+          },
+          function(cb) {
+            admClient.addNodeToCluster("test1",{id:"node4",host:"127.0.0.1",port:6381},cb);
+          },
+          function(cb) {
+            mysqlConn.query("SELECT * FROM tasks WHERE data_node_id = ? ORDER BY task_id", ["node4"], function(err, data) {
+              data[0].task_type.should.equal("CREATE_TOPIC");
+              JSON.parse(data[0].task_data).topic_id.should.equal("test-test-t1");
+              JSON.parse(data[0].task_data).ttl.should.equal(10);
+              data[1].task_type.should.equal("CREATE_CONSUMER");
+              JSON.parse(data[1].task_data).consumer_id.should.equal("test-test-c1");
+              JSON.parse(data[1].task_data).topic_id.should.equal("test-test-t1");
+              data[2].task_type.should.equal("CREATE_CONSUMER");
+              JSON.parse(data[2].task_data).consumer_id.should.equal("test-test-c2");
+              JSON.parse(data[2].task_data).topic_id.should.equal("test-test-t1");
+              cb();
+            });
+          }
+        ], done);
+      });
 
   });
   describe("Create topics and groups",function(){
@@ -422,12 +453,52 @@ describe("Clusters administration for multicluster purposes",function(){
         ], done);
        });
 
-       it("Should create tasks for created topic");
-       it("Should create tasks for created consumer");
-       it("Should show creation of topic");
-       it("Should show creation of consumer");
-       it("Should change topic status to created if all nodes has changed the satus to completed");
-       it("Should change consumer status to created if all nodes has changed the satus to completed");
+       it("Should create tasks for created topic", function(done) {
+        async.series([
+          function(cb) {
+            admClient.createTopic({name:"test",tenant_id:"1234",tenant_name:"456", cluster:"test2", ttl: 5},cb);
+          },
+          function(cb) {
+            mysqlConn.query("SELECT * FROM tasks ORDER BY data_node_id", function(err, data) {
+              data[0].data_node_id.should.equal("node1-2");
+              data[0].task_type.should.equal("CREATE_TOPIC");
+              JSON.parse(data[0].task_data).topic_id.should.equal("1234-456-test");
+              JSON.parse(data[0].task_data).ttl.should.equal(5);
+              data[1].data_node_id.should.equal("node2-2");
+              data[1].task_type.should.equal("CREATE_TOPIC");
+              JSON.parse(data[1].task_data).topic_id.should.equal("1234-456-test");
+              JSON.parse(data[1].task_data).ttl.should.equal(5);
+              cb();
+            });
+          }
+        ], done);
+
+       });
+       it("Should create tasks for created consumer", function(done) {
+        async.series([
+          function(cb) {
+            admClient.createTopic({name:"test",tenant_id:"1234",tenant_name:"456", cluster:"test2"},cb);
+          },
+          function(cb) {
+            admClient.createConsumerGroup({name:"test-consumer",tenant_id: "test",tenant_name:"tenant_name",topic_id:"1234-456-test"},function(err){
+              should.not.exist(err);
+              cb();
+            });
+          },
+          function(cb) {
+            mysqlConn.query("SELECT * FROM tasks WHERE task_type = ? ORDER BY data_node_id", ["CREATE_CONSUMER"], function(err, data) {
+              data[0].data_node_id.should.equal("node1-2");
+              data[0].task_type.should.equal("CREATE_CONSUMER");
+              JSON.parse(data[0].task_data).consumer_id.should.equal("test-tenant_name-test-consumer");
+              JSON.parse(data[0].task_data).topic_id.should.equal("1234-456-test");
+              data[1].data_node_id.should.equal("node2-2");
+              data[1].task_type.should.equal("CREATE_CONSUMER");
+              JSON.parse(data[1].task_data).consumer_id.should.equal("test-tenant_name-test-consumer");
+              JSON.parse(data[1].task_data).topic_id.should.equal("1234-456-test");
+              cb();
+            });
+          }], done);
+       });
     });
 
     describe("Delete topics",function(done){
@@ -481,7 +552,20 @@ describe("Clusters administration for multicluster purposes",function(){
              });
           });
         });
-        it("Should create the tasks to delete the topic")
+        it("Should create the tasks to delete the topic", function(done) {
+          admClient.deleteTopic("test-test-test",function(err){
+            mysqlConn.query("SELECT * FROM tasks WHERE task_type=? ORDER BY data_node_id",["DELETE_TOPIC"], function(err, data) {
+              data[0].data_node_id.should.equal("node3");
+              data[0].task_type.should.equal("DELETE_TOPIC");
+              JSON.parse(data[0].task_data).topic_id.should.equal("test-test-test");
+              data[1].data_node_id.should.equal("node4");
+              data[1].task_type.should.equal("DELETE_TOPIC");
+              JSON.parse(data[1].task_data).topic_id.should.equal("test-test-test");
+              done();
+            });
+         });
+
+        });
     })
 
     describe("Delete consumers",function(done){
@@ -530,8 +614,85 @@ describe("Clusters administration for multicluster purposes",function(){
                 done()
             })
         })
-        it("Should create the tasks for delete consumer")
-    })
+        it("Should create the tasks for delete consumer", function(done) {
+          admClient.deleteConsumerGroup("test-test-test","1-2-3",function(err){
+            mysqlConn.query("SELECT * FROM tasks WHERE task_type=? ORDER BY data_node_id",["DELETE_CONSUMER"], function(err, data) {
+              data[0].data_node_id.should.equal("node3");
+              data[0].task_type.should.equal("DELETE_CONSUMER");
+              JSON.parse(data[0].task_data).topic_id.should.equal("test-test-test");
+              JSON.parse(data[0].task_data).consumer_id.should.equal("1-2-3");
+              data[1].data_node_id.should.equal("node4");
+              data[1].task_type.should.equal("DELETE_CONSUMER");
+              JSON.parse(data[1].task_data).topic_id.should.equal("test-test-test");
+              JSON.parse(data[1].task_data).consumer_id.should.equal("1-2-3");
+              done();
+            });
+         });
+      })
+    });
+
+    describe("Reset consumers", function() {
+    
+      beforeEach(function(done){
+           async.series([
+            function(cb) {
+              admClient.createBigQueueCluster({
+                name:"test1",
+                nodes:[
+                  {id:"node1",host:"127.0.0.1",port:6379,status:"UP",journals:[]},
+                  {id:"node2",host:"127.0.0.1",port:6380,status:"UP",journals:[]}
+                ],
+                journals:[
+                  {id:"j1",host:"127.0.0.1",port:6379,status:"UP"}
+                ]
+             },cb);
+            },
+            function(cb) {
+             admClient.createBigQueueCluster({
+                name:"test2",
+                nodes:[
+                    {id:"node3",host:"127.0.0.1",port:6379,status:"UP",journals:[]},
+                    {id:"node4",host:"127.0.0.1",port:6380,status:"UP",journals:[]}
+                ],
+                endpoints: [
+                  {name:"t1",host:"127.0.0.1",port:"8080"},
+                  {name:"t1",host:"127.0.0.1",port:"8081"}
+                ]
+             },cb);
+            },
+            function(cb) {
+              admClient.createTopic({name:"test",tenant_id:"test",tenant_name:"test",cluster:"test2"},cb);
+            }, function(cb) {
+              admClient.createConsumerGroup({name:"c1",tenant_id:"test",tenant_name:"test",topic_id:"test-test-test"},cb)
+            }, function(cb) {
+              admClient.createConsumerGroup({name:"c2",tenant_id:"test",tenant_name:"test",topic_id:"test-test-test"},cb)
+            }
+          ], done);
+        });
+
+        it("Should create the tasks con consumer reset", function(done) {
+          admClient.resetConsumer("test-test-test", "test-test-c1", function(err) {
+             mysqlConn.query("SELECT * FROM tasks WHERE task_type=? ORDER BY data_node_id",["RESET_CONSUMER"], function(err, data) {
+              data[0].data_node_id.should.equal("node3");
+              data[0].task_type.should.equal("RESET_CONSUMER");
+              JSON.parse(data[0].task_data).topic_id.should.equal("test-test-test");
+              JSON.parse(data[0].task_data).consumer_id.should.equal("test-test-c1");
+              data[1].data_node_id.should.equal("node4");
+              data[1].task_type.should.equal("RESET_CONSUMER");
+              JSON.parse(data[1].task_data).topic_id.should.equal("test-test-test");
+              JSON.parse(data[1].task_data).consumer_id.should.equal("test-test-c1");
+              done();
+            });
+          });
+        });
+
+        it("Should fail if consumer doesn't exist", function(done) {
+          admClient.resetConsumer("test-test-test", "test-test-c3", function(err) {
+            should.exist(err);
+            done();
+          });
+        });
+    });
 
     describe("Retrieve information",function(){
          beforeEach(function(done){
@@ -860,6 +1021,39 @@ describe("Clusters administration for multicluster purposes",function(){
        });
 
     });
+  });
+  describe("Tasks actions", function(done) {
+    it("Should enable tasks fetch", function(done) {
+      async.series([
+        function(cb) {
+          admClient.createTasks([
+            {data_node_id:"test1", task_type:"TEST", task_data:{test:1}},
+            {data_node_id:"test2", task_type:"TEST", task_data:{test:2}}
+          ],cb)  
+        },
+        function(cb) {
+          admClient.getTasksByCriteria({data_node_id: "test1"}, function(err, data) {
+            data[0].task_type.should.equal("TEST");
+            data[0].task_data.test.should.equal(1);
+            cb();
+          });
+        },
+        function(cb) {
+          admClient.getTasksByCriteria({task_type: "TEST"}, function(err, data) {
+            data.length.should.equal(2);
+            cb();
+          });
+        },
+        function(cb) {
+          admClient.getTasksByCriteria({task_type: "TEST-2"}, function(err, data) {
+            data.length.should.equal(0);
+            cb();
+          });
+        }
+      ], done);
+    });
+
+    it("Should enable update task status");
   });
 });
 
