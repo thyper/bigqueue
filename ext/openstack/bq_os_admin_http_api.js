@@ -1,4 +1,4 @@
-Gar express = require('express'),
+var express = require('express'),
     log = require('node-logging'),
     bqAdm = require('../../lib/bq_clusters_adm.js'),
     keystoneMiddlware = require("../../ext/openstack/keystone_middleware.js"),
