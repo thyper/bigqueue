@@ -22,7 +22,7 @@ test:
 	echo "$$REDIS1_CONF" | /usr/local/bin/redis-server -
 	echo "$$REDIS2_CONF" | /usr/local/bin/redis-server -
 
-	./node_modules/.bin/_mocha --globals myThis,myHolder,myCallee,State_myThis,chunk --reporter spec -t 5000 ${REGEX} ${TESTFILE}
+	./node_modules/.bin/_mocha --globals myThis,myHolder,myCallee,State_myThis,chunk --reporter spec -t 10000 ${REGEX} ${TESTFILE}
 
 	kill `cat /tmp/redis1.pid`
 	kill `cat /tmp/redis1.pid`
