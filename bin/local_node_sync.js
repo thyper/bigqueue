@@ -7,25 +7,17 @@ var config
 if(process.argv.length != 2){
     config = require(process.argv[2]).syncConfig
 }else{
-  console.log("Config and type of sync ('full', 'structure') should be sent as parameter");
+  console.log("Config and type of sync ('full', 'structure', 'messages') should be sent as parameter");
   process.exit(1);
 }
 
 var syncProcess;
 var full;
 var syncObj = new sync(config);
-if(process.argv[3] == "full") {
-  full = true;
-} else if (process.argv[3] == "structure") {
-  full = false;
-} else {
-  console.log(process.arv[2]+" is not a valid sync type, it should be ('full' or 'structure')")
-  process.exit(1);
-}
 
 console.log("Starting sync");
 
-syncObj.syncProcess(full, function(err) {
+syncObj.syncProcess(process.argv[3], function(err) {
   if(err) {
     console.log("Error running sync");
     console.log(err);

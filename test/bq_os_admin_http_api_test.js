@@ -1376,6 +1376,103 @@ describe("openstack admin http api",function(){
           ], done);
         });
     })
+    describe("Tasks", function() {
+      it("Should enable list tasks by criteria", function(done) {
+        async.series([
+          function(cb) {
+            mysqlConn.query("TRUNCATE tasks", cb);
+          },
+          function(cb) {
+            mysqlConn.query("INSERT INTO tasks (data_node_id, task_group, task_type, task_data) VALUES (?,?,?,?)", ["node1","1","CREATE_TOPIC",'{"topic_id":"test1"}'], cb);
+          },
+          function(cb) {
+            mysqlConn.query("INSERT INTO tasks (data_node_id, task_group, task_type, task_data) VALUES (?,?,?,?)", ["node2","1","CREATE_TOPIC",'{"topic_id":"test2"}'], cb);
+          },
+          function(cb) {
+            request({
+                url:"http://127.0.0.1:8081/tasks?data_node_id=node2&task_status=PENDING",
+                method: "GET",
+                json: true
+            }, function(error, response, body) {
+              response.statusCode.should.equal(200);
+              body.length.should.equal(1);
+              body[0].task_id.should.equal(2);
+              body[0].data_node_id.should.equal("node2");
+              body[0].task_type.should.equal("CREATE_TOPIC");
+              body[0].task_data.topic_id.should.equal("test2");
+              cb();
+            });
+          },
+          function(cb) {
+            request({
+                url:"http://127.0.0.1:8081/tasks?task_type=CREATE_TOPIC&task_status=PENDING",
+                method: "GET",
+                json: true
+            }, function(error, response, body) {
+              response.statusCode.should.equal(200);
+              body.length.should.equal(2);
+              cb();
+            });
+          },
+          function(cb) {
+            request({
+                url:"http://127.0.0.1:8081/tasks/1",
+                method: "GET",
+                json: true
+            }, function(error, response, body) {
+              response.statusCode.should.equal(200);
+              body.data_node_id.should.equal("node1");
+              body.task_type.should.equal("CREATE_TOPIC");
+              body.task_status.should.equal("PENDING");
+              body.task_data.topic_id.should.equal("test1")
+              cb();
+            });
+          },
+          function(cb) {
+            request({
+                url:"http://127.0.0.1:8081/tasks?task_status=FINISHED",
+                method: "GET",
+                json: true
+            }, function(error, response, body) {
+              response.statusCode.should.equal(200);
+              body.length.should.equal(0);
+              cb();
+            });
+          }
+        ], done); 
+      });
+      it("Should enable update tasks", function(done) {
+        async.series([
+          function(cb) {
+            mysqlConn.query("TRUNCATE tasks", cb);
+          },
+          function(cb) {
+            mysqlConn.query("INSERT INTO tasks (data_node_id, task_group, task_type, task_data) VALUES (?,?,?,?)", ["node1","1","CREATE_TOPIC",'{"topic_id":"test1"}'], cb);
+          },
+          function(cb) {
+            request({
+                url:"http://127.0.0.1:8081/tasks/1",
+                method: "PUT",
+                json: {"task_status":"DONE"}
+            }, function(error, response, body) {
+              response.statusCode.should.equal(204);
+              cb();
+            });
+          },
+          function(cb) {
+            request({
+                url:"http://127.0.0.1:8081/tasks/1",
+                method: "GET",
+                json: true
+            }, function(error, response, body) {
+              response.statusCode.should.equal(200);
+              body.task_status.should.equal("DONE");
+              cb();
+            });
+          }
+         ], done);
+      });
+    });
     describe("Node Stats", function(){
       beforeEach(function(done) {
         mysqlConn.query("TRUNCATE stats", function(err) {

@@ -383,6 +383,47 @@ var loadApp = function(app){
             return res.writePretty(data,200)
         })
     })
+    
+    //TASKS
+
+    app.get(app.settings.basePath+"/tasks", function(req, res) {
+      app.settings.bqAdm.getTasksByCriteria(req.query,function(err,data){
+        if(err) {
+          res.writePretty({"err":JSON.stringify(err)});
+        } else {
+          res.writePretty(data);
+        }
+      });
+    });
+    app.get(app.settings.basePath+"/tasks/:id", function(req, res) {
+      app.settings.bqAdm.getTasksByCriteria({task_id: req.params.id},function(err,data){
+        if(err) {
+          res.writePretty({"err":JSON.stringify(err)}, err.code || 500);
+        } else {
+          if(data.length == 1) {
+            res.writePretty(data[0]);
+          } else {
+            res.writePretty({"err":"Task ["+req.params.id+"] not found"},404);
+          }
+        }
+      });
+
+    });
+
+    app.put(app.settings.basePath+"/tasks/:id", function(req, res) {
+      if(!req.body || !req.body.task_status) {
+        return res.writePretty({err: "task_status should be defined"},400);
+      }
+      app.settings.bqAdm.updateTaskStatus(req.params.id,req.body.task_status,function(err,data){
+        if(err) {
+          res.writePretty({"err":JSON.stringify(err)}, err.code || 500);
+        } else {
+          res.writePretty({},204);
+        }
+      });
+    });
+    //PING
+
     app.get("/ping", function(req, res) {
       res.send("pong",200);
     });

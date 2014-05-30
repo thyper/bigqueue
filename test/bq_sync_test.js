@@ -230,8 +230,8 @@ describe("Sync tests", function() {
       })
     });
     
-    it("Should sync structure using api", function(done) {
-      new bqSync(syncConfig).syncProcess(true,function(err) {
+    it("Should sync structure and messages using api", function(done) {
+      new bqSync(syncConfig).syncProcess("full",function(err) {
         should.not.exist(err);
         nodeClient.listTopics(function(data) {
           data.should.include("topic1");
@@ -263,7 +263,7 @@ describe("Sync tests", function() {
         }
       ], function(err) {
         should.not.exist(err);
-        new bqSync(syncConfig).syncProcess(false,function(err) {
+        new bqSync(syncConfig).syncProcess("structure",function(err) {
           should.not.exist(err);
           nodeClient.getHeads(function(err, heads) {
             should.not.exist(err);
@@ -291,7 +291,7 @@ describe("Sync tests", function() {
         }
       ], function(err) {
         should.not.exist(err);
-        new bqSync(syncConfig).syncProcess(true,function(err) {
+        new bqSync(syncConfig).syncProcess("full",function(err) {
           should.not.exist(err);
           nodeClient.getHeads(function(err, heads) {
             should.not.exist(err);
@@ -302,6 +302,37 @@ describe("Sync tests", function() {
         });
       });
     });
+    it("Should syncs  messages using api", function(done) {
+      var ready=0;
+      async.series([
+        function(cb) {
+          nodeClient.createTopic("topic1", cb); 
+        },
+        function(cb) {
+         journalClient.write("n1", "topic1", 1, {msg: "test"}, 3600, cb);
+        },function(cb) {
+         journalClient.write("n1", "topic1", 2, {msg: "test"}, 3600, cb);
+        },function(cb) {
+         journalClient.write("n1", "topic1", 3, {msg: "test"}, 3600, cb);
+        },function(cb) {
+         journalClient.write("n1", "topic2", 1, {msg: "test"}, 3600, cb);
+        },function(cb) {
+         journalClient.write("n1", "topic2", 2, {msg: "test"}, 3600, cb);
+        }
+      ], function(err) {
+        should.not.exist(err);
+        new bqSync(syncConfig).syncProcess("messages",function(err) {
+          should.not.exist(err);
+          nodeClient.getHeads(function(err, heads) {
+            should.not.exist(err);
+            Object.keys(heads).length.should.equal(1);
+            parseInt(heads.topic1).should.equal(3);
+            done();
+          });
+        });
+      });
+    });
+
     it("Should fail if api return an error", function(done) {
       syncConfig.adminapi="htto://test.com";
       nock("http://test.com")

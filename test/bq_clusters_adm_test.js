@@ -1053,7 +1053,34 @@ describe("Clusters administration for multicluster purposes",function(){
       ], done);
     });
 
-    it("Should enable update task status");
+    it("Should enable update task status", function(done) {
+      var id = 0;
+      async.series([
+        function(cb) {
+          admClient.createTasks([
+            {data_node_id:"test1", task_type:"TEST", task_data:{test:1}},
+            {data_node_id:"test2", task_type:"TEST", task_data:{test:2}}
+          ],cb)  
+        },
+        function(cb) {
+          admClient.getTasksByCriteria({data_node_id: "test1"}, function(err, data) {
+            data[0].task_status.should.equal("PENDING");
+            id = data[0].task_id
+            cb();
+          });
+        },
+        function(cb) {
+          admClient.updateTaskStatus(id, "DONE", cb); 
+        },
+        function(cb) {
+          admClient.getTasksByCriteria({task_id: id}, function(err, data) {
+            data[0].task_status.should.equal("DONE");
+            data[0].data_node_id.should.equal("test1");
+            cb();
+          });
+        }
+      ],done);
+    });
   });
 });
 
