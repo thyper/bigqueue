@@ -18,7 +18,7 @@ CREATE TABLE `consumers` (
   `tenant_name` varchar(255) DEFAULT NULL,
   `consumer_name` varchar(255) DEFAULT NULL,
   `topic_id` varchar(255) DEFAULT NULL,
-  `create_time` datetime DEFAULT CURRENT_TIMESTAMP,
+  `create_time` datetime,
   PRIMARY KEY (`consumer_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
@@ -29,7 +29,7 @@ CREATE TABLE `consumers_history` (
   `tenant_name` varchar(255) DEFAULT NULL,
   `consumer_name` varchar(255) DEFAULT NULL,
   `topic_id` varchar(255) DEFAULT NULL,
-  `create_time` datetime DEFAULT CURRENT_TIMESTAMP,
+  `create_time` datetime,
   `modify_date` datetime,
   `modify_action` varchar(45)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -100,8 +100,8 @@ CREATE TABLE `tasks` (
   `task_type` varchar(45) DEFAULT NULL,
   `task_data` varchar(1024) DEFAULT NULL,
   `task_status` varchar(45) DEFAULT 'PENDING',
-  `create_time` datetime DEFAULT CURRENT_TIMESTAMP,
-  `last_update_time` datetime DEFAULT CURRENT_TIMESTAMP,
+  `create_time` datetime,
+  `last_update_time` datetime,
   PRIMARY KEY (`task_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
@@ -117,7 +117,7 @@ CREATE TABLE `topics` (
   `topic_name` varchar(255) DEFAULT NULL,
   `cluster` varchar(50) DEFAULT NULL,
   `ttl` int(11) DEFAULT NULL,
-  `create_time` datetime DEFAULT CURRENT_TIMESTAMP,
+  `create_time` datetime,
   PRIMARY KEY (`topic_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
