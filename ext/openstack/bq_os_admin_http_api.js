@@ -1,4 +1,4 @@
-var express = require('express'),
+Gar express = require('express'),
     log = require('node-logging'),
     bqAdm = require('../../lib/bq_clusters_adm.js'),
     keystoneMiddlware = require("../../ext/openstack/keystone_middleware.js"),
@@ -471,7 +471,7 @@ var writeFilter = function(){
 exports.startup = function(config){
     log.setLevel(config.logLevel || "info")
     //Default 5 days
-    var authFilterConfig = {authExclusions : [/.*\/clusters\/\w+\/nodes\/(\w|\.|-|_)+\/stats$/]}
+    var authFilterConfig = {authExclusions : [/.*\/clusters\/\w+\/nodes\/(\w|\.|-|_)+\/stats$/,/.*\/clusters\/\w+\/journals\/(\w|\.|-|_)+\/stats$/]}
     var maxTtl = config.maxTtl || 5*24*60*60
     var app = express.createServer()
         if(config.loggerConf){
