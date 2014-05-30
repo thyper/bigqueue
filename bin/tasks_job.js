@@ -1,4 +1,4 @@
-var TaskJob = require("../lib/bq_tasks_job.js"),
+var TasksJob = require("../lib/bq_tasks_job.js"),
     log = require("node-logging");
 
 var config
