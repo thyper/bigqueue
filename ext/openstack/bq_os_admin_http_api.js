@@ -283,6 +283,10 @@ var loadApp = function(app){
               var errMsg = err.msg || ""+err
               return res.writePretty({"err":errMsg},err.code || 500)
             }
+            //Add by backward compatibility
+            data.consumers.forEach(function(e) {
+              e["stats"] = e.consumer_stats;
+            });
             return res.writePretty(data,200)
         })
     })
