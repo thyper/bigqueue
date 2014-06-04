@@ -334,7 +334,7 @@ var loadApp = function(app){
               var errMsg = err.msg || ""+err
                 return res.writePretty({"err":errMsg},err.code || 500)
             }
-            
+   
             if(data.length != 1) {
                return res.writePretty({"err":"Consumer not found or you are not authorized to delete with this token"}, 404)
             }
@@ -433,7 +433,9 @@ var authFilter = function(config){
 
     return function(req,res,next){
       //All post should be authenticated
-        if((req.method.toUpperCase() === "POST" || req.method.toUpperCase() === "DELETE") && !req.keystone.authorized){
+        if((req.method.toUpperCase() === "POST" || 
+            req.method.toUpperCase() === "PUT" || 
+              req.method.toUpperCase() === "DELETE") && !req.keystone.authorized){
             var excluded = false;
             if(config.authExclusions) {
               config.authExclusions.forEach(function(e) {
