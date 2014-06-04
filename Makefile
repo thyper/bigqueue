@@ -22,18 +22,14 @@ test:
 	echo "$$REDIS1_CONF" | /usr/local/bin/redis-server -
 	echo "$$REDIS2_CONF" | /usr/local/bin/redis-server -
 
-	test/resources/zookeeper-3.4.3/bin/zkServer.sh start ${ZOOCFG}
-#	sleep 10 
-	./node_modules/.bin/_mocha --globals myThis,myHolder,myCallee,State_myThis --reporter spec -t 5000 -s 3000 ${REGEX} ${TESTFILE}
-
-	test/resources/zookeeper-3.4.3/bin/zkServer.sh stop ${ZOOCFG}
+	./node_modules/.bin/_mocha --globals myThis,myHolder,myCallee,State_myThis,chunk --reporter spec -t 10000 ${REGEX} ${TESTFILE}
 
 	kill `cat /tmp/redis1.pid`
 	kill `cat /tmp/redis1.pid`
 
 prepare_development:
 	cd /tmp; git clone https://github.com/antirez/redis.git; cd redis; git checkout 5471b8babddbb99a50010593483f24187e51981a; make install;
-	cd /tmp; wget http://nodejs.org/dist/v0.8.22/node-v0.8.22.tar.gz; tar -xvzf node-v0.8.22.tar.gz; cd node-v0.8.22; ./configure && make && make install;
+	cd /tmp; wget http://nodejs.org/dist/v0.10.28/node-v0.10.22.tar.gz; tar -xvzf node-v0.10.28.tar.gz; cd node-v0.10.28; ./configure && make && make install;
 	npm install;
 
 run_development:

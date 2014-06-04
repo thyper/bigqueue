@@ -5,59 +5,52 @@
  * If no config found a default config will be used, this confing
  * will use a redis localhost running at default port
  */
-var bq = require('../lib/bq_client.js'),
-    ZK = require('zookeeper'),
-    bqc = require('../lib/bq_cluster_client.js'),
-    adm_api = require("../ext/openstack/bq_os_admin_http_api.js"),
-    bj = require('../lib/bq_journal_client_redis.js')
+var adm_api = require("../ext/openstack/bq_os_admin_http_api.js");
 
 var cluster = require('cluster');
 var http = require('http');
 var numCPUs = require('os').cpus().length;
 var externalConfig = process.argv[2]
 
-var bqPath = "/bq"
-
-var zkConfig = {
-    connect: "localhost:2181",
-    timeout: 200000,
-    debug_level: ZK.ZOO_LOG_LEVEL_WARN,
-    host_order_deterministic: false
-}   
+var numCPUs = require('os').cpus().length - 1;
+console.log("Starting")
 
 var admConfig = {
-    "zkConfig":zkConfig,
-    "zkBqPath":bqPath,
-    "createNodeClientFunction":bq.createClient,
-    "createJournalClientFunction":bj.createJournalClient,
     "logLevel":"error",
-    "defaultCluster":"default"
+    "adminRoleId":"",
+    "mysqlConf":{
+        host     : '127.0.0.1',
+        port     : 3306,
+        user     : 'root',
+        password : 'root',
+        database : 'bigqueue'
+    }
 }
 
 var httpConfig = {
     "admConfig":admConfig,
     "port":8080,
-    "basePath":"/bigqueue",
-    "logLevel":"critical",
-    "loggerConf":{
-         format:"[:date]\t[:method]\t[:url]\t[:status]\t[:remote-addr]\t[HTTP/:http-version]\t:req[content-type]\t:res[content-type]\t[:response-time]",
-     }
+    "logLevel":"error",
+    "maxTtl":4*24*60*60,
+    "maxTtl_description":"4 days"
 }
-
-
 
 //Check for external config
-var config 
-if(externalConfig){
-    config = require(externalConfig).httpApiConfig
-}else{
-    config = httpConfig
-}
+var config
+console.log(externalConfig)
+console.log("Loading ["+externalConfig+"]");
+config = require(externalConfig).httpApiConfig;
 
 //Run config
 console.log("Using config: "+JSON.stringify(config))
 
-api = adm_api.startup(config)
+if (cluster.isMaster) {
+  // Fork workers.
+  for (var i = 0; i < numCPUs; i++) {
+    cluster.fork();
+  }
+} else {
+  adm_api.startup(config)
+}
 
 console.log("Admin api started")
-

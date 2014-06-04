@@ -6,7 +6,6 @@
  * will use a redis localhost running at default port
  */
 var bq = require('../lib/bq_client.js'),
-    ZK = require('zookeeper'),
     bqc = require('../lib/bq_cluster_client.js'),
     http_api = require("../ext/http_api.js")
 
