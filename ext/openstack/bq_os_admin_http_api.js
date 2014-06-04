@@ -477,7 +477,7 @@ var writeFilter = function(){
 exports.startup = function(config){
     log.setLevel(config.logLevel || "info")
     //Default 5 days
-    var authFilterConfig = {authExclusions : [/.*\/clusters\/\w+\/nodes($|\/.+$)/,/.*\/clusters\/\w+\/journals($|\/.+$)/]}
+    var authFilterConfig = {authExclusions : [/.*\/clusters\/\w+\/nodes($|\/.+$)/,/.*\/clusters\/\w+\/journals($|\/.+$)/,/\/tasks.*/]}
     var maxTtl = config.maxTtl || 3*24*60*60
     var app = express.createServer()
         if(config.loggerConf){
