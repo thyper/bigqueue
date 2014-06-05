@@ -828,28 +828,49 @@ describe("Clusters administration for multicluster purposes",function(){
       it("Should receive node stats", function(done) {
         var time = new Date();
         admClient.updateNodeMetrics("test","node1",{
-          sample_date: time,
-          topic_stats: {
-            topic1: {
-              consumer1: {
-                lag:10,
-                fails:2,
-                processing:1
-              }, 
-              consumer2: {
-                lag: 1,
-                fails: 0,
-                processing: 0
-              }
-            },
-            topic2: {
-              consumer3: {
-                lag:4,
-                fails:3,
-                processing:1
-              }
-            }
-          }
+               "sample_date" : 1401977686996,
+               "topics_stats" : 
+                [ 
+                  { 
+                   "consumers" : 
+                      [ 
+                        { 
+                          "consumer_id" : "consumer1",
+                          "consumer_stats" : 
+                          { 
+                            "fails" : 2,
+                            "lag" : 10,
+                            "processing" : 1
+                          }
+                        },
+                        { 
+                          "consumer_id" : "consumer2",
+                          "consumer_stats" : 
+                            { 
+                              "fails" : 0,
+                              "lag" : 1,
+                              "processing" : 0
+                            }
+                        }
+                     ],
+                 "topic_head" : 1,
+                 "topic_id" : "topic1"
+                },
+                {
+                  topic_id:"topic2",
+                  head: 1,
+                  consumers: [
+                   {
+                     consumer_id: "consumer3",
+                     consumer_stats: {
+                      lag: 4,
+                      fails: 3,
+                      processing: 1
+                     }
+                   }
+                  ]
+                }
+              ]
         }, function(err) {
           should.not.exist(err);
           mysqlConn.query("SELECT * FROM stats", function(err, data) {
@@ -886,27 +907,39 @@ describe("Clusters administration for multicluster purposes",function(){
         var time = new Date(); 
         admClient.updateNodeMetrics("test","node1",{
             sample_date: time,
-            topic_stats: {
-              topic1: {
-                consumer1: {
-                  lag:10,
-                  fails:2,
-                  processing:1
-                }, 
+            topics_stats: [
+              {
+                topic_id: "topic1",
+                consumers: [
+                  {
+                   consumer_id: "consumer1",
+                   consumer_stats: {
+                    lag:10,
+                    fails:2,
+                    processing:1
+                   }
+                  } 
+                ]
               }
-            }
+            ]
           }, function(err) {
           admClient.updateNodeMetrics("test","node1",{
               sample_date: time,
-              topic_stats: {
-                topic1: {
-                  consumer1: {
-                    lag:1,
-                    fails:9,
-                    processing:3
-                  }, 
+              topics_stats: [
+                {
+                  topic_id: "topic1",
+                  consumers: [
+                    {
+                     consumer_id: "consumer1",
+                     consumer_stats: {
+                      lag:1,
+                      fails:9,
+                      processing:3
+                     }
+                    } 
+                  ]
                 }
-              }
+              ]  
             }, function(err) {
               should.not.exist(err);
               mysqlConn.query("SELECT * FROM stats", function(err, data) {
@@ -925,20 +958,22 @@ describe("Clusters administration for multicluster purposes",function(){
       });
       it("Should fails if some data is missing", function(done) {
         admClient.updateNodeMetrics("test","node1",{
-          sample_date: new Date().getTime(),
-          topic_stats: {
-            topic1: {
-              consumer1: {
-                lag:10,
-                fails:2,
-                processing:1
-              }, 
-              consumer2: {
-                lag: 1,
-                processing: 0
+            sample_date: new Date().getTime(),
+            topics_stats: [
+              {
+                topic_id: "topic1",
+                consumers_prop_error: [
+                  {
+                   consumer_id: "consumer1",
+                   consumer_stats: {
+                    lag:1,
+                    fails:9,
+                    processing:3
+                   }
+                  } 
+                ]
               }
-            }
-          }
+            ]
         }, function(err) {
           should.exist(err); 
           done()
@@ -946,28 +981,40 @@ describe("Clusters administration for multicluster purposes",function(){
     });
     it("Should get consolidate data for topic", function(done) {
       admClient.updateNodeMetrics("test1","node1",{
-          sample_date: new Date().getTime(),
-          topic_stats: {
-            "test-test-t1": {
-              "test-test-c1": {
-                lag:10,
-                fails:2,
-                processing:1
-              }, 
-            }
-          }
+         sample_date: new Date().getTime(),
+            topics_stats: [
+              {
+                topic_id: "test-test-t1",
+                consumers: [
+                  {
+                   consumer_id: "test-test-c1",
+                   consumer_stats: {
+                    lag:10,
+                    fails:2,
+                    processing:1
+                   }
+                  } 
+                ]
+              }
+            ]
         }, function(err) {
           admClient.updateNodeMetrics("test1","node2",{
             sample_date: new Date().getTime(),
-            topic_stats: {
-              "test-test-t1": {
-               "test-test-c1": {
-                  lag:2,
-                  fails:3,
-                  processing:4
-                }, 
+            topics_stats: [
+              {
+                topic_id: "test-test-t1",
+                consumers: [
+                  {
+                   consumer_id: "test-test-c1",
+                   consumer_stats: {
+                    lag:2,
+                    fails:3,
+                    processing:4
+                   }
+                  } 
+                ]
               }
-            }
+            ]
           }, function(err) {
             should.not.exist(err);
             admClient.getTopicData("test-test-t1", function(err, data) {
@@ -986,27 +1033,39 @@ describe("Clusters administration for multicluster purposes",function(){
     it("Should get consolidate date for consummer", function(done) {
       admClient.updateNodeMetrics("test1","node1",{
           sample_date: new Date().getTime(),
-          topic_stats: {
-            "test-test-t1": {
-              "test-test-c1": {
-                lag:10,
-                fails:2,
-                processing:1
-              }, 
+          topics_stats: [
+            {
+              topic_id: "test-test-t1",
+              consumers: [
+                {
+                 consumer_id: "test-test-c1",
+                 consumer_stats: {
+                  lag:10,
+                  fails:2,
+                  processing:1
+                 }
+                } 
+              ]
             }
-          }
+          ]
         }, function(err) {
           admClient.updateNodeMetrics("test1","node2",{
             sample_date: new Date().getTime(),
-            topic_stats: {
-              "test-test-t1": {
-                "test-test-c1": {
-                  lag:2,
-                  fails:3,
-                  processing:4
-                }, 
+            topics_stats: [
+              {
+                topic_id: "test-test-t1",
+                consumers: [
+                  {
+                   consumer_id: "test-test-c1",
+                   consumer_stats: {
+                    lag:2,
+                    fails:3,
+                    processing:4
+                   }
+                  } 
+                ]
               }
-            }
+            ]
           }, function(err) {
             should.not.exist(err);
             admClient.getConsumerData("test-test-t1", "test-test-c1", function(err, data) {

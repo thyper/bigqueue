@@ -1485,24 +1485,43 @@ describe("openstack admin http api",function(){
             url:"http://127.0.0.1:8081/clusters/test/nodes/node1/stats",
             method: "POST",
             json: { 
-              sample_date: time.getTime(),
-              topic_stats: {
-                topic1: {
-                  consumer1: {
-                    lag:10,
-                    fails:2,
-                    processing:1
-                  }
+               "sample_date" : 1401977686996,
+               "topics_stats" : 
+                [ 
+                  { 
+                   "consumers" : 
+                      [ 
+                        { 
+                          "consumer_id" : "testConsumer2",
+                          "consumer_stats" : 
+                          { 
+                            "fails" : 0,
+                            "lag" : 1,
+                            "processing" : 0
+                          }
+                        },
+                        { 
+                          "consumer_id" : "testConsumer",
+                          "consumer_stats" : 
+                            { 
+                              "fails" : 2,
+                              "lag" : 10,
+                              "processing" : 1
+                            }
+                        }
+                     ],
+                 "topic_head" : 1,
+                 "topic_id" : "testTopic"
                 }
-              }
+              ]
             }
           }, function(error, response, body) { 
             should.not.exist(error);
             response.statusCode.should.equal(200);
             mysqlConn.query("SELECT * FROM stats", function(err, data) {
               data[0].cluster.should.equal("test");
-              data[0].topic.should.equal("topic1");
-              data[0].consumer.should.equal("consumer1");
+              data[0].topic.should.equal("testTopic");
+              data[0].consumer.should.equal("testConsumer");
               data[0].lag.should.equal(10);
               data[0].fails.should.equal(2);
               data[0].processing.should.equal(1);

@@ -345,14 +345,15 @@ describe("Big Queue Client",function(){
           redisClient.execute("FLUSHALL",function(data,err){
             bqClient.getNodeStats(function(err, data) {
               should.exist(data.sample_date);
-              should.exist(data.topic_stats);
-              Object.keys(data.topic_stats).length.should.equal(0);
+              should.exist(data.topics_stats);
+              data.topics_stats.length.should.equal(0);
+              should.exist(data.node_stats);
               done();
             });  
           });
         });
         it("Should get full data of node", function(done){
-            function prepareTest(callback) {
+          function prepareTest(callback) {
               bqClient.createTopic("testTopic1",function(err){
                 bqClient.createConsumerGroup("testTopic","testConsumer2",function(err){
                   bqClient.createConsumerGroup("testTopic1","testConsumer3",function(err){
@@ -366,17 +367,22 @@ describe("Big Queue Client",function(){
             prepareTest(function() {
               bqClient.getNodeStats(function(err, data) {
                 should.exist(data.sample_date);
-                should.exist(data.topic_stats);
-                Object.keys(data.topic_stats).length.should.equal(2);
-                data.topic_stats.testTopic.testConsumer.lag.should.equal(1);
-                data.topic_stats.testTopic.testConsumer.processing.should.equal(0);
-                data.topic_stats.testTopic.testConsumer.fails.should.equal(0);
-                data.topic_stats.testTopic.testConsumer2.lag.should.equal(1);
-                data.topic_stats.testTopic.testConsumer2.processing.should.equal(0);
-                data.topic_stats.testTopic.testConsumer2.fails.should.equal(0);
-                data.topic_stats.testTopic1.testConsumer3.lag.should.equal(0);
-                data.topic_stats.testTopic1.testConsumer3.processing.should.equal(0);
-                data.topic_stats.testTopic1.testConsumer3.fails.should.equal(0);
+                should.exist(data.topics_stats);
+                data.topics_stats.length.should.equal(2);
+                data.topics_stats[0].topic_id.should.equal("testTopic");
+                data.topics_stats[0].consumers.length.should.equal(2);
+                data.topics_stats[0].consumers[0].consumer_id.should.equal("testConsumer2");
+                data.topics_stats[0].consumers[0].consumer_stats.processing.should.equal(0);
+                data.topics_stats[0].consumers[0].consumer_stats.lag.should.equal(1);
+                data.topics_stats[0].consumers[0].consumer_stats.fails.should.equal(0);
+                data.topics_stats[0].topic_head.should.equal(1);
+                data.topics_stats[1].topic_id.should.equal("testTopic1");
+                data.topics_stats[1].consumers.length.should.equal(1);
+                data.topics_stats[1].consumers[0].consumer_id.should.equal("testConsumer3");
+                data.topics_stats[1].consumers[0].consumer_stats.processing.should.equal(0);
+                data.topics_stats[1].consumers[0].consumer_stats.lag.should.equal(0);
+                data.topics_stats[1].consumers[0].consumer_stats.fails.should.equal(0);
+                data.topics_stats[1].topic_head.should.equal(-1);
 
                 done();
               }); 
