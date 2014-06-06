@@ -24,8 +24,6 @@ CREATE TABLE `consumers` (
 ALTER TABLE `bigqueue`.`consumers` CHANGE COLUMN `topic_id` `topic_id` VARCHAR(255) NOT NULL 
 , DROP PRIMARY KEY 
 , ADD PRIMARY KEY (`consumer_id`, `topic_id`) ;
-ALTER TABLE `bigqueue`.`stats` 
-ADD INDEX `IDX_STATS_BY_CONSUMER` (`consumer` ASC) ;
 
 
 DROP TABLE IF EXISTS `consumers_history`;
@@ -97,6 +95,8 @@ CREATE TABLE `stats` (
   `last_update` datetime NOT NULL,
   PRIMARY KEY (`cluster`,`node`,`topic`,`consumer`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+ALTER TABLE `bigqueue`.`stats` 
+ADD INDEX `IDX_STATS_BY_CONSUMER` (`consumer` ASC) ;
 
 DROP TABLE IF EXISTS `tasks`;
 CREATE TABLE `tasks` (
