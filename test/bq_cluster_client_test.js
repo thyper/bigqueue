@@ -1,4 +1,5 @@
 var should = require('should'),
+    jsdog = require("jsdog").configure(),
     redis = require('redis'),
     utils = require('../lib/bq_client_utils.js'),
     bq = require('../lib/bq_client.js'),
