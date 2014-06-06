@@ -369,21 +369,6 @@ describe("Big Queue Client",function(){
                 should.exist(data.sample_date);
                 should.exist(data.topics_stats);
                 data.topics_stats.length.should.equal(2);
-                data.topics_stats[0].topic_id.should.equal("testTopic");
-                data.topics_stats[0].consumers.length.should.equal(2);
-                data.topics_stats[0].consumers[0].consumer_id.should.equal("testConsumer2");
-                data.topics_stats[0].consumers[0].consumer_stats.processing.should.equal(0);
-                data.topics_stats[0].consumers[0].consumer_stats.lag.should.equal(1);
-                data.topics_stats[0].consumers[0].consumer_stats.fails.should.equal(0);
-                data.topics_stats[0].topic_head.should.equal(1);
-                data.topics_stats[1].topic_id.should.equal("testTopic1");
-                data.topics_stats[1].consumers.length.should.equal(1);
-                data.topics_stats[1].consumers[0].consumer_id.should.equal("testConsumer3");
-                data.topics_stats[1].consumers[0].consumer_stats.processing.should.equal(0);
-                data.topics_stats[1].consumers[0].consumer_stats.lag.should.equal(0);
-                data.topics_stats[1].consumers[0].consumer_stats.fails.should.equal(0);
-                data.topics_stats[1].topic_head.should.equal(-1);
-
                 done();
               }); 
             });
