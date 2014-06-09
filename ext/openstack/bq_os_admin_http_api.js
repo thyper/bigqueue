@@ -2,8 +2,7 @@ var express = require('express'),
     log = require('node-logging'),
     bqAdm = require('../../lib/bq_clusters_adm.js'),
     keystoneMiddlware = require("../../ext/openstack/keystone_middleware.js"),
-    YAML = require('json2yaml'),
-    NodeCache = require( "node-cache" );
+    YAML = require('json2yaml');
 
 var loadApp = function(app){
     var authorizeTenant = function(userData,tenantId){
@@ -196,21 +195,13 @@ var loadApp = function(app){
     })
 
     app.get(app.settings.basePath+"/clusters/:cluster",function(req,res){
-      var cacheKey = "cluster_stats:"+req.params.cluster;
-      var cached = app.settings.cache.get(cacheKey);
-      if(cached && Object.keys(cached) > 0) {
-        res.setHeader("X-Cached",true);
-        return res.writePretty(cached,200)
-      } else {
-        app.settings.bqAdm.getClusterData(req.params.cluster,function(err,data){
-            if(err){
-                var errMsg = err.msg || ""+err
-                return res.writePretty({"err":errMsg},err.code || 500)
-            }
-            app.settings.cache.set(cacheKey, data);
-            return res.writePretty(data,200)
-        })
-      }
+      app.settings.bqAdm.getClusterData(req.params.cluster,function(err,data){
+          if(err){
+              var errMsg = err.msg || ""+err
+              return res.writePretty({"err":errMsg},err.code || 500)
+          }
+          return res.writePretty(data,200)
+      })
     })
 
     app.get(app.settings.basePath+"/topics",function(req,res){
@@ -488,8 +479,6 @@ exports.startup = function(config){
     //Default 5 days
     var authFilterConfig = {authExclusions : [/.*\/clusters\/\w+\/nodes($|\/.+$)/,/.*\/clusters\/\w+\/journals($|\/.+$)/,/\/tasks.*/]}
     var maxTtl = config.maxTtl || 3*24*60*60
-    var useCache = config.useCache != undefined ? config.useCache : true;
-    var cacheTtl = config.cacheTtl != undefined ? config.cacheTtl : 1;
     var app = express.createServer()
         if(config.loggerConf){
         log.inf("Using express logger")
@@ -512,8 +501,6 @@ exports.startup = function(config){
     app.set("basePath",config.basePath || "")
     app.set("maxTtl",maxTtl)
     app.set("bqAdm",bqAdm.createClustersAdminClient(config.admConfig))
-    //This cache can improve efficiency on bursty traffic
-    app.set("cache", new NodeCache( { stdTTL: 1, checkperiod: 1 }));
     loadApp(app)
     app.running = true;
     app.listen(config.port)
