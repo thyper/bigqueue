@@ -6,7 +6,6 @@
  * will use a redis localhost running at default port
  */
 var adm_api = require("../ext/openstack/bq_os_admin_http_api.js");
-var jsdog = require("jsdog").configure();
 var cluster = require('cluster');
 var http = require('http');
 var numCPUs = require('os').cpus().length;
