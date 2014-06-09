@@ -694,7 +694,6 @@ describe("openstack admin http api",function(){
                     response.statusCode.should.equal(201)
                 body.should.have.property("topic_id","1234-test-test")
                 body.should.have.property("consumer_id","456-test-test-consumer")
-                    body.should.have.property("ttl")
                     body.should.have.property("cluster")
                     body.should.have.property("endpoints")
                 cb();
@@ -746,7 +745,6 @@ describe("openstack admin http api",function(){
                         response.statusCode.should.equal(200)
                         body.should.have.property("topic_id","1234-test-test")
                         body.should.have.property("consumer_id","456-test-test1")
-                        body.should.have.property("ttl")
                         body.should.have.property("cluster")
                         body.should.have.property("endpoints")
                         done()

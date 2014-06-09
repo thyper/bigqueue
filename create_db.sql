@@ -17,13 +17,11 @@ CREATE TABLE `consumers` (
   `tenant_id` varchar(255) DEFAULT NULL,
   `tenant_name` varchar(255) DEFAULT NULL,
   `consumer_name` varchar(255) DEFAULT NULL,
+  `cluster` varchar(50) DEFAULT NULL,
   `topic_id` varchar(255) DEFAULT NULL,
   `create_time` datetime,
-  PRIMARY KEY (`consumer_id`)
+  PRIMARY KEY (`consumer_id`, `cluster`, `topic_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-ALTER TABLE `bigqueue`.`consumers` CHANGE COLUMN `topic_id` `topic_id` VARCHAR(255) NOT NULL 
-, DROP PRIMARY KEY 
-, ADD PRIMARY KEY (`consumer_id`, `topic_id`) ;
 
 
 DROP TABLE IF EXISTS `consumers_history`;
