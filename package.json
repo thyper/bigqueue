@@ -1,34 +1,37 @@
 {
-    "name": "bigqueue",
-    "description": "",
-    "version": "0.2.0",
-    "author": "",
-    "engines": { "node":">= 0.8.21" },
-    "bin":{ 
-        "bigqueue-http":"./bin/http_launcher.js",
-        "os-http-admin-api":"./bin/os_http_admin_launcher.js",
-        "os-http-api":"./bin/os_http_launcher.js",
-        "node-stats":"./bin/node_stats.js"
-    },
-    "main":"lib/index.js",
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/mercadolibre/bigqueue"
-    }, 
-    "dependencies": {
-        "express" : "2.5.x",
-        "redis": "0.10.1",
-       	"should" : "0.6.x",
-        "request" : "2.9.x",
-        "hiredis":"0.1.16",
-        "node-logging":"0.1.x",
-        "json2yaml":"1.0.x",
-        "mysql":"2.0.1",
-        "async":"0.7.0",
-        "needle":"0.7.1"
-    },
-    "devDependencies": {
-        "mocha" : "1.8.x",
-        "nock": "0.31.1"
-    }
+  "name": "bigqueue",
+  "description": "",
+  "version": "0.2.0",
+  "author": "",
+  "engines": {
+    "node": ">= 0.8.21"
+  },
+  "bin": {
+    "bigqueue-http": "./bin/http_launcher.js",
+    "os-http-admin-api": "./bin/os_http_admin_launcher.js",
+    "os-http-api": "./bin/os_http_launcher.js",
+    "node-stats": "./bin/node_stats.js"
+  },
+  "main": "lib/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mercadolibre/bigqueue"
+  },
+  "dependencies": {
+    "async": "0.7.0",
+    "express": "2.5.x",
+    "hiredis": "0.1.16",
+    "json2yaml": "1.0.x",
+    "mysql": "2.0.1",
+    "needle": "0.7.1",
+    "node-cache": "^1.0.0",
+    "node-logging": "0.1.x",
+    "redis": "0.10.1",
+    "request": "2.9.x",
+    "should": "0.6.x"
+  },
+  "devDependencies": {
+    "mocha": "1.8.x",
+    "nock": "0.31.1"
+  }
 }
