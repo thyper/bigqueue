@@ -1,5 +1,7 @@
 var express = require('express'),
-    log = require('node-logging')
+    log = require('node-logging'),
+    bodyParser = require("body-parser"),
+    methodOverride = require("method-override");
 var maxBody = "64kb"
 var bqClient
 
@@ -13,36 +15,36 @@ var loadApp = function(app){
     app.get("/topics",function(req,res){
         try{
             bqClient.listTopics(function(data){
-                res.json(data,200)
+                res.json(200, data)
             })
         }catch(e){
             log.err("Error getting topics ["+e+"]")
-            res.json({err:"Error processing request ["+e+"]"},500)
+            res.json(500, {err:"Error processing request ["+e+"]"})
         }
 
     })
 
     app.post("/topics",function(req,res){
         if(!req.is("json")){
-            return res.json({err:"Error parsing json"},400)
+            return res.json(400, {err:"Error parsing json"})
         }
         var topic = req.body
         try{
             if(!topic.name.match(valid_element_regex)){
-                return res.json({err:"Topic should be an string without special chars between 2 and 50 chars"},400)
+                return res.json(400, {err:"Topic should be an string without special chars between 2 and 50 chars"})
             }
-            bqClient.createTopic(topic.name,function(err){
+            bqClient.createTopic(topic.name,function(err){  
                 if(err){
                     log.err("Error creating topic ["+err+"]")
                     var err = err.msg || ""+err
-                    return res.json({err:err},err.code || 409)
+                    return res.json(err.code || 409, {err:err});
                 }else{
-                    return res.json({name:topic.name},201)
+                    return res.json(201, {name:topic.name});
                 }
             })
         }catch(e){
             log.err("Error creating topic ["+e+"]")
-            return res.json({err:"Error processing request ["+e+"]"},500)
+            return res.json(500, {err:"Error processing request ["+e+"]"});
         }
     })
 
@@ -52,21 +54,21 @@ var loadApp = function(app){
                 if(err){
                     log.err("Error creating consumer group ["+log.pretty(req.params)+"] ["+err+"]")
                     var err = err.msg || ""+err
-                    res.json({err:""+err},err.code || 400)
+                    res.json(err.code || 400, {err:""+err})
                 }else{
-                    res.json(data,200)
+                    res.json(200, data)
                 }
             })
         }catch(e){
             log.err("Error creating consumer group ["+e+"]")
-            res.json({err:"Error processing request ["+e+"]"},500)
+            res.json(500, {err:"Error processing request ["+e+"]"})
         }
 
     })
 
     app.post("/topics/:topic/consumers",function(req,res){
             if(!req.is("json")){
-                return res.json({err:"Content should be json"},400)
+                return res.json(400, {err:"Content should be json"})
             }
             var consumer = req.body
             var topic = req.params.topic
@@ -78,12 +80,12 @@ var loadApp = function(app){
                 bqClient.createConsumerGroup(topic,consumer.name,function(err){
                     if(err){
                         var err = err.msg || ""+err
-                        return res.json({err:""+err},err.code || 409)
+                        return res.json(err.code || 409 , {err:""+err})
                     }
-                    return res.json({name:consumer.name},201)
+                    return res.json(201, {name:consumer.name})
                 })
             }catch(e){
-                return res.json({err:"Error processing request ["+e+"]"},500)
+                return res.json(500, {err:"Error processing request ["+e+"]"})
             }
 
 
@@ -92,7 +94,7 @@ var loadApp = function(app){
     app.post("/topics/:topic/messages",function(req,res){
         var timer = log.startTimer()
         if(!req.is("json")){
-            return res.json({err:"Message should be json"},400)
+            return res.json(400, {err:"Message should be json"})
         }
         var message
         try{
@@ -104,7 +106,7 @@ var loadApp = function(app){
             })
             timer("[REST-API] Json keys stringified")
         }catch(e){
-            return res.json({err:"Error parsing json ["+e+"]"},400)
+            return res.json(400, {err:"Error parsing json ["+e+"]"})
         }
         try{
             timer("[REST-API] Starting data save")
@@ -112,9 +114,9 @@ var loadApp = function(app){
                 timer("[REST-API]Posted message receive")
                 if(err){
                    var err = err.msg || ""+err
-                   return res.json({"err":err},err.code || 400)
+                   return res.json(err.code || 400, {"err":err})
                 }
-                return res.json(data,201)
+                return res.json(201, data)
                 timer("[REST-API] Post user responsed")
             })
         }catch(e){
@@ -125,11 +127,11 @@ var loadApp = function(app){
 
     app.post("/messages",function(req,res){
         if(!req.is("json")){
-            return res.json({err:"Message should be json"},400)
+            return res.json(400, {err:"Message should be json"})
         }
         var topics = req.body.topics
         if(!(topics instanceof Array)){
-            return res.json({err:"should be declared the array 'topics' property"},400)
+            return res.json(400, {err:"should be declared the array 'topics' property"})
         }
         delete req.body["topics"]
         var message
@@ -141,7 +143,7 @@ var loadApp = function(app){
                 }
             })
         }catch(e){
-            return res.json({err:"Error parsing json ["+e+"]"},400)
+            return res.json(400, {err:"Error parsing json ["+e+"]"})
         }
 
         var errors = []
@@ -158,9 +160,9 @@ var loadApp = function(app){
                 executed++
                 if(executed == topics.length){
                     if(errors.length>0){
-                        return res.json({err:"An error ocurrs posting the messages","errors":errors},500)
+                        return res.json(500, {err:"An error ocurrs posting the messages","errors":errors})
                     }else{
-                        return res.json(datas,201)
+                        return res.json(201, datas)
                     }
                 }
             })
@@ -175,7 +177,7 @@ var loadApp = function(app){
             bqClient.getMessage(req.params.topic,req.params.consumer,req.query.visibilityWindow,function(err,data){
                 if(err){
                     var err = err.msg || ""+err
-                    res.json({"err":err}, err.code || 400)
+                    res.json(err.code || 400, {"err":err})
                 }else{
                     if(data && data.id){
                         Object.keys(data).forEach(function(val){
@@ -190,16 +192,16 @@ var loadApp = function(app){
                         })
                         timer("Getted message througt web-api")
 
-                        res.json(data,200)
+                        res.json(200, data)
                     }else{
                         timer("Getted void message throught web-api")
-                        res.json({},204)
+                        res.json(204, {})
                     }
                 }
             })
         }catch(e){
             log.err("Error getting message ["+e+"]")
-            res.json({err:"Error processing request ["+e+"]"},500)
+            res.json(500, {err:"Error processing request ["+e+"]"})
         }
     })
 
@@ -208,14 +210,14 @@ var loadApp = function(app){
             bqClient.ackMessage(req.params.topic,req.params.consumer,req.params.recipientCallback,function(err){
                 if(err){
                     var err = err.msg || ""+err
-                    res.json({"err":err},200)
+                    res.json(200, {"err":err})
                 }else{
-                    res.json({},204)
+                    res.json(204, {})
                 }
             })
         }catch(e){
             log.err("Error deleting message ["+e+"]")
-            res.json({err:"Error processing request ["+e+"]"},500)
+            res.json(500, {err:"Error processing request ["+e+"]"})
         }
 
     })
@@ -225,14 +227,14 @@ var loadApp = function(app){
             bqClient.getConsumerStats(req.params.topic,req.params.consumer,function(err,data){
                 if(err){
                     var err = err.msg || ""+err
-                    res.json({"err":err},err.code || err.code || 400)
+                    res.json(err.code || err.code || 400, {"err":err})
                 }else{
-                    res.json(data,200)
+                    res.json(200, data)
                 }
             })
         }catch(e){
             log.err("Error getting the stats for consumer")
-            res.json({err:"Error processing request ["+e+"]"},500)
+            res.json(500, {err:"Error processing request ["+e+"]"})
         }
     })
 
@@ -242,21 +244,21 @@ var loadApp = function(app){
                 if(err){
                     log.err("Error getting consumer groups for topic, error: "+err)
                     var err = err.msg || ""+err
-                    res.json({"err":err},err.code || 400)
+                    res.json(err.code || 400, {"err":err})
                     return
                 }
                 var total=consumers.length
                 var executed=0
                 var data=[]
                 if(total== 0){
-                    res.json([],200)
+                    res.json(200, [])
                     return
                 }
                 consumers.forEach(function(consumer){
                     bqClient.getConsumerStats(req.params.topic,consumer,function(err,stats){
                         if(err){
                             var err = err.msg || ""+err
-                            res.json({"err":err},err.code || 400)
+                            res.json(err.code || 400, {"err":err})
                         }else{
                             var d = {"consumer":consumer}
                             d.stats=stats
@@ -265,14 +267,14 @@ var loadApp = function(app){
                         }
                         //If an error ocurs the executed never will be equals than total
                         if(executed>=total){
-                            res.json(data,200)
+                            res.json(200, data)
                         }
                     })
                 })
             })
         }catch(e){
             log.err("Error getting the stats for topic")
-            res.json({err:"Error processing request ["+e+"]"},500)
+            res.json(500, {err:"Error processing request ["+e+"]"})
         }
     })
 }
@@ -282,23 +284,22 @@ var loadApp = function(app){
 exports.startup = function(config){
     log.setLevel(config.logLevel || "info")
 
-    var app = express.createServer()
+    var app = express()
         if(config.loggerConf){
         log.inf("Using express logger")
         app.use(express.logger(config.loggerConf));
     }
-    app.use(express.limit(maxBody));
-    app.use(express.bodyParser());
-    app.use(express.methodOverride());
+    app.use(bodyParser({limit: maxBody}));
+    app.use(methodOverride());
 
-    app.use(app.router);
 
     loadApp(app)
 
-    app.listen(config.port)
+    this.socket = app.listen(config.port)
     bqClient = config.bqClientCreateFunction(config.bqConfig)
     console.log("http api running on ["+config.port+"]")
 }
 
 exports.shutdown = function(){
+  this.socket.close();
 }

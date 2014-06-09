@@ -13,7 +13,7 @@ var should = require('should'),
 
 describe("openstack admin http api",function(){
    
- 
+     var fake_sock; 
      var mysqlConf = {
         host     : 'localhost',
         user     : 'root',
@@ -977,10 +977,10 @@ describe("openstack admin http api",function(){
     describe("Keystone authorization", function(){
         var fakekeystone
         before(function(){
-            fakekeystone = express.createServer()
+            fakekeystone = express()
             fakekeystone.get("/v2.0/tokens/:token",function(req,res){
                 if(req.params.token === "user123" && req.headers["x-auth-token"] === "admin"){
-                    return res.json({
+                    return res.json(200,{
                         "access": {
                             "token":{
                                 "tenant":
@@ -1001,10 +1001,10 @@ describe("openstack admin http api",function(){
                             }
                         }
 
-                    },200)
+                    })
                 }
                 if(req.params.token === "user345" && req.headers["x-auth-token"] === "admin"){
-                    return res.json({
+                    return res.json(200, {
                         "access": {
                             "token":{
                                 "tenant":
@@ -1018,11 +1018,11 @@ describe("openstack admin http api",function(){
                             }
                         }
                 
-                    },200)
+                    })
                 }
 
                 if(req.params.token === "someone" && req.headers["x-auth-token"] === "admin"){
-                    return res.json({
+                    return res.json(200, {
                         "access": {
                             "token":{
                                 "tenant":
@@ -1035,17 +1035,17 @@ describe("openstack admin http api",function(){
                             "user":{}
                         }
 
-                    },200)
+                    })
                 }
 
-                return res.json({err:"token not found"},404)
+                return res.json(404,{err:"token not found"})
             })
-            fakekeystone.listen(35357)
+            fake_sock = fakekeystone.listen(35357)
         })
 
         after(function(){
-            if(fakekeystone){
-                fakekeystone.close()
+            if(fake_sock){
+                fake_sock.close()
             }
         })
         

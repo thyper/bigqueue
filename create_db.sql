@@ -30,6 +30,7 @@ CREATE TABLE `consumers_history` (
   `tenant_id` varchar(255) DEFAULT NULL,
   `tenant_name` varchar(255) DEFAULT NULL,
   `consumer_name` varchar(255) DEFAULT NULL,
+  `cluster` varchar(50) DEFAULT NULL,
   `topic_id` varchar(255) DEFAULT NULL,
   `create_time` datetime,
   `modify_date` datetime,
@@ -163,10 +164,10 @@ VALUES(OLD.topic_id, OLD.tenant_id, OLD.tenant_name, OLD.topic_name, OLD.cluster
 
 DROP TRIGGER IF EXISTS consumers_delete;
 CREATE TRIGGER consumers_delete AFTER DELETE ON consumers
-FOR EACH ROW INSERT INTO consumers_history (consumer_id, tenant_id, tenant_name, consumer_name, topic_id, create_time, modify_date, modify_action)
-VALUES (OLD.consumer_id, OLD.tenant_id, OLD.tenant_name, OLD.consumer_name, OLD.topic_id, OLD.create_time, now(), "DELETE");
+FOR EACH ROW INSERT INTO consumers_history (consumer_id, tenant_id, tenant_name, consumer_name, cluster, topic_id, create_time, modify_date, modify_action)
+VALUES (OLD.consumer_id, OLD.tenant_id, OLD.tenant_name, OLD.consumer_name, OLD.cluster, OLD.topic_id, OLD.create_time, now(), "DELETE");
 
 DROP TRIGGER IF EXISTS consumers_update;
 CREATE TRIGGER consumers_update AFTER UPDATE ON consumers
-FOR EACH ROW INSERT INTO consumers_history (consumer_id, tenant_id, tenant_name, consumer_name, topic_id, create_time, modify_date, modify_action)
-VALUES (OLD.consumer_id, OLD.tenant_id, OLD.tenant_name, OLD.consumer_name, OLD.topic_id, OLD.create_time, now(), "UPDATE");
+FOR EACH ROW INSERT INTO consumers_history (consumer_id, tenant_id, tenant_name, consumer_name, cluster, topic_id, create_time, modify_date, modify_action)
+VALUES (OLD.consumer_id, OLD.tenant_id, OLD.tenant_name, OLD.consumer_name, OLD.cluster, OLD.topic_id, OLD.create_time, now(), "UPDATE");

@@ -543,18 +543,15 @@ describe("Open stack http api",function(){
 
     describe("Limits",function(){
         it("should get an error if a posted message have more than 64kb",function(done){
-            var b64kb = function(){
-                var str = ""
-                for(var i=0;i<(64*1024)+1;i++)
-                    str=str+"a"
-                return str
+            var msg_json = {"msg":""}  
+            for(var i=0;i<(64*1024)+10;i++) {
+              msg_json.msg=msg_json.msg+"a"
             }
-            var msg = b64kb()
             request({
-                uri:"http://127.0.0.1:8082/topics/testTopic/messages",
+                uri:"http://127.0.0.1:8082/messages",
                 method:"POST",
-                body:msg,
-                headers:{"content-length":msg.length}
+                json:msg_json,
+                headers:{"content-length":JSON.stringify(msg_json).length}
             },function(err,response,body){
                 should.not.exist(err)
                 response.statusCode.should.equal(413)

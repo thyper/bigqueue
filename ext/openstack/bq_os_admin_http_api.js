@@ -2,6 +2,7 @@ var express = require('express'),
     log = require('node-logging'),
     bqAdm = require('../../lib/bq_clusters_adm.js'),
     keystoneMiddlware = require("../../ext/openstack/keystone_middleware.js"),
+    bodyParser = require("body-parser"),
     YAML = require('json2yaml');
 
 var loadApp = function(app){
@@ -461,13 +462,14 @@ var authFilter = function(config){
 var writeFilter = function(){
     return function(req,res,next){
         res.writePretty = function(obj,statusCode){
+          statusCode = statusCode || 200;
             if(req.accepts("json")){
-                res.json(obj,statusCode)
+                res.json(statusCode,obj)
             }else if(req.accepts("text/plain")){
-                res.send(YAML.stringify(obj),statusCode)
+                res.send(statusCode, YAML.stringify(obj))
             }else{
                 //Default
-                res.json(obj,statusCode)
+                res.json(statusCode,obj);
             }
         }
         next()
@@ -479,8 +481,8 @@ exports.startup = function(config){
     //Default 5 days
     var authFilterConfig = {authExclusions : [/.*\/clusters\/\w+\/nodes($|\/.+$)/,/.*\/clusters\/\w+\/journals($|\/.+$)/,/\/tasks.*/]}
     var maxTtl = config.maxTtl || 3*24*60*60
-    var app = express.createServer()
-        if(config.loggerConf){
+    var app = express()
+    if(config.loggerConf){
         log.inf("Using express logger")
         app.use(express.logger(config.loggerConf));
     }
@@ -488,7 +490,7 @@ exports.startup = function(config){
     app.use(writeFilter())
     app.enable("jsonp callback")
         
-    app.use(express.bodyParser());
+    app.use(bodyParser());
 
     if(config.keystoneConfig){
         app.use(keystoneMiddlware.auth(config.keystoneConfig))
@@ -496,14 +498,12 @@ exports.startup = function(config){
         app.set("adminRoleId",config.admConfig.adminRoleId || -1)
     }
 
-    app.use(app.router); 
-
     app.set("basePath",config.basePath || "")
     app.set("maxTtl",maxTtl)
     app.set("bqAdm",bqAdm.createClustersAdminClient(config.admConfig))
     loadApp(app)
     app.running = true;
-    app.listen(config.port)
+    this.socket = app.listen(config.port)
     this.app = app
     return this
 }
@@ -511,6 +511,7 @@ exports.startup = function(config){
 exports.shutdown = function(){
     if(this.app.settings.bqAdm)
         this.app.settings.bqAdm.shutdown()
-    this.app.close()
+    //this.app.close()
     this.app.running = false;
+    this.socket.close();
 }

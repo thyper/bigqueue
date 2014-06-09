@@ -1,5 +1,7 @@
 var express = require('express'),
-    log = require('node-logging')
+    log = require('node-logging'),
+    bodyParser = require("body-parser"),
+    methodOverride = require("method-override");
 var maxBody = "64kb"
 var bqClient
 
@@ -12,11 +14,11 @@ var loadApp = function(app){
 
     app.post(app.settings.basePath+"/messages",function(req,res){
         if(!req.is("json")){
-            return res.json({err:"Message should be json"},400)
+            return res.json(400, {err:"Message should be json"})
         }
         var topics = req.body.topics
         if(!(topics instanceof Array)){
-            return res.json({err:"should be declared the 'topics' property"},400)
+            return res.json(400, {err:"should be declared the 'topics' property"})
         }
         delete req.body["topics"]
         var message
@@ -28,7 +30,7 @@ var loadApp = function(app){
                 }
             })
         }catch(e){
-            return res.json({err:"Error parsing json ["+e+"]"},400)
+            return res.json(400, {err:"Error parsing json ["+e+"]"})
         }
 
         var errors = []
@@ -45,8 +47,9 @@ var loadApp = function(app){
                 executed++
                 if(executed == topics.length){
                     if(errors.length>0){
-                        return res.json({err:"An error ocurrs posting the messages","errors":errors},500) }else{
-                        return res.json(datas,201)
+                        return res.json(500, {err:"An error ocurrs posting the messages","errors":errors}) 
+                    }else{
+                        return res.json(201, datas)
                     }
                 }
             })
@@ -62,13 +65,13 @@ var loadApp = function(app){
         if(nodeId) {
           var splitedNode = nodeId.split("@");
           if(splitedNode.length != 2) {
-            return res.json({"err": "Invalid X-NodeId header"},400);
+            return res.json(400, {"err": "Invalid X-NodeId header"});
           }
           nodeId = splitedNode[0];
           try {
             nodeCallCount = parseInt(splitedNode[1]);
           }catch(e) {
-            return res.json({"err": "Invalid X-NodeId header"},400);
+            return res.json(400, {"err": "Invalid X-NodeId header"});
           }
         }
         timer("Starting message get")
@@ -77,9 +80,9 @@ var loadApp = function(app){
             timer("Message getted")
             if(err){
                 if(typeof(err) == "string")
-                    res.json({"err":""+err},400)
+                    res.json(400, {"err":""+err})
                 else
-                    res.json(err,400)
+                    res.json(400, err)
             }else{
                 if(data && data.id){
                     Object.keys(data).forEach(function(val){
@@ -103,10 +106,10 @@ var loadApp = function(app){
                       res.setHeader("X-NodeId",nodeId+"@"+nodeCallCount);
                     }
                     timer("Getted message througt web-api")
-                    res.json(data,200)
+                    res.json(200, data)
                 }else{
                     timer("Getted void message throught web-api")
-                    res.json({},204)
+                    res.json(204, {})
                 }
             }
         }
@@ -119,7 +122,7 @@ var loadApp = function(app){
           }
         }catch(e){
             log.err("Error getting message ["+e+"]")
-            res.json({err:"Error processing request ["+e+"]"},500)
+            res.json(500, {err:"Error processing request ["+e+"]"})
         }
     })
 
@@ -130,14 +133,14 @@ var loadApp = function(app){
             app.settings.bqClient.ackMessage(topic,consumer,req.params.recipientCallback,function(err){
                 if(err){
                     var errMsg = err.msg || ""+err
-                    res.json({err:errMsg},200)
+                    res.json(200, {err:errMsg})
                 }else{
-                    res.json({},204)
+                    res.json(204, {})
                 }
             })
         }catch(e){
             log.err("Error deleting message ["+e+"]")
-            res.json({err:"Error processing request ["+e+"]"},500)
+            res.json(500, {err:"Error processing request ["+e+"]"})
         }
 
     })
@@ -146,28 +149,27 @@ var loadApp = function(app){
 exports.startup = function(config){
     log.setLevel(config.logLevel || "info")
 
-    var app = express.createServer()
+    var app = express()
         if(config.loggerConf){
         log.inf("Using express logger")
         app.use(express.logger(config.loggerConf));
     }
+   app.use(bodyParser.json({limit: maxBody}))
+    app.use(methodOverride());
+
     app.set("bqClient",config.bqClientCreateFunction(config.bqConfig));
     app.set("basePath",config.basePath || "");
     app.set("singleNodeMaxReCall", config.singleNodeMaxReCall || 100);
 
-    app.use(express.limit(maxBody));
-    app.use(express.bodyParser());
-    app.use(express.methodOverride());
-
-    app.use(app.router);
+    
 
     loadApp(app)
 
-    app.listen(config.port)
+    this.socket = app.listen(config.port)
     console.log("http api running on ["+config.port+"]")
     this.app = app
 }
 
 exports.shutdown = function(){
-    this.app.close()
+    this.socket.close()
 }
