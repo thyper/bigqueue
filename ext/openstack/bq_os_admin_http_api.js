@@ -203,7 +203,7 @@ var loadApp = function(app){
       if(cache) {
         var cached = cache.get(cacheKey);
         if(cached && Object.keys(cached).length > 0) {
-          return res.writePretty(cached,200);
+          return res.writePretty(cached[cacheKey],200);
         }
       }
       app.settings.bqAdm.getClusterData(req.params.cluster,function(err,data){
