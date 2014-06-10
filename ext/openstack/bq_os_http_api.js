@@ -1,6 +1,7 @@
 var express = require('express'),
     log = require('node-logging'),
     bodyParser = require("body-parser"),
+    morgan = require("morgan"),
     methodOverride = require("method-override");
 var maxBody = "64kb"
 var bqClient
@@ -152,9 +153,9 @@ exports.startup = function(config){
     var app = express()
         if(config.loggerConf){
         log.inf("Using express logger")
-        app.use(express.logger(config.loggerConf));
+        app.use(morgan(config.loggerConf));
     }
-   app.use(bodyParser.json({limit: maxBody}))
+    app.use(bodyParser.json({limit: maxBody}))
     app.use(methodOverride());
 
     app.set("bqClient",config.bqClientCreateFunction(config.bqConfig));

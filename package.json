@@ -24,6 +24,7 @@
     "hiredis": "0.1.16",
     "json2yaml": "1.0.x",
     "method-override": "^2.0.2",
+    "morgan": "^1.1.1",
     "mysql": "2.0.1",
     "needle": "0.7.1",
     "node-cache": "^1.0.0",

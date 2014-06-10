@@ -4,6 +4,7 @@ var express = require('express'),
     keystoneMiddlware = require("../../ext/openstack/keystone_middleware.js"),
     bodyParser = require("body-parser"),
     NodeCache = require("node-cache"),
+    morgan = require("morgan"),
     YAML = require('json2yaml');
 
 var loadApp = function(app){
@@ -497,7 +498,7 @@ exports.startup = function(config){
     var app = express()
     if(config.loggerConf){
         log.inf("Using express logger")
-        app.use(express.logger(config.loggerConf));
+        app.use(morgan(config.loggerConf));
     }
     
     app.use(writeFilter())
