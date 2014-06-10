@@ -3,6 +3,7 @@ var express = require('express'),
     bqAdm = require('../../lib/bq_clusters_adm.js'),
     keystoneMiddlware = require("../../ext/openstack/keystone_middleware.js"),
     bodyParser = require("body-parser"),
+    NodeCache = require("node-cache"),
     YAML = require('json2yaml');
 
 var loadApp = function(app){
@@ -196,11 +197,21 @@ var loadApp = function(app){
     })
 
     app.get(app.settings.basePath+"/clusters/:cluster",function(req,res){
+      var cacheKey = "cluster_data-"+req.params.cluster;
+      var cache = app.settings.cache;
+      if(cache) {
+        var cached = cache.get(cacheKey);
+        if(cached && Object.keys(cached).length > 0) {
+          return res.writePretty(cached,200);
+        }
+      }
       app.settings.bqAdm.getClusterData(req.params.cluster,function(err,data){
           if(err){
               var errMsg = err.msg || ""+err
               return res.writePretty({"err":errMsg},err.code || 500)
           }
+          if(cache) 
+            cache.set(cacheKey, data);
           return res.writePretty(data,200)
       })
     })
@@ -481,6 +492,8 @@ exports.startup = function(config){
     //Default 5 days
     var authFilterConfig = {authExclusions : [/.*\/clusters\/\w+\/nodes($|\/.+$)/,/.*\/clusters\/\w+\/journals($|\/.+$)/,/\/tasks.*/]}
     var maxTtl = config.maxTtl || 3*24*60*60
+    var useCache = config.useCache != undefined ? config.useCache : true;
+    var cacheTtl = config.cacheTtl != undefined ? config.cacheTtl: 1;
     var app = express()
     if(config.loggerConf){
         log.inf("Using express logger")
@@ -501,6 +514,11 @@ exports.startup = function(config){
     app.set("basePath",config.basePath || "")
     app.set("maxTtl",maxTtl)
     app.set("bqAdm",bqAdm.createClustersAdminClient(config.admConfig))
+    if(useCache) {
+      app.set("cache", new NodeCache({ stdTTL: cacheTtl, checkperiod: 1 }));
+    } else {
+      app.set("cache", false);
+    }
     loadApp(app)
     app.running = true;
     this.socket = app.listen(config.port)

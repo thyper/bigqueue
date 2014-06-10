@@ -37,8 +37,9 @@ describe("openstack admin http api",function(){
         "admConfig":admConfig,
         "port":8081,
         "maxTtl":500,
-        "logLevel":"critical"
-    }
+        "logLevel":"critical",
+        "useCache": false
+   }
 
     var keystoneConfig = {
         "keystoneUrl":"http://localhost:35357/v2.0",
