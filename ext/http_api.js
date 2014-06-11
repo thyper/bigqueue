@@ -53,7 +53,7 @@ var loadApp = function(app){
         try{
             bqClient.getConsumerGroups(req.params.topic,function(err,data){
                 if(err){
-                    log.err("Error creating consumer group ["+log.pretty(req.params)+"] ["+err+"]")
+                    log.err("Error creating consumer group [%j] [%s]", req.params, err)
                     var err = err.msg || ""+err
                     res.json(err.code || 400, {err:""+err})
                 }else{
