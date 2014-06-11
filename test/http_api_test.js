@@ -3,7 +3,7 @@ var should = require('should'),
     httpApi = require("../ext/http_api.js")
     redis = require('redis'),
     request = require('request'),
-    log = require("node-logging")
+    log = require("winston")
 
 describe("http api",function(){
     var redisClient
