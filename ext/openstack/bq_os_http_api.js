@@ -1,5 +1,5 @@
 var express = require('express'),
-    log = require('node-logging'),
+    log = require('winston'),
     bodyParser = require("body-parser"),
     morgan = require("morgan"),
     methodOverride = require("method-override");
@@ -75,10 +75,8 @@ var loadApp = function(app){
             return res.json(400, {"err": "Invalid X-NodeId header"});
           }
         }
-        timer("Starting message get")
 
         function onMessage(err,data){
-            timer("Message getted")
             if(err){
                 if(typeof(err) == "string")
                     res.json(400, {"err":""+err})
@@ -106,10 +104,8 @@ var loadApp = function(app){
                       res.setHeader("X-Remaining",remaining);
                       res.setHeader("X-NodeId",nodeId+"@"+nodeCallCount);
                     }
-                    timer("Getted message througt web-api")
                     res.json(200, data)
                 }else{
-                    timer("Getted void message throught web-api")
                     res.json(204, {})
                 }
             }
@@ -122,7 +118,7 @@ var loadApp = function(app){
             app.settings.bqClient.getMessage(topic,consumer,req.query.visibilityWindow,onMessage)
           }
         }catch(e){
-            log.err("Error getting message ["+e+"]")
+            log.log("error", "Error getting message [%s]",e)
             res.json(500, {err:"Error processing request ["+e+"]"})
         }
     })
@@ -140,7 +136,7 @@ var loadApp = function(app){
                 }
             })
         }catch(e){
-            log.err("Error deleting message ["+e+"]")
+            log.log("error", "Error deleting message [%s]",e)
             res.json(500, {err:"Error processing request ["+e+"]"})
         }
 
@@ -148,11 +144,9 @@ var loadApp = function(app){
 }
 
 exports.startup = function(config){
-    log.setLevel(config.logLevel || "info")
-
     var app = express()
         if(config.loggerConf){
-        log.inf("Using express logger")
+        log.log("info", "Using express logger")
         app.use(morgan(config.loggerConf));
     }
     app.use(bodyParser.json({limit: maxBody}))

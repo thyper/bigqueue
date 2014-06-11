@@ -7,6 +7,10 @@ var should = require('should'),
     async = require("async");
 
 describe("Clusters administration for multicluster purposes",function(){
+    try {
+      //If any other removes it will fail
+      log.remove(log.transports.Console);
+    }catch(e) {}
     var mysqlConf = {
      host     : '127.0.0.1',
      user     : 'root',

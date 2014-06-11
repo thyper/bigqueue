@@ -5,11 +5,11 @@ var should = require('should'),
 
 describe("Big Queue Client",function(){
     
+    log.remove(log.transports.Console);
     var redisClient
     var redisConf= {host:"127.0.0.1",port:6379}
     var bqClient
     before(function(done){
-        log.setLevel("critical")
         bqClient = bq.createClient(redisConf)
         bqClient.on("ready",function(){
             redisClient = redis.createClient(redisConf.port,redisConf.host)

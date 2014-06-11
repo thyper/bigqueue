@@ -46,7 +46,6 @@ describe("Open stack http api",function(){
     });
 
     before(function(done){
-        log.setLevel("critical")
         redisClient = redis.createClient(redisConf.port,redisConf.host,{"return_buffers":false})
         redisClient.on("ready",function(){
             httpApi.startup(httpApiConf,function(err){

@@ -11,7 +11,9 @@ var should = require('should'),
 
 var j = 0
 describe("Big Queue Cluster",function(){
-    
+    try {
+      log.remove(log.transports.Console);
+    } catch(e){}
     var bqClientConfig = {
         "refreshInterval":10,
         "cluster": "test",
@@ -67,7 +69,6 @@ describe("Big Queue Cluster",function(){
           return this.send_command(command, args, callback);
         }
 
-        log.setLevel("critical")
         async.parallel([
           function(cb) {
             redisClient1 = redis.createClient(6379,"127.0.0.1",{"return_buffers":false})

@@ -1,5 +1,5 @@
 var express = require('express'),
-    log = require('node-logging'),
+    log = require('winston'),
     bodyParser = require("body-parser"),
     morgan = require("morgan"),
     methodOverride = require("method-override");
@@ -19,7 +19,7 @@ var loadApp = function(app){
                 res.json(200, data)
             })
         }catch(e){
-            log.err("Error getting topics ["+e+"]")
+            log.log("error", "Error getting topics ["+e+"]")
             res.json(500, {err:"Error processing request ["+e+"]"})
         }
 
@@ -36,7 +36,7 @@ var loadApp = function(app){
             }
             bqClient.createTopic(topic.name,function(err){  
                 if(err){
-                    log.err("Error creating topic ["+err+"]")
+                    log.error("Error creating topic [%j]", err)
                     var err = err.msg || ""+err
                     return res.json(err.code || 409, {err:err});
                 }else{
@@ -44,7 +44,7 @@ var loadApp = function(app){
                 }
             })
         }catch(e){
-            log.err("Error creating topic ["+e+"]")
+            log.log("error", "Error creating topic ["+e+"]")
             return res.json(500, {err:"Error processing request ["+e+"]"});
         }
     })
@@ -53,7 +53,7 @@ var loadApp = function(app){
         try{
             bqClient.getConsumerGroups(req.params.topic,function(err,data){
                 if(err){
-                    log.err("Error creating consumer group [%j] [%s]", req.params, err)
+                    log.log("error", "Error creating consumer group [%j] [%s]", req.params, err)
                     var err = err.msg || ""+err
                     res.json(err.code || 400, {err:""+err})
                 }else{
@@ -61,7 +61,7 @@ var loadApp = function(app){
                 }
             })
         }catch(e){
-            log.err("Error creating consumer group ["+e+"]")
+            log.log("error", "Error creating consumer group ["+e+"]")
             res.json(500, {err:"Error processing request ["+e+"]"})
         }
 
@@ -93,7 +93,6 @@ var loadApp = function(app){
     })
 
     app.post("/topics/:topic/messages",function(req,res){
-        var timer = log.startTimer()
         if(!req.is("json")){
             return res.json(400, {err:"Message should be json"})
         }
@@ -105,23 +104,19 @@ var loadApp = function(app){
                     message[val] = JSON.stringify(message[val])
                 }
             })
-            timer("[REST-API] Json keys stringified")
         }catch(e){
             return res.json(400, {err:"Error parsing json ["+e+"]"})
         }
         try{
-            timer("[REST-API] Starting data save")
             bqClient.postMessage(req.params.topic,message,function(err,data){
-                timer("[REST-API]Posted message receive")
                 if(err){
                    var err = err.msg || ""+err
                    return res.json(err.code || 400, {"err":err})
                 }
                 return res.json(201, data)
-                timer("[REST-API] Post user responsed")
             })
         }catch(e){
-            log.err("Error posting message ["+e+"]")
+            log.log("error", "Error posting message ["+e+"]")
             return res.json({err:"Error processing request ["+e+"]"},500)
         }
     })
@@ -173,7 +168,6 @@ var loadApp = function(app){
     app.get("/topics/:topic/consumers/:consumer/messages",function(req,res){
       counter++
       res.setHeader("X-NodeId",counter)
-        var timer = log.startTimer()
         try{
             bqClient.getMessage(req.params.topic,req.params.consumer,req.query.visibilityWindow,function(err,data){
                 if(err){
@@ -191,17 +185,15 @@ var loadApp = function(app){
                                 }
                             }
                         })
-                        timer("Getted message througt web-api")
 
                         res.json(200, data)
                     }else{
-                        timer("Getted void message throught web-api")
                         res.json(204, {})
                     }
                 }
             })
         }catch(e){
-            log.err("Error getting message ["+e+"]")
+            log.log("error", "Error getting message ["+e+"]")
             res.json(500, {err:"Error processing request ["+e+"]"})
         }
     })
@@ -217,7 +209,7 @@ var loadApp = function(app){
                 }
             })
         }catch(e){
-            log.err("Error deleting message ["+e+"]")
+            log.log("error", "Error deleting message ["+e+"]")
             res.json(500, {err:"Error processing request ["+e+"]"})
         }
 
@@ -234,7 +226,7 @@ var loadApp = function(app){
                 }
             })
         }catch(e){
-            log.err("Error getting the stats for consumer")
+            log.log("error", "Error getting the stats for consumer")
             res.json(500, {err:"Error processing request ["+e+"]"})
         }
     })
@@ -243,7 +235,7 @@ var loadApp = function(app){
         try{
             bqClient.getConsumerGroups(req.params.topic,function(err,consumers){
                 if(err){
-                    log.err("Error getting consumer groups for topic, error: "+err)
+                    log.log("error", "Error getting consumer groups for topic, error: "+err)
                     var err = err.msg || ""+err
                     res.json(err.code || 400, {"err":err})
                     return
@@ -274,7 +266,7 @@ var loadApp = function(app){
                 })
             })
         }catch(e){
-            log.err("Error getting the stats for topic")
+            log.log("error", "Error getting the stats for topic")
             res.json(500, {err:"Error processing request ["+e+"]"})
         }
     })
@@ -283,11 +275,10 @@ var loadApp = function(app){
 
 
 exports.startup = function(config){
-    log.setLevel(config.logLevel || "info")
 
     var app = express()
         if(config.loggerConf){
-        log.inf("Using express logger")
+        log.log("info", "Using express logger")
         app.use(morgan(config.loggerConf));
     }
     app.use(bodyParser({limit: maxBody}));
