@@ -862,7 +862,7 @@ describe("Clusters administration for multicluster purposes",function(){
                 },
                 {
                   topic_id:"topic2",
-                  head: 1,
+                  topic_head: 1,
                   consumers: [
                    {
                      consumer_id: "consumer3",
@@ -914,6 +914,7 @@ describe("Clusters administration for multicluster purposes",function(){
             topics_stats: [
               {
                 topic_id: "topic1",
+                topic_head:1,
                 consumers: [
                   {
                    consumer_id: "consumer1",
@@ -932,6 +933,7 @@ describe("Clusters administration for multicluster purposes",function(){
               topics_stats: [
                 {
                   topic_id: "topic1",
+                  topic_head: 1,
                   consumers: [
                     {
                      consumer_id: "consumer1",
@@ -966,6 +968,7 @@ describe("Clusters administration for multicluster purposes",function(){
             topics_stats: [
               {
                 topic_id: "topic1",
+                topic_head: 1,
                 consumers_prop_error: [
                   {
                    consumer_id: "consumer1",
@@ -989,6 +992,7 @@ describe("Clusters administration for multicluster purposes",function(){
             topics_stats: [
               {
                 topic_id: "test-test-t1",
+                topic_head: 1,
                 consumers: [
                   {
                    consumer_id: "test-test-c1",
@@ -1007,6 +1011,7 @@ describe("Clusters administration for multicluster purposes",function(){
             topics_stats: [
               {
                 topic_id: "test-test-t1",
+                topic_head: 1,
                 consumers: [
                   {
                    consumer_id: "test-test-c1",
@@ -1040,6 +1045,7 @@ describe("Clusters administration for multicluster purposes",function(){
           topics_stats: [
             {
               topic_id: "test-test-t1",
+              topic_head: 1,
               consumers: [
                 {
                  consumer_id: "test-test-c1",
@@ -1058,6 +1064,7 @@ describe("Clusters administration for multicluster purposes",function(){
             topics_stats: [
               {
                 topic_id: "test-test-t1",
+                topic_head: 1,
                 consumers: [
                   {
                    consumer_id: "test-test-c1",
