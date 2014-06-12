@@ -7,7 +7,8 @@
  */
 var bq = require('../lib/bq_client.js'),
     bqc = require('../lib/bq_cluster_client.js'),
-    http_api = require("../ext/openstack/bq_os_http_api.js")
+    http_api = require("../ext/openstack/bq_os_http_api.js"),
+    log = require("../lib/bq_logger.js");
 
 var cluster = require('cluster');
 var http = require('http');
@@ -38,6 +39,7 @@ if(externalConfig){
     config = httpApiConfig
 }
 
+log.setLevel(config.logLevel || "error");
 //Run config
 console.log("Using config: "+JSON.stringify(config))
 

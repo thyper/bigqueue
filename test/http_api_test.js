@@ -3,7 +3,7 @@ var should = require('should'),
     httpApi = require("../ext/http_api.js")
     redis = require('redis'),
     request = require('request'),
-    log = require("node-logging")
+    log = require("../lib/bq_logger.js")
 
 describe("http api",function(){
     var redisClient
@@ -18,7 +18,6 @@ describe("http api",function(){
     }
 
     before(function(done){
-        log.setLevel("critical")
         redisClient = redis.createClient(6379,"127.0.0.1",{"return_buffers":false})
         redisClient.on("ready",function(){
             httpApi.startup(httpApiConf,function(err){

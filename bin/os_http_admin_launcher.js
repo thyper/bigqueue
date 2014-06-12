@@ -6,6 +6,7 @@
  * will use a redis localhost running at default port
  */
 var adm_api = require("../ext/openstack/bq_os_admin_http_api.js");
+var log = require("../lib/bq_logger.js");
 var cluster = require('cluster');
 var http = require('http');
 var numCPUs = require('os').cpus().length;
@@ -39,6 +40,7 @@ var config
 console.log(externalConfig)
 console.log("Loading ["+externalConfig+"]");
 config = require(externalConfig).httpApiConfig;
+log.setLevel(config.logLevel || "error");
 
 //Run config
 console.log("Using config: "+JSON.stringify(config))

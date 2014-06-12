@@ -1,12 +1,16 @@
 var should = require('should'),
     request = require('request'),
-    log = require("node-logging"),
+    log = require("../lib/bq_logger.js"),
     utils = require('../lib/bq_client_utils.js'),
     bqadm = require("../lib/bq_clusters_adm.js"),
     mysql = require("mysql"),
     async = require("async");
 
 describe("Clusters administration for multicluster purposes",function(){
+    try {
+      //If any other removes it will fail
+      log.remove(log.transports.Console);
+    }catch(e) {}
     var mysqlConf = {
      host     : '127.0.0.1',
      user     : 'root',

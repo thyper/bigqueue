@@ -1,15 +1,18 @@
 var should = require('should'),
     redis = require('redis'),
     bj = require('../lib/bq_journal_client_redis.js'),
-    log = require("node-logging")
+    log = require("../lib/bq_logger.js")
 
 describe("Big Queue Redis Journal Client",function(){
-    
+    try {    
+      //If any other removes it will fail
+      log.remove(log.transports.Console);
+    }catch(e) {
+    }
     var redisClient
     var redisConf= {host:"127.0.0.1",port:6379}
     var journal 
     before(function(done){
-        log.setLevel("critical")
         journal = bj.createJournalClient(redisConf)
         journal.on("ready",function(){
             redisClient = redis.createClient(redisConf.port,redisConf.host,{"return_buffers":false})

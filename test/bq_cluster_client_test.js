@@ -4,14 +4,13 @@ var should = require('should'),
     bq = require('../lib/bq_client.js'),
     bj = require("../lib/bq_journal_client_redis.js"),
     bqc = require('../lib/bq_cluster_client.js'),
-    log = require('node-logging'),
+    log = require('../lib/bq_logger'),
     fs = require('fs'),
     async = require("async"),
     nock = require('nock');
 
 var j = 0
 describe("Big Queue Cluster",function(){
-    
     var bqClientConfig = {
         "refreshInterval":10,
         "cluster": "test",
@@ -67,7 +66,6 @@ describe("Big Queue Cluster",function(){
           return this.send_command(command, args, callback);
         }
 
-        log.setLevel("critical")
         async.parallel([
           function(cb) {
             redisClient1 = redis.createClient(6379,"127.0.0.1",{"return_buffers":false})

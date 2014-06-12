@@ -1,5 +1,5 @@
 var express = require('express'),
-    log = require('node-logging'),
+    log = require('../../lib/bq_logger.js'),
     bqAdm = require('../../lib/bq_clusters_adm.js'),
     keystoneMiddlware = require("../../ext/openstack/keystone_middleware.js"),
     bodyParser = require("body-parser"),
@@ -489,7 +489,6 @@ var writeFilter = function(){
 }
 
 exports.startup = function(config){
-    log.setLevel(config.logLevel || "info")
     //Default 5 days
     var authFilterConfig = {authExclusions : [/.*\/clusters\/\w+\/nodes($|\/.+$)/,/.*\/clusters\/\w+\/journals($|\/.+$)/,/\/tasks.*/]}
     var maxTtl = config.maxTtl || 3*24*60*60
@@ -497,7 +496,7 @@ exports.startup = function(config){
     var cacheTtl = config.cacheTtl != undefined ? config.cacheTtl: 1;
     var app = express()
     if(config.loggerConf){
-        log.inf("Using express logger")
+        log.log("info", "Using express logger")
         app.use(morgan(config.loggerConf));
     }
     

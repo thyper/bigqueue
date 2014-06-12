@@ -1,5 +1,5 @@
 var TasksJob = require("../lib/bq_tasks_job.js"),
-    log = require("node-logging");
+    log = require("../lib/bq_logger.js");
 
 var config
 if(process.argv.length != 3){
@@ -8,6 +8,8 @@ if(process.argv.length != 3){
   console.log("Config and type of job ('onetime', 'daemon') should be sent as parameter");
   process.exit(1);
 }
+
+log.setLevel(config.logLevel || "error");
 
 var job = new TasksJob(config); 
 var type = process.argv[3];
