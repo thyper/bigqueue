@@ -1,5 +1,5 @@
 var express = require('express'),
-    log = require('winston'),
+    log = require('../../lib/bq_logger.js'),
     bodyParser = require("body-parser"),
     morgan = require("morgan"),
     methodOverride = require("method-override");

@@ -1,8 +1,7 @@
 #!/usr/local/bin/node 
 
 var bq = require("../lib/bq_client.js"),
-    log = require("node-logging");
-log.setLevel('error');
+    log = require("../lib/bq_logger.js");
 var externalConfig = process.argv[2]
 
 var config 
@@ -11,6 +10,7 @@ if(externalConfig){
 }else{
     config = {host:"127.0.0.1",port:6379}
 }
+log.setLevel(config.logLevel || "error");
 
 var bqClient = bq.createClient(config)
 

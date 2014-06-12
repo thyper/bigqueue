@@ -1,11 +1,10 @@
 var should = require('should'),
     redis = require('redis'),
     bq = require('../lib/bq_client.js'),
-    log = require("winston")
+    log = require("../lib/bq_logger.js")
 
 describe("Big Queue Client",function(){
     
-    log.remove(log.transports.Console);
     var redisClient
     var redisConf= {host:"127.0.0.1",port:6379}
     var bqClient

@@ -1,7 +1,7 @@
 var bq = require("../lib/bq_client.js"),
     bqj = require("../lib/bq_journal_client_redis.js"),
     sync = require("../lib/bq_sync.js"),
-    log = require("node-logging");
+    log = require("../lib/bq_logger.js");
 
 var config
 if(process.argv.length != 2){
@@ -15,6 +15,7 @@ var syncProcess;
 var full;
 var syncObj = new sync(config);
 
+log.setLevel(config.logLevel || "error");
 console.log("Starting sync");
 
 syncObj.syncProcess(process.argv[3], function(err) {

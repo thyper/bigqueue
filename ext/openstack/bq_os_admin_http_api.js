@@ -1,5 +1,5 @@
 var express = require('express'),
-    log = require('winston'),
+    log = require('../../lib/bq_logger.js'),
     bqAdm = require('../../lib/bq_clusters_adm.js'),
     keystoneMiddlware = require("../../ext/openstack/keystone_middleware.js"),
     bodyParser = require("body-parser"),

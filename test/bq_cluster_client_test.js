@@ -4,16 +4,13 @@ var should = require('should'),
     bq = require('../lib/bq_client.js'),
     bj = require("../lib/bq_journal_client_redis.js"),
     bqc = require('../lib/bq_cluster_client.js'),
-    log = require('winston'),
+    log = require('../lib/bq_logger'),
     fs = require('fs'),
     async = require("async"),
     nock = require('nock');
 
 var j = 0
 describe("Big Queue Cluster",function(){
-    try {
-      log.remove(log.transports.Console);
-    } catch(e){}
     var bqClientConfig = {
         "refreshInterval":10,
         "cluster": "test",

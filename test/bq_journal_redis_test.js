@@ -1,7 +1,7 @@
 var should = require('should'),
     redis = require('redis'),
     bj = require('../lib/bq_journal_client_redis.js'),
-    log = require("winston")
+    log = require("../lib/bq_logger.js")
 
 describe("Big Queue Redis Journal Client",function(){
     try {    

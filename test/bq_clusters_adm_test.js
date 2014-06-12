@@ -1,6 +1,6 @@
 var should = require('should'),
     request = require('request'),
-    log = require("winston"),
+    log = require("../lib/bq_logger.js"),
     utils = require('../lib/bq_client_utils.js'),
     bqadm = require("../lib/bq_clusters_adm.js"),
     mysql = require("mysql"),
