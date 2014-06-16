@@ -221,7 +221,7 @@ var loadApp = function(app){
         if(!req.query || Object.keys(req.query).length == 0) {
           res.writePretty({err: "Criteria must be used for this resoruce (tenant_name, tenant_id as example)"}, 400);
         }
-        app.settings.bqAdm.getTopicDataByCriteria(req.query,function(err,data){
+        app.settings.bqAdm.listTopicsByCriteria(req.query,function(err,data){
            if(err){
                 var errMsg = err.msg || ""+err
                 return res.writePretty({"err":errMsg},err.code || 500)
