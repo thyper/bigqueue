@@ -218,11 +218,10 @@ var loadApp = function(app){
     })
 
     app.get(app.settings.basePath+"/topics",function(req,res){
-        var group = req.query[app.settings.groupEntity]
-        if(!req.query.tenant_id){
-            return res.writePretty({err:"The parameter ["+app.settings.groupEntity+"] must be set"},400)
+        if(!req.query || Object.keys(req.query).length == 0) {
+          res.writePretty({err: "Criteria must be used for this resoruce (tenant_name, tenant_id as example)"}, 400);
         }
-        app.settings.bqAdm.getTopicDataByCriteria({tenant_id:req.query.tenant_id},function(err,data){
+        app.settings.bqAdm.getTopicDataByCriteria(req.query,function(err,data){
            if(err){
                 var errMsg = err.msg || ""+err
                 return res.writePretty({"err":errMsg},err.code || 500)

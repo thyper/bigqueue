@@ -6,7 +6,7 @@ var externalConfig = process.argv[2]
 
 var config 
 if(externalConfig){
-    config = require(externalConfig).orchestratorConfig
+    config = require(externalConfig).metrics_stats
 }else{
     config = {host:"127.0.0.1",port:6379}
 }
