@@ -493,7 +493,7 @@ exports.startup = function(config){
     var authFilterConfig = {authExclusions : [/.*\/clusters\/\w+\/nodes($|\/.+$)/,/.*\/clusters\/\w+\/journals($|\/.+$)/,/\/tasks.*/]}
     var maxTtl = config.maxTtl || 3*24*60*60
     var useCache = config.useCache != undefined ? config.useCache : true;
-    var cacheTtl = config.cacheTtl != undefined ? config.cacheTtl: 1;
+    var cacheTtl = config.cacheTtl != undefined ? config.cacheTtl: 5;
     var app = express()
     if(config.loggerConf){
         log.log("info", "Using express logger")
