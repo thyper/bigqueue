@@ -501,7 +501,7 @@ exports.startup = function(config){
     }
     if(app.config && app.config.jsdog != undefined) {
       if(app.config.jsdog.enabled != undefined) {
-        jsdog.enable(app.config.jsdog.enabled);        
+        jsdog.enabled(app.config.jsdog.enabled);        
       }
     }    
     app.use(writeFilter())

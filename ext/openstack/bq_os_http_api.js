@@ -158,7 +158,7 @@ exports.startup = function(config){
     app.set("singleNodeMaxReCall", config.singleNodeMaxReCall || 100);
     if(config && config.jsdog != undefined) {
       if(config.jsdog.enable != undefined) {
-        jsdog.enable(config.jsdog.enable);
+        jsdog.enabled(config.jsdog.enable);
       }
     }
     
