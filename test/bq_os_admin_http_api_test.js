@@ -526,6 +526,26 @@ describe("openstack admin http api",function(){
                 })
             })
         });
+        it("Should return full data if format complet if not only nodes and basic info", function(done) {
+              request({
+                  url:"http://127.0.0.1:8081/clusters/test?format=complete",
+                  method:"GET",
+                  json:true
+              },function(error,response,body){
+                  response.statusCode.should.equal(200)
+                  should.exist(body.topics)
+                  request({
+                      url:"http://127.0.0.1:8081/clusters/test",
+                      method:"GET",
+                      json:true
+                  },function(error,response,body){
+                      response.statusCode.should.equal(200)
+                      should.not.exist(body.topics)
+                      done()
+                  })
+              })
+
+        });
         it("should support create topics into any cluster using your tenant id",function(done){
              request({
                 url:"http://127.0.0.1:8081/clusters/test2?format=complete",
