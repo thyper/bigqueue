@@ -2,7 +2,8 @@ var express = require('express'),
     log = require('../../lib/bq_logger.js'),
     bodyParser = require("body-parser"),
     morgan = require("morgan"),
-    methodOverride = require("method-override");
+    methodOverride = require("method-override"),
+    jsdog = require("jsdog").configure();
 var maxBody = "64kb"
 var bqClient
 
@@ -155,7 +156,11 @@ exports.startup = function(config){
     app.set("bqClient",config.bqClientCreateFunction(config.bqConfig));
     app.set("basePath",config.basePath || "");
     app.set("singleNodeMaxReCall", config.singleNodeMaxReCall || 100);
-
+    if(config && config.jsdog != undefined) {
+      if(config.jsdog.enable != undefined) {
+        jsdog.enable(config.jsdog.enable);
+      }
+    }
     
 
     loadApp(app)

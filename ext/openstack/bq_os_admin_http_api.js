@@ -5,7 +5,8 @@ var express = require('express'),
     bodyParser = require("body-parser"),
     NodeCache = require("node-cache"),
     morgan = require("morgan"),
-    YAML = require('json2yaml');
+    YAML = require('json2yaml'),
+    jsdog = require("jsdog").configure();
 
 var loadApp = function(app){
     var authorizeTenant = function(userData,tenantId){
@@ -498,7 +499,11 @@ exports.startup = function(config){
         log.log("info", "Using express logger")
         app.use(morgan(config.loggerConf));
     }
-    
+    if(app.config && app.config.jsdog != undefined) {
+      if(app.config.jsdog.enabled != undefined) {
+        jsdog.enable(app.config.jsdog.enabled);        
+      }
+    }    
     app.use(writeFilter())
     app.enable("jsonp callback")
         
