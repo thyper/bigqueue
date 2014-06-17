@@ -484,7 +484,7 @@ describe("openstack admin http api",function(){
         })
         it("should support create topics into the default cluster using your tenant id",function(done){
             request({
-                url:"http://127.0.0.1:8081/clusters/test",
+                url:"http://127.0.0.1:8081/clusters/test?format=complete",
                 method:"GET",
                 json:true
             },function(error,response,body){
@@ -497,7 +497,7 @@ describe("openstack admin http api",function(){
                 },function(error,response,body){
                     response.statusCode.should.equal(201)
                     request({
-                        url:"http://127.0.0.1:8081/clusters/test",
+                        url:"http://127.0.0.1:8081/clusters/test?format=complete",
                         method:"GET",
                         json:true
                     },function(error,response,body){
@@ -510,7 +510,7 @@ describe("openstack admin http api",function(){
         })
         it("should get an error if the topic contains ':'", function(done) {
            request({
-                  url:"http://127.0.0.1:8081/clusters/test",
+                url:"http://127.0.0.1:8081/clusters/test?format=complete",
                 method:"GET",
                 json:true
             },function(error,response,body){
@@ -528,7 +528,7 @@ describe("openstack admin http api",function(){
         });
         it("should support create topics into any cluster using your tenant id",function(done){
              request({
-                url:"http://127.0.0.1:8081/clusters/test2",
+                url:"http://127.0.0.1:8081/clusters/test2?format=complete",
                 method:"GET",
                 json:true
             },function(error,response,body){
@@ -541,7 +541,7 @@ describe("openstack admin http api",function(){
                 },function(error,response,body){
                     response.statusCode.should.equal(201)
                     request({
-                        url:"http://127.0.0.1:8081/clusters/test2",
+                        url:"http://127.0.0.1:8081/clusters/test2?format=complete",
                         method:"GET",
                         json:true
                     },function(error,response,body){
@@ -689,7 +689,7 @@ describe("openstack admin http api",function(){
           function(cb){
                 request({
                 url:"http://127.0.0.1:8081/topics/1234-test-test/consumers",
-                    method:"POST",
+                method:"POST",
                 json:{"tenant_id":"456","tenant_name":"test", "name":"test-consumer"}
                 },function(error,response,body){
                     response.statusCode.should.equal(201)

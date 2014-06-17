@@ -207,7 +207,8 @@ var loadApp = function(app){
           return res.writePretty(cached[cacheKey],200);
         }
       }
-      app.settings.bqAdm.getClusterData(req.params.cluster,function(err,data){
+      var full = req.query && req.query.format && req.query.format == "complete" ? true : false;
+      app.settings.bqAdm.getClusterData(req.params.cluster, full,function(err,data){
           if(err){
               var errMsg = err.msg || ""+err
               return res.writePretty({"err":errMsg},err.code || 500)
