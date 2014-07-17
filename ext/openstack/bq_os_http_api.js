@@ -3,7 +3,7 @@ var express = require('express'),
     bodyParser = require("body-parser"),
     morgan = require("morgan"),
     methodOverride = require("method-override"),
-    jsdog = require("jsdog").configure();
+    jsdog = require("jsdog-meli").configure();
 var maxBody = "64kb"
 var bqClient
 

@@ -6,7 +6,7 @@ var express = require('express'),
     NodeCache = require("node-cache"),
     morgan = require("morgan"),
     YAML = require('json2yaml'),
-    jsdog = require("jsdog").configure();
+    jsdog = require("jsdog-meli").configure();
 
 var loadApp = function(app){
     var authorizeTenant = function(userData,tenantId){
